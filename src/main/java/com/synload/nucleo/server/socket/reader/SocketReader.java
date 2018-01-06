@@ -17,7 +17,23 @@ public class SocketReader implements Runnable {
     private boolean keepRunning;
     private ClassLoader cl;
     private SocketClient client;
+    private int u = 0;
     private DataInputStream input;
+    private class ReadInteger implements Runnable{
+        public ReadInteger(){
+
+        }
+        public void run(){
+            while(true) {
+                System.out.println(client.getIdentifier().toString()+": "+u+" s:"+client.getQueue().getSize().get());
+                try{
+                    Thread.sleep(2000);
+                }catch (InterruptedException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
     public SocketReader(DataInputStream input, SocketClient client, ClassLoader cl){
         this(input, client, true, cl);
     }
@@ -26,6 +42,7 @@ public class SocketReader implements Runnable {
         this.keepRunning = keepRunning;
         this.cl = cl;
         this.client = client;
+        new Thread(new ReadInteger()).start();
     }
     public Object read(int length) throws IOException{
         int reading = 1024*1024*8;
@@ -42,7 +59,7 @@ public class SocketReader implements Runnable {
         }
         if(bdata.size()>0){
             ByteArrayInputStream bas = new ByteArrayInputStream(bdata.toByteArray());
-            ObjectLoader in = new ObjectLoader(cl, bas);
+            ObjectLoader in = new ObjectLoader(new EventClassLoader(cl), bas);
             try {
                 Object obj = in.readObject();
                 return obj;
@@ -54,6 +71,7 @@ public class SocketReader implements Runnable {
     }
     public void run() {
         try {
+
             while (keepRunning) {
                 if(input.available()>0) {
                     int length = input.readInt();
@@ -62,12 +80,13 @@ public class SocketReader implements Runnable {
                         Object data = read(length);
                         //System.out.println("length: "+length);
                         if(data!=null){
-                            System.out.println("Communication received");
+                            //System.out.println("Communication received");
 
                             if(Data.class.isInstance(data)){
                                 Data t = (Data) data;
                                 //System.out.println(t.string);
-                                t.string="changed string";
+                                u++;
+                                t.string="changed string "+u+" step";
                                 this.getClient().getQueue().add(t);
                             }
 

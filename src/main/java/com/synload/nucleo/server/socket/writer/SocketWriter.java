@@ -43,7 +43,7 @@ public class SocketWriter implements Runnable {
                         }
                     }
                 }
-                Thread.sleep(1L);
+                Thread.sleep(10);
             }
 
         } catch (InterruptedException e) {

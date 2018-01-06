@@ -1,9 +1,11 @@
 package com.synload.nucleo.utils;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class QueueList{
     private Node last=null;
     private Node first=null;
-    private int size = 0;
+    private AtomicInteger size = new AtomicInteger(0);
     private Action a;
     private Object read=null;
     private class Node{
@@ -40,14 +42,12 @@ public class QueueList{
             }
         }
         public void add(Object o){
-
             i++;
             if(i>=50){
                 i=0;
             }
             objectWriteQueue[i]=o;
             //System.out.println("i: "+i+" j: "+j);
-
         }
         public void removeFirst(){
             Node n = queue.getFirst();
@@ -61,7 +61,8 @@ public class QueueList{
         }
         public void add(){
             int k=j;
-            while( k>i || k<i ) {
+            int iT=i;
+            while( k>iT || k<iT ) {
                 k++;
                 if(k>=50){
                     k=0;
@@ -77,10 +78,20 @@ public class QueueList{
                     if (queue.getFirst() == null) {
                         queue.setFirst(n);
                     }
+                    sizeIncrement();
                 }
             }
             j=k;
         }
+    }
+    public void sizeIncrement()
+    {
+        size.incrementAndGet();
+    }
+
+    public void sizeDecrement()
+    {
+        size.decrementAndGet();
     }
     public QueueList(){
         a = new Action(this);
@@ -95,9 +106,13 @@ public class QueueList{
     }
 
     public Object getRead() {
-        Object o = read;
-        read = null;
-        return o;
+        if(hasNext()) {
+            sizeDecrement();
+            Object o = read;
+            read = null;
+            return o;
+        }
+        return null;
     }
 
     public void setRead(Object read) {
@@ -112,19 +127,15 @@ public class QueueList{
         this.last = last;
     }
 
+    public AtomicInteger getSize() {
+        return size;
+    }
+
     public Node getFirst() {
         return first;
     }
 
     public void setFirst(Node first) {
         this.first = first;
-    }
-
-    public int getSize() {
-        return size;
-    }
-
-    public void setSize(int size) {
-        this.size = size;
     }
 }
