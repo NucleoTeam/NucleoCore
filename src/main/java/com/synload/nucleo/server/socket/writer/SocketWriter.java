@@ -6,8 +6,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.net.SocketException;
-import java.util.List;
 import org.apache.commons.io.IOUtils;
 
 public class SocketWriter implements Runnable {

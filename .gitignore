@@ -1,3 +1,5 @@
 .gradle
 gradle
 out
+.idea
+build
