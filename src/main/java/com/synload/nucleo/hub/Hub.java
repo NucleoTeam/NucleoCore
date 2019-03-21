@@ -39,6 +39,9 @@ public class Hub {
   public void register(Class... clazzez){
     LoadHandler.getMethods(clazzez).forEach((m)->new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap)).start());
   }
+  public void register(Object... clazzez){
+    LoadHandler.getMethods(clazzez).forEach((m)->new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap)).start());
+  }
   public class Writer implements Runnable {
 
     private Hub hub;

@@ -57,7 +57,7 @@ public class NucleoMesh {
   public static void main(String[] args){
     //createTopic();
     NucleoMesh mesh = new NucleoMesh( "root.1","192.168.1.225:9092", Thread.currentThread().getContextClassLoader());
-    mesh.getHub().register(InformationHandler.class, HitsHandler.class);
+    mesh.getHub().register(new InformationHandler(), new HitsHandler());
     mesh.getHub().run();
     TreeMap<String, Object> data = new TreeMap<String, Object>();
     data.put("wow", "works?");

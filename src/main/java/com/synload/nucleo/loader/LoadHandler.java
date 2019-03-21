@@ -18,7 +18,16 @@ public class LoadHandler {
     public static Set<Object[]> getMethods(Class... clazzez){
         Set<Object[]> methods = new HashSet<>();
         for ( Class clazz: clazzez ) {
-            for (Method method:clazz.getMethods()) {
+            for (Method method:clazz.getDeclaredMethods()) {
+                if(method.isAnnotationPresent(NucleoEvent.class)) methods.add(new Object[]{clazz, method});
+            }
+        }
+        return methods;
+    }
+    public static Set<Object[]> getMethods(Object... clazzez){
+        Set<Object[]> methods = new HashSet<>();
+        for ( Object clazz: clazzez ) {
+            for (Method method:clazz.getClass().getDeclaredMethods()) {
                 if(method.isAnnotationPresent(NucleoEvent.class)) methods.add(new Object[]{clazz, method});
             }
         }
