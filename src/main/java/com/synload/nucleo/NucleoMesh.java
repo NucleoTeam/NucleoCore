@@ -8,19 +8,16 @@ import com.synload.nucleo.information.InformationHandler;
 import com.synload.nucleo.loader.LoadHandler;
 
 import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 
 
 public class NucleoMesh {
   private Hub hub;
-  private ClassLoader classLoader;
   private String clientName;
 
-  public NucleoMesh( String clientName, String bootstrapServer, ClassLoader classLoader) {
-    hub = new Hub(bootstrapServer, clientName);
-    this.classLoader=classLoader;
+  public NucleoMesh( String clientName, String bootstrapServer, String groupName) {
+    hub = new Hub(bootstrapServer, clientName, groupName);
     this.clientName = clientName;
   }
 
@@ -56,9 +53,17 @@ public class NucleoMesh {
 
   public static void main(String[] args){
     //createTopic();
-    NucleoMesh mesh = new NucleoMesh( "root.1","192.168.1.225:9092", Thread.currentThread().getContextClassLoader());
+    NucleoMesh mesh = new NucleoMesh( "root.1","192.168.1.225:9092", "mesh");
     mesh.getHub().register(new InformationHandler(), new HitsHandler());
     mesh.getHub().run();
+    while(mesh.getHub().isReady()) {
+      try {
+        System.out.println("test");
+        Thread.sleep(1L);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
     TreeMap<String, Object> data = new TreeMap<String, Object>();
     data.put("wow", "works?");
     mesh.call("info.hits", data, new NucleoResponder(){

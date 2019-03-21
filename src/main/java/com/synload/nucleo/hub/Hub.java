@@ -21,11 +21,16 @@ public class Hub {
   private EventHandler eventHandler = new EventHandler();
   private TreeMap<String, NucleoResponder> responders = new TreeMap();
   private String bootstrap;
+  private ArrayList<Integer> ready = new ArrayList<>();
+  private String groupName;
 
-  public Hub(String bootstrap, String clientName) {
+  public Hub(String bootstrap, String clientName, String groupName) {
     this.bootstrap = bootstrap;
+    this.groupName = groupName;
     producer = new ProducerHandler(this.bootstrap);
-    new Thread(new Listener(this, "nucleo.client."+clientName, this.bootstrap)).start();
+    int id = ready.size();
+    ready.add(0);
+    new Thread(new Listener(this, "nucleo.client."+clientName, this.bootstrap, id)).start();
   }
   public void run(){
 
@@ -37,10 +42,18 @@ public class Hub {
     queue.add(new Object[]{data.getChain()[data.getLink()], data});
   }
   public void register(Class... clazzez){
-    LoadHandler.getMethods(clazzez).forEach((m)->new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap)).start());
+    LoadHandler.getMethods(clazzez).forEach((m)->{
+      int id = ready.size();
+      ready.add(0);
+      new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();
+    });
   }
   public void register(Object... clazzez){
-    LoadHandler.getMethods(clazzez).forEach((m)->new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap)).start());
+    LoadHandler.getMethods(clazzez).forEach((m)->{
+      int id = ready.size();
+      ready.add(0);
+      new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();
+    });
   }
   public class Writer implements Runnable {
 
@@ -83,10 +96,10 @@ public class Hub {
             );
             Future x = producer.getProducer().send(record);
             RecordMetadata metadata = (RecordMetadata) x.get();
-            System.out.println(metadata.topic());
-            System.out.println(metadata.partition());
-            System.out.println(metadata.serializedValueSize());
-            System.out.println(metadata.timestamp());
+            System.out.println("Topic:" + metadata.topic());
+            System.out.println("Partition: " + metadata.partition());
+            System.out.println("Size:" + metadata.serializedValueSize());
+            System.out.println("Timestamp: " + metadata.timestamp());
           }
           Thread.sleep(1L);
         } catch (Exception e) {
@@ -99,11 +112,13 @@ public class Hub {
     private ConsumerHandler consumer;
     private String topic;
     private Hub hub;
+    private int id;
 
-    public Listener(Hub hub, String topic, String bootstrap){
+    public Listener(Hub hub, String topic, String bootstrap, int id){
       this.hub = hub;
+      this.id = id;
       this.topic = topic;
-      consumer = new ConsumerHandler(bootstrap);
+      consumer = new ConsumerHandler(bootstrap, groupName);
       consumer.getConsumer().unsubscribe();
       consumer.subscribe(topic);
     }
@@ -111,6 +126,8 @@ public class Hub {
     public void run(){
       consumer.getConsumer().commitAsync();
       ObjectMapper objectMapper = new ObjectMapper();
+      System.out.println(id + "is ready for topic " + topic);
+      ready.set(id, 1);
       while (true) {
         ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(1));
         if(consumerRecords!=null) {
@@ -179,5 +196,9 @@ public class Hub {
 
   public void setResponders(TreeMap<String, NucleoResponder> responders) {
     this.responders = responders;
+  }
+
+  public boolean isReady(){
+    return ready.contains(0);
   }
 }

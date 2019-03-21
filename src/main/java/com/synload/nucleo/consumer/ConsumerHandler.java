@@ -14,17 +14,18 @@ import java.util.regex.Pattern;
 public class ConsumerHandler {
   private KafkaConsumer consumer;
 
-  public ConsumerHandler(String bootstrap) {
-    this.consumer = createConsumer(bootstrap);
+  public ConsumerHandler(String bootstrap, String groupName) {
+    this.consumer = createConsumer(bootstrap, groupName);
   }
 
-  private KafkaConsumer createConsumer(String bootstrap) {
+  private KafkaConsumer createConsumer(String bootstrap, String groupName) {
     Properties props = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
-    props.put(ConsumerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString());
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, groupName);
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 1000);
+
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     KafkaConsumer consumer = new KafkaConsumer(props);
