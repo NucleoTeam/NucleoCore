@@ -4,7 +4,7 @@ import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.event.NucleoEvent;
 
 public class InformationHandler {
-  @NucleoEvent("info")
+  @NucleoEvent("information")
   public NucleoData hitCount(NucleoData data){
     if(data.getObjects().containsKey("stop")){
       data.setChainBreak(true);

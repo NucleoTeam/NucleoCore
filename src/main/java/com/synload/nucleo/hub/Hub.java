@@ -10,6 +10,9 @@ import com.synload.nucleo.producer.ProducerHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
@@ -35,7 +38,6 @@ public class Hub {
     new Thread(new Listener(this, "nucleo.client."+clientName, this.bootstrap, id)).start();
   }
   public void run(){
-
     new Thread(new Writer(this)).start();
   }
 
@@ -60,6 +62,7 @@ public class Hub {
   public class Writer implements Runnable {
 
     private Hub hub;
+    private Logger logger = LoggerFactory.getLogger(Writer.class);
 
     public Writer(Hub hub){
       this.hub = hub;
@@ -69,9 +72,17 @@ public class Hub {
     public void run(){
       ObjectMapper objectMapper = new ObjectMapper();
       int key = 0;
+      int k = 0;
       while (true) {
         try {
           while(this.hub.queue.size()>0) {
+            if(k>=1000){
+              k=0;
+              logger.debug("Responders registered: "+ responders.size());
+              logger.debug("Queue size: "+ queue.size());
+            }else{
+              k++;
+            }
             Object[] dataBlock = this.hub.queue.remove();
             String topic = (String)dataBlock[0];
             NucleoData data = (NucleoData)dataBlock[1];
@@ -97,10 +108,10 @@ public class Hub {
             );
             Future x = producer.getProducer().send(record);
             RecordMetadata metadata = (RecordMetadata) x.get();
-            System.out.println("Topic:" + metadata.topic());
-            System.out.println("Partition: " + metadata.partition());
-            System.out.println("Size:" + metadata.serializedValueSize());
-            System.out.println("Timestamp: " + metadata.timestamp());
+            logger.debug("Topic:" + metadata.topic());
+            logger.debug("Partition: " + metadata.partition());
+            logger.debug("Size:" + metadata.serializedValueSize());
+            logger.debug("Timestamp: " + metadata.timestamp());
           }
           Thread.sleep(1L);
         } catch (Exception e) {
@@ -114,6 +125,7 @@ public class Hub {
     private String topic;
     private Hub hub;
     private int id;
+    private Logger logger = LoggerFactory.getLogger(Listener.class);
 
     public Listener(Hub hub, String topic, String bootstrap, int id){
       this.hub = hub;
@@ -127,13 +139,11 @@ public class Hub {
     public void run(){
       consumer.getConsumer().commitAsync();
       ObjectMapper objectMapper = new ObjectMapper();
-      System.out.println(id + "is ready for topic " + topic);
       ready.set(id, 1);
       while (true) {
         ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(1));
         if(consumerRecords!=null) {
           consumerRecords.forEach(record -> {
-            System.out.println("Record found!");
             try {
               NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
               if(responders.containsKey(data.getUuid().toString())){
@@ -155,15 +165,15 @@ public class Hub {
                 NucleoData returnData = (NucleoData) method.invoke(obj, data);
                 queue.add(new Object[]{ "nucleo.client."+returnData.getOrigin(), returnData });
               }else {
-                System.out.println("topic not found");
+                logger.debug("Topic or responder not found: "  + record.topic());
               }
             }catch (Exception e){
               e.printStackTrace();
             }
-            System.out.println(topic+" Record Key " + record.key());
-            System.out.println(topic+" Record value " + record.value());
-            System.out.println(topic+" Record partition " + record.partition());
-            System.out.println(topic+" Record offset " + record.offset());
+            logger.debug(topic+" Record Key " + record.key());
+            logger.debug(topic+" Record value " + record.value());
+            logger.debug(topic+" Record partition " + record.partition());
+            logger.debug(topic+" Record offset " + record.offset());
           });
           consumer.getConsumer().commitAsync();
         }

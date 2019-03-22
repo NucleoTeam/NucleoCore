@@ -32,7 +32,7 @@ public class ConsumerHandler {
     return consumer;
   }
   public void subscribe(String topic){
-    System.out.println("Subscribed to topic " + topic);
+    //System.out.println("Subscribed to topic " + topic);
     consumer.subscribe(Collections.singleton(topic));
   }
 

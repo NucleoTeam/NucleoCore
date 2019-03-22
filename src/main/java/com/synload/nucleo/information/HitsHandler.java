@@ -4,9 +4,13 @@ import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.event.NucleoEvent;
 
 public class HitsHandler {
-  @NucleoEvent("info.hits")
+  @NucleoEvent("information.hits")
   public NucleoData hitCount(NucleoData data){
     return data;
   }
-
+  @NucleoEvent("information.changeme")
+  public NucleoData changeMe(NucleoData data){
+    data.getObjects().put("wow", "Changed the value from another application");
+    return data;
+  }
 }
