@@ -83,11 +83,11 @@ public class Hub {
                   queue.add(new Object[]{chain, data});
                 }
               };
-              UUID responderUUID = UUID.randomUUID();
-              data.setUuid(responderUUID);
-              responders.put(responderUUID.toString(), responder);
+              //UUID responderUUID = UUID.randomUUID();
+              //data.setUuid(responderUUID);
+              responders.put(data.getUuid().toString(), responder);
             }else{
-              data.setUuid(data.getRoot());
+              //data.setUuid(data.getRoot());
             }
             ProducerRecord record = new ProducerRecord(
               topic,

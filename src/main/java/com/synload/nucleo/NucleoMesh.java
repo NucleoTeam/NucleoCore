@@ -58,19 +58,18 @@ public class NucleoMesh {
     mesh.getHub().run();
     while(mesh.getHub().isReady()) {
       try {
-        System.out.println("test");
         Thread.sleep(1L);
       } catch (Exception e) {
         e.printStackTrace();
       }
     }
-    TreeMap<String, Object> data = new TreeMap<String, Object>();
+    /*TreeMap<String, Object> data = new TreeMap<String, Object>();
     data.put("wow", "works?");
     mesh.call("info.hits", data, new NucleoResponder(){
       @Override
       public void run(NucleoData data) {
         System.out.println(data.getObjects().get("wow"));
       }
-    });
+    });*/
   }
 }
