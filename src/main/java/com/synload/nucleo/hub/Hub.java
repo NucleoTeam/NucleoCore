@@ -23,10 +23,12 @@ public class Hub {
   private String bootstrap;
   private ArrayList<Integer> ready = new ArrayList<>();
   private String groupName;
+  private String clientName;
 
   public Hub(String bootstrap, String clientName, String groupName) {
     this.bootstrap = bootstrap;
     this.groupName = groupName;
+    this.clientName = clientName;
     producer = new ProducerHandler(this.bootstrap);
     int id = ready.size();
     ready.add(0);
@@ -58,6 +60,7 @@ public class Hub {
   public class Writer implements Runnable {
 
     private Hub hub;
+
     public Writer(Hub hub){
       this.hub = hub;
 
@@ -72,22 +75,20 @@ public class Hub {
             Object[] dataBlock = this.hub.queue.remove();
             String topic = (String)dataBlock[0];
             NucleoData data = (NucleoData)dataBlock[1];
-            if(data.getChain().length-1!=data.getLink()) {
-              NucleoResponder responder = new NucleoResponder() {
-                public void run(NucleoData data) {
-                  data.setLink(data.getLink()+1);
-                  String chain = data.getChain()[0];
-                  for(int i=1;i<=data.getLink();i++){
-                    chain+="."+data.getChain()[i];
+            if(data.getChain().length-1!=data.getLink() && data.getOrigin().equals(clientName)) {
+                NucleoResponder responder = new NucleoResponder() {
+                  public void run(NucleoData data) {
+                    data.setLink(data.getLink() + 1);
+                    String chain = data.getChain()[0];
+                    for (int i = 1; i <= data.getLink(); i++) {
+                      chain += "." + data.getChain()[i];
+                    }
+                    queue.add(new Object[]{chain, data});
                   }
-                  queue.add(new Object[]{chain, data});
-                }
-              };
-              //UUID responderUUID = UUID.randomUUID();
-              //data.setUuid(responderUUID);
-              responders.put(data.getUuid().toString(), responder);
-            }else{
-              //data.setUuid(data.getRoot());
+                };
+                UUID responderUUID = UUID.randomUUID();
+                data.setUuid(responderUUID);
+                responders.put(data.getUuid().toString(), responder);
             }
             ProducerRecord record = new ProducerRecord(
               topic,
@@ -135,7 +136,13 @@ public class Hub {
             System.out.println("Record found!");
             try {
               NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
-              if (eventHandler.getChainToMethod().containsKey(record.topic())) {
+              if(responders.containsKey(data.getUuid().toString())){
+                responders.get(data.getUuid().toString()).run(data);
+                responders.remove(data.getUuid().toString());
+              }else if(responders.containsKey(data.getRoot().toString())){
+                responders.get(data.getRoot().toString()).run(data);
+                responders.remove(data.getRoot().toString());
+              }else if (eventHandler.getChainToMethod().containsKey(record.topic())) {
                 Object[] methodData = eventHandler.getChainToMethod().get(record.topic());
                 Object obj;
                 if(methodData[0] instanceof Class) {
@@ -147,9 +154,7 @@ public class Hub {
                 Method method = (Method) methodData[1];
                 NucleoData returnData = (NucleoData) method.invoke(obj, data);
                 queue.add(new Object[]{ "nucleo.client."+returnData.getOrigin(), returnData });
-              }else if(responders.containsKey(data.getUuid().toString())){
-                responders.get(data.getUuid().toString()).run(data);
-              }else{
+              }else {
                 System.out.println("topic not found");
               }
             }catch (Exception e){
