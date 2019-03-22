@@ -1,5 +1,5 @@
 group 'nucleocore'
-version '1.01'
+version '1.02'
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -25,7 +25,7 @@ uploadArchives {
              repository(url: "http://nexus.synload.com/repository/releases/") {
                 authentication(userName: "admin", password: "$System.env.PASSWORD")
              }
-             pom.version = "1.01"
+             pom.version = "1.02"
              pom.artifactId = "nucleocore"
              pom.groupId = "com.synload.nucleo"
        }
