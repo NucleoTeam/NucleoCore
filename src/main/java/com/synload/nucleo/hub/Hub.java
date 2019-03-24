@@ -12,7 +12,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
@@ -78,8 +77,8 @@ public class Hub {
           while(this.hub.queue.size()>0) {
             if(k>=1000){
               k=0;
-              logger.debug("Responders registered: "+ responders.size());
-              logger.debug("Queue size: "+ queue.size());
+              System.out.println("Responders registered: "+ responders.size());
+              System.out.println("Queue size: "+ queue.size());
             }else{
               k++;
             }
@@ -113,10 +112,10 @@ public class Hub {
             );
             Future x = producer.getProducer().send(record);
             RecordMetadata metadata = (RecordMetadata) x.get();
-            logger.debug("Topic:" + metadata.topic());
-            logger.debug("Partition: " + metadata.partition());
-            logger.debug("Size:" + metadata.serializedValueSize());
-            logger.debug("Timestamp: " + metadata.timestamp());
+            System.out.println("Topic:" + metadata.topic());
+            System.out.println("Partition: " + metadata.partition());
+            System.out.println("Size:" + metadata.serializedValueSize());
+            System.out.println("Timestamp: " + metadata.timestamp());
           }
           Thread.sleep(1L);
         } catch (Exception e) {
@@ -173,15 +172,15 @@ public class Hub {
                 NucleoData returnData = (NucleoData) method.invoke(obj, data);
                 queue.add(new Object[]{ "nucleo.client."+returnData.getOrigin(), returnData });
               }else {
-                logger.debug("Topic or responder not found: "  + record.topic());
+                System.out.println("Topic or responder not found: "  + record.topic());
               }
             }catch (Exception e){
               e.printStackTrace();
             }
-            logger.debug(topic+" Record Key " + record.key());
-            logger.debug(topic+" Record value " + record.value());
-            logger.debug(topic+" Record partition " + record.partition());
-            logger.debug(topic+" Record offset " + record.offset());
+            System.out.println(topic+" Record Key " + record.key());
+            System.out.println(topic+" Record value " + record.value());
+            System.out.println(topic+" Record partition " + record.partition());
+            System.out.println(topic+" Record offset " + record.offset());
           });
           consumer.getConsumer().commitAsync();
         }

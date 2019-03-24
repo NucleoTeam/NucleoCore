@@ -6,6 +6,8 @@ import com.synload.nucleo.hub.Hub;
 import com.synload.nucleo.information.HitsHandler;
 import com.synload.nucleo.information.InformationHandler;
 import com.synload.nucleo.loader.LoadHandler;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import java.lang.reflect.Method;
 import java.util.TreeMap;
@@ -53,7 +55,8 @@ public class NucleoMesh {
 
   public static void main(String[] args){
     //createTopic();
-    NucleoMesh mesh = new NucleoMesh( "root.1","192.168.1.225:9092", "mesh");
+    Logger.getRootLogger().setLevel(Level.DEBUG);
+    NucleoMesh mesh = new NucleoMesh( "root.1","192.168.1.122:9092", "mesh");
     mesh.getHub().register(new InformationHandler(), new HitsHandler());
     mesh.getHub().run();
     while(mesh.getHub().isReady()) {
