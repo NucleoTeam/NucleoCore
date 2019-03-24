@@ -150,7 +150,7 @@ public class Hub {
           consumerRecords.forEach(record -> {
             try {
               NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
-              if(data.getChainBreak().isBreakChain() && data.getRoot().equals(clientName)) {
+              if(data.getChainBreak().isBreakChain() && data.getOrigin().equals(clientName)) {
                 responders.get(data.getRoot().toString()).run(data);
                 responders.remove(data.getRoot().toString());
               }else if(responders.containsKey(data.getUuid().toString())){
@@ -171,7 +171,7 @@ public class Hub {
                 Method method = (Method) methodData[1];
                 NucleoData returnData = (NucleoData) method.invoke(obj, data);
                 queue.add(new Object[]{ "nucleo.client."+returnData.getOrigin(), returnData });
-              }else {
+              } else {
                 System.out.println("Topic or responder not found: "  + record.topic());
               }
             }catch (Exception e){
