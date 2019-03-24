@@ -7,7 +7,7 @@ public class InformationHandler {
   @NucleoEvent("information")
   public NucleoData hitCount(NucleoData data){
     if(data.getObjects().containsKey("stop")){
-      data.setChainBreak(true);
+      data.getChainBreak().setBreakChain(true);
       return null;
     }
     data.getObjects().put("taco", "bell");
