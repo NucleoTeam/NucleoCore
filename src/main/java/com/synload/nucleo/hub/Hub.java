@@ -151,7 +151,10 @@ public class Hub {
           consumerRecords.forEach(record -> {
             try {
               NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
-              if(responders.containsKey(data.getUuid().toString())){
+              if(data.getChainBreak().isBreakChain() && data.getRoot().equals(clientName)) {
+                responders.get(data.getRoot().toString()).run(data);
+                responders.remove(data.getRoot().toString());
+              }else if(responders.containsKey(data.getUuid().toString())){
                 responders.get(data.getUuid().toString()).run(data);
                 responders.remove(data.getUuid().toString());
               }else if(responders.containsKey(data.getRoot().toString())){
