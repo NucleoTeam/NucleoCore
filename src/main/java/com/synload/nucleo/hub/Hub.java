@@ -89,10 +89,15 @@ public class Hub {
             if(data.getChain().length-1!=data.getLink() && data.getOrigin().equals(clientName)) {
                 NucleoResponder responder = new NucleoResponder() {
                   public void run(NucleoData data) {
-                    data.setLink(data.getLink() + 1);
-                    String chain = data.getChain()[0];
-                    for (int i = 1; i <= data.getLink(); i++) {
-                      chain += "." + data.getChain()[i];
+                    String chain;
+                    if(!data.getChainBreak().isBreakChain()) {
+                      data.setLink(data.getLink() + 1);
+                      chain = data.getChain()[0];
+                      for (int i = 1; i <= data.getLink(); i++) {
+                        chain += "." + data.getChain()[i];
+                      }
+                    } else {
+                      chain = "nucleo.client."+data.getOrigin();
                     }
                     queue.add(new Object[]{chain, data});
                   }

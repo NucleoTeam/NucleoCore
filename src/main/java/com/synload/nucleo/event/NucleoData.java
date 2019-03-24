@@ -10,7 +10,7 @@ public class NucleoData {
   private String origin;
   private int link;
   private TreeMap<String, Object> objects;
-  private boolean chainBreak = false;
+  private NucleoChainStatus chainBreak = new NucleoChainStatus();
 
   public NucleoData(){
     root = UUID.randomUUID();
@@ -40,14 +40,6 @@ public class NucleoData {
     this.objects = objects;
   }
 
-  public boolean isChainBreak() {
-    return chainBreak;
-  }
-
-  public void setChainBreak(boolean chainBreak) {
-    this.chainBreak = chainBreak;
-  }
-
   public int getLink() {
     return link;
   }
@@ -70,5 +62,13 @@ public class NucleoData {
 
   public void setRoot(UUID root) {
     this.root = root;
+  }
+
+  public NucleoChainStatus getChainBreak() {
+    return chainBreak;
+  }
+
+  public void setChainBreak(NucleoChainStatus chainBreak) {
+    this.chainBreak = chainBreak;
   }
 }
