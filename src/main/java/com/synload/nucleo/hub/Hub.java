@@ -34,7 +34,7 @@ public class Hub {
     producer = new ProducerHandler(this.bootstrap);
     int id = ready.size();
     ready.add(0);
-    new Thread(new Listener(this, "nucleo.client."+clientName, this.bootstrap, id)).start();
+    new Thread(new Listener(this, new String[]{"nucleo.client."+clientName}, this.bootstrap, id)).start();
   }
   public void run(){
     new Thread(new Writer(this)).start();
@@ -126,18 +126,18 @@ public class Hub {
   }
   public class Listener implements Runnable {
     private ConsumerHandler consumer;
-    private String topic;
+    private String[] topics;
     private Hub hub;
     private int id;
     private Logger logger = LoggerFactory.getLogger(Listener.class);
 
-    public Listener(Hub hub, String topic, String bootstrap, int id){
+    public Listener(Hub hub, String[] topics, String bootstrap, int id){
       this.hub = hub;
       this.id = id;
-      this.topic = topic;
+      this.topics = topics;
       consumer = new ConsumerHandler(bootstrap, groupName);
       consumer.getConsumer().unsubscribe();
-      consumer.subscribe(topic);
+      consumer.subscribe(topics);
     }
 
     public void run(){
@@ -177,10 +177,10 @@ public class Hub {
             }catch (Exception e){
               e.printStackTrace();
             }
-            System.out.println(topic+" Record Key " + record.key());
-            System.out.println(topic+" Record value " + record.value());
-            System.out.println(topic+" Record partition " + record.partition());
-            System.out.println(topic+" Record offset " + record.offset());
+            System.out.println(topics+" Record Key " + record.key());
+            System.out.println(topics+" Record value " + record.value());
+            System.out.println(topics+" Record partition " + record.partition());
+            System.out.println(topics+" Record offset " + record.offset());
           });
           consumer.getConsumer().commitAsync();
         }

@@ -31,9 +31,9 @@ public class ConsumerHandler {
     KafkaConsumer consumer = new KafkaConsumer(props);
     return consumer;
   }
-  public void subscribe(String topic){
+  public void subscribe(String[] topics){
     //System.out.println("Subscribed to topic " + topic);
-    consumer.subscribe(Collections.singleton(topic));
+    consumer.subscribe(Arrays.asList(topics));
   }
 
   public KafkaConsumer getConsumer() {

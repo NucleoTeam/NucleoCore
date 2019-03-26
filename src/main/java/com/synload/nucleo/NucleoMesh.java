@@ -56,7 +56,7 @@ public class NucleoMesh {
   public static void main(String[] args){
     //createTopic();
     Logger.getRootLogger().setLevel(Level.DEBUG);
-    NucleoMesh mesh = new NucleoMesh( "root.1","192.168.1.122:9092", "mesh");
+    NucleoMesh mesh = new NucleoMesh( "root","192.168.1.122:9092", "mesh");
     mesh.getHub().register(new InformationHandler(), new HitsHandler());
     mesh.getHub().run();
     while(mesh.getHub().isReady()) {

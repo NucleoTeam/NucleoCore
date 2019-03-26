@@ -19,13 +19,24 @@ public class EventHandler {
     }
 
 
-    public String registerMethod(Object[] methodData){
+    public String[] registerMethod(Object[] methodData){
         if(methodData.length==2) {
             Object clazz = methodData[0];
             Method method = (Method)methodData[1];
-            String chain = method.getAnnotation(NucleoEvent.class).value();
-            chainToMethod.put(chain, new Object[]{ clazz, method });
-            return chain;
+            NucleoEvent nEvent = method.getAnnotation(NucleoEvent.class);
+            String chain = nEvent.value();
+            if(chain.equals("")){
+                String[] chains = nEvent.chains();
+                if(nEvent.chains().length>0){
+                    for( String chainString: nEvent.chains()){
+                        chainToMethod.put(chainString, new Object[]{ clazz, method });
+                    }
+                    return chains;
+                }
+            }else{
+                chainToMethod.put(chain, new Object[]{ clazz, method });
+                return new String[]{chain};
+            }
         }
         return null;
     }

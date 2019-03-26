@@ -6,6 +6,6 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface NucleoEvent {
-
-  public String value();
+  String value() default "";
+  String[] chains() default {};
 }
