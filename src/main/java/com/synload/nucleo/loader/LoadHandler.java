@@ -15,20 +15,19 @@ public class LoadHandler {
         classesField.setAccessible(true);
         return (Vector) classesField.get(classLoader);
     }*/
-    public static Set<Object[]> getMethods(Class... clazzez){
+    public static <T> Set<Object[]> getMethods(T... clazzez) throws IllegalAccessException, InstantiationException{
         Set<Object[]> methods = new HashSet<>();
-        for ( Class clazz: clazzez ) {
-            for (Method method:clazz.getDeclaredMethods()) {
-                if(method.isAnnotationPresent(NucleoEvent.class)) methods.add(new Object[]{clazz, method});
-            }
-        }
-        return methods;
-    }
-    public static Set<Object[]> getMethods(Object... clazzez){
-        Set<Object[]> methods = new HashSet<>();
-        for ( Object clazz: clazzez ) {
-            for (Method method:clazz.getClass().getDeclaredMethods()) {
-                if(method.isAnnotationPresent(NucleoEvent.class)) methods.add(new Object[]{clazz, method});
+        for ( T clazz: clazzez ) {
+            if(clazz instanceof Class) {
+                System.out.println("clazz: "+clazz.getClass().getName());
+                for (Method method : ((Class)clazz).getDeclaredMethods()) {
+                    if (method.isAnnotationPresent(NucleoEvent.class)) methods.add(new Object[]{((Class) clazz).newInstance(), method});
+                }
+            }else if(clazz instanceof Object){
+                System.out.println("obj: "+clazz.getClass().getName());
+                for (Method method:clazz.getClass().getDeclaredMethods()) {
+                    if(method.isAnnotationPresent(NucleoEvent.class)) methods.add(new Object[]{clazz, method});
+                }
             }
         }
         return methods;

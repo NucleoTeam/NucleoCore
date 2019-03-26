@@ -44,19 +44,16 @@ public class Hub {
     responders.put(data.getRoot().toString(), responder);
     queue.add(new Object[]{data.getChain()[data.getLink()], data});
   }
-  public void register(Class... clazzez){
-    LoadHandler.getMethods(clazzez).forEach((m)->{
-      int id = ready.size();
-      ready.add(0);
-      new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();
-    });
-  }
-  public void register(Object... clazzez){
-    LoadHandler.getMethods(clazzez).forEach((m)->{
-      int id = ready.size();
-      ready.add(0);
-      new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();
-    });
+  public <T> void register(T... clazzez){
+    try {
+      LoadHandler.getMethods(clazzez).forEach((m) -> {
+        int id = ready.size();
+        ready.add(0);
+        new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();
+      });
+    }catch (Exception e){
+      e.printStackTrace();
+    }
   }
   public class Writer implements Runnable {
 
@@ -104,10 +101,10 @@ public class Hub {
             );
             Future x = producer.getProducer().send(record);
             RecordMetadata metadata = (RecordMetadata) x.get();
-            System.out.println("Topic:" + metadata.topic());
-            System.out.println("Partition: " + metadata.partition());
-            System.out.println("Size:" + metadata.serializedValueSize());
-            System.out.println("Timestamp: " + metadata.timestamp());
+            //System.out.println("Topic:" + metadata.topic());
+            //System.out.println("Partition: " + metadata.partition());
+            //System.out.println("Size:" + metadata.serializedValueSize());
+            //System.out.println("Timestamp: " + metadata.timestamp());
           }
           Thread.sleep(1L);
         } catch (Exception e) {
@@ -164,15 +161,15 @@ public class Hub {
                 NucleoData returnData = (NucleoData) method.invoke(obj, data);
                 queue.add(new Object[]{ "nucleo.client."+returnData.getOrigin(), returnData });
               } else {
-                System.out.println("Topic or responder not found: "  + record.topic());
+                //System.out.println("Topic or responder not found: "  + record.topic());
               }
             }catch (Exception e){
               e.printStackTrace();
             }
-            System.out.println(topics+" Record Key " + record.key());
-            System.out.println(topics+" Record value " + record.value());
-            System.out.println(topics+" Record partition " + record.partition());
-            System.out.println(topics+" Record offset " + record.offset());
+            //System.out.println(topics+" Record Key " + record.key());
+            //System.out.println(topics+" Record value " + record.value());
+            //System.out.println(topics+" Record partition " + record.partition());
+            //System.out.println(topics+" Record offset " + record.offset());
           });
           consumer.getConsumer().commitAsync();
         }
