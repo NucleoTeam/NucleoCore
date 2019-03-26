@@ -70,18 +70,10 @@ public class Hub {
 
     public void run(){
       ObjectMapper objectMapper = new ObjectMapper();
-      int key = 0;
-      int k = 0;
       while (true) {
         try {
           while(this.hub.queue.size()>0) {
-            if(k>=1000){
-              k=0;
-              System.out.println("Responders registered: "+ responders.size());
-              System.out.println("Queue size: "+ queue.size());
-            }else{
-              k++;
-            }
+
             Object[] dataBlock = this.hub.queue.remove();
             String topic = (String)dataBlock[0];
             NucleoData data = (NucleoData)dataBlock[1];
