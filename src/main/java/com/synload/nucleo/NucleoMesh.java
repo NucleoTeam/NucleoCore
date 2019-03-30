@@ -64,11 +64,6 @@ public class NucleoMesh {
         if (chains.length == onChain) {
           nucleoResponder.run(data);
         } else {
-          try {
-            System.out.println("Chained: " + new ObjectMapper().writeValueAsString(data));
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
           data.getObjects().put("_onChain", onChain);
           call(chains[onChain], data.getObjects(), this);
         }
@@ -102,7 +97,7 @@ public class NucleoMesh {
         @Override
         public void run(NucleoData data) {
           try {
-            System.out.println("FINAL " + new ObjectMapper().writeValueAsString(data));
+            System.out.println(new ObjectMapper().writeValueAsString(data));
           } catch (Exception e) {
             e.printStackTrace();
           }
