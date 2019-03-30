@@ -73,6 +73,7 @@ public class Hub {
             Object[] dataBlock = this.hub.queue.remove();
             String topic = (String)dataBlock[0];
             NucleoData data = (NucleoData)dataBlock[1];
+
             if(data.getChain().length-1!=data.getLink() && data.getOrigin().equals(clientName)) {
                 NucleoResponder responder = new NucleoResponder() {
                   public void run(NucleoData data) {
@@ -153,7 +154,7 @@ public class Hub {
                 Method method = (Method) methodData[1];
                 method.invoke(obj, data);
                 queue.add(new Object[]{ "nucleo.client."+data.getOrigin(), data });
-              }else if(responders.containsKey(data.getUuid().toString())){
+              }else if(data.getUuid()!=null && responders.containsKey(data.getUuid().toString())){
                 responders.get(data.getUuid().toString()).run(data);
                 responders.remove(data.getUuid().toString());
               }else if(responders.containsKey(data.getRoot().toString())){

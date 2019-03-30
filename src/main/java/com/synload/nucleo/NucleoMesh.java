@@ -89,9 +89,9 @@ public class NucleoMesh {
         e.printStackTrace();
       }
     }
-    mesh.call(new String[]{"information.hits", "information.changeme"},
+    mesh.call(new String[]{"information.hits", "information"},
       new TreeMap<String, Object>() {{
-        put("stop", "works?");
+        put("wow", "works?");
       }},
       new NucleoResponder() {
         @Override
