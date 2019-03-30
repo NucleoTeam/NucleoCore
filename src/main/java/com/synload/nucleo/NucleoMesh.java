@@ -61,7 +61,7 @@ public class NucleoMesh {
       @Override
       public void run(NucleoData data) {
         int onChain = (int) data.getObjects().get("_onChain") + 1;
-        if (chains.length == onChain) {
+        if (chains.length == onChain || data.getChainBreak().isBreakChain()) {
           nucleoResponder.run(data);
         } else {
           data.getObjects().put("_onChain", onChain);
@@ -91,7 +91,7 @@ public class NucleoMesh {
     }
     mesh.call(new String[]{"information.hits", "information.changeme"},
       new TreeMap<String, Object>() {{
-        put("wow", "works?");
+        put("stop", "works?");
       }},
       new NucleoResponder() {
         @Override
