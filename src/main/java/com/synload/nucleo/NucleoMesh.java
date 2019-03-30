@@ -1,5 +1,7 @@
 package com.synload.nucleo;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.hub.Hub;
@@ -48,6 +50,30 @@ public class NucleoMesh {
     data.setChain(chain.split("\\."));
     this.getHub().push(data, nucleoResponder);
   }
+  public boolean call(String[] chains, TreeMap<String, Object> objects, NucleoResponder nucleoResponder){
+    if(chains.length==0){
+      return false;
+    }
+    objects.put("_onChain", 0);
+    call(chains[0], objects, new NucleoResponder(){
+      @Override
+      public void run(NucleoData data) {
+        int onChain = (int)data.getObjects().get("_onChain")+1;
+        if(chains.length==onChain){
+          nucleoResponder.run(data);
+        }else{
+          try {
+            System.out.println("Chained: " + new ObjectMapper().writeValueAsString(data));
+          }catch (Exception e){
+            e.printStackTrace();
+          }
+          data.getObjects().put("_onChain", onChain);
+          call(chains[onChain], data.getObjects(), this);
+        }
+      }
+    });
+    return true;
+  }
 
   public Hub getHub() {
     return hub;
@@ -56,7 +82,7 @@ public class NucleoMesh {
   public static void main(String[] args){
     //createTopic();
     Logger.getRootLogger().setLevel(Level.DEBUG);
-    NucleoMesh mesh = new NucleoMesh( "root","192.168.1.122:9092", "mesh");
+    NucleoMesh mesh = new NucleoMesh( "root","192.168.1.170:9092", "mesh");
     mesh.getHub().register(InformationHandler.class, HitsHandler.class);
     mesh.getHub().run();
     while(mesh.getHub().isReady()) {
@@ -66,13 +92,18 @@ public class NucleoMesh {
         e.printStackTrace();
       }
     }
-    /*TreeMap<String, Object> data = new TreeMap<String, Object>();
-    data.put("wow", "works?");
-    mesh.call("info.hits", data, new NucleoResponder(){
-      @Override
-      public void run(NucleoData data) {
-        System.out.println(data.getObjects().get("wow"));
-      }
-    });*/
+    mesh.call(new String[]{"information.hits", "information.changeme"},
+      new TreeMap<String, Object>(){{
+        put("wow", "works?");
+      }},
+      new NucleoResponder(){
+        @Override
+        public void run(NucleoData data) {
+          try {
+            System.out.println("FINAL "+new ObjectMapper().writeValueAsString(data));
+          }catch (Exception e){
+            e.printStackTrace();
+          }
+        }});
   }
 }

@@ -58,7 +58,6 @@ public class Hub {
   public class Writer implements Runnable {
 
     private Hub hub;
-    private Logger logger = LoggerFactory.getLogger(Writer.class);
 
     public Writer(Hub hub){
       this.hub = hub;
@@ -99,12 +98,13 @@ public class Hub {
               UUID.randomUUID().toString(),
               objectMapper.writeValueAsString(data)
             );
+
+            String topicsAll = "";
             Future x = producer.getProducer().send(record);
             RecordMetadata metadata = (RecordMetadata) x.get();
-            //System.out.println("Topic:" + metadata.topic());
-            //System.out.println("Partition: " + metadata.partition());
-            //System.out.println("Size:" + metadata.serializedValueSize());
-            //System.out.println("Timestamp: " + metadata.timestamp());
+            //System.out.println(metadata.topic()+" Partition: " + metadata.partition());
+            //System.out.println(metadata.topic()+" Size:" + metadata.serializedValueSize());
+            //System.out.println(metadata.topic()+" Timestamp: " + metadata.timestamp());
           }
           Thread.sleep(1L);
         } catch (Exception e) {
@@ -118,7 +118,6 @@ public class Hub {
     private String[] topics;
     private Hub hub;
     private int id;
-    private Logger logger = LoggerFactory.getLogger(Listener.class);
 
     public Listener(Hub hub, String[] topics, String bootstrap, int id){
       this.hub = hub;
@@ -142,12 +141,6 @@ public class Hub {
               if(data.getChainBreak().isBreakChain() && data.getOrigin().equals(clientName)) {
                 responders.get(data.getRoot().toString()).run(data);
                 responders.remove(data.getRoot().toString());
-              }else if(responders.containsKey(data.getUuid().toString())){
-                responders.get(data.getUuid().toString()).run(data);
-                responders.remove(data.getUuid().toString());
-              }else if(responders.containsKey(data.getRoot().toString())){
-                responders.get(data.getRoot().toString()).run(data);
-                responders.remove(data.getRoot().toString());
               }else if (eventHandler.getChainToMethod().containsKey(record.topic())) {
                 Object[] methodData = eventHandler.getChainToMethod().get(record.topic());
                 Object obj;
@@ -158,18 +151,31 @@ public class Hub {
                   obj = methodData[0];
                 }
                 Method method = (Method) methodData[1];
-                NucleoData returnData = (NucleoData) method.invoke(obj, data);
-                queue.add(new Object[]{ "nucleo.client."+returnData.getOrigin(), returnData });
+                method.invoke(obj, data);
+                queue.add(new Object[]{ "nucleo.client."+data.getOrigin(), data });
+              }else if(responders.containsKey(data.getUuid().toString())){
+                responders.get(data.getUuid().toString()).run(data);
+                responders.remove(data.getUuid().toString());
+              }else if(responders.containsKey(data.getRoot().toString())){
+                responders.get(data.getRoot().toString()).run(data);
+                responders.remove(data.getRoot().toString());
               } else {
-                //System.out.println("Topic or responder not found: "  + record.topic());
+                System.out.println("Topic or responder not found: "  + record.topic());
               }
             }catch (Exception e){
               e.printStackTrace();
             }
-            //System.out.println(topics+" Record Key " + record.key());
-            //System.out.println(topics+" Record value " + record.value());
-            //System.out.println(topics+" Record partition " + record.partition());
-            //System.out.println(topics+" Record offset " + record.offset());
+
+            String topicsAll = "";
+            try {
+              topicsAll=new ObjectMapper().writeValueAsString(topics);
+            }catch (Exception e){
+              e.printStackTrace();
+            }
+            //System.out.println(topicsAll+" Record Key " + record.key());
+            //System.out.println(topicsAll+" Record value " + record.value());
+            //System.out.println(topicsAll+" Record partition " + record.partition());
+            //System.out.println(topicsAll+" Record offset " + record.offset());
           });
           consumer.getConsumer().commitAsync();
         }

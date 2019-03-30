@@ -6,6 +6,7 @@ import com.synload.nucleo.event.NucleoEvent;
 public class HitsHandler {
   @NucleoEvent("information.hits")
   public NucleoData hitCount(NucleoData data){
+    data.getObjects().put("test","run");
     return data;
   }
   @NucleoEvent("information.changeme")
