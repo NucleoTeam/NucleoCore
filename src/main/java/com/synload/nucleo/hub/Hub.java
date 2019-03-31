@@ -118,7 +118,7 @@ public class Hub {
                   }
 
                 }
-              });
+              }).start();
             }
             //System.out.println(metadata.topic()+" Partition: " + metadata.partition());
             //System.out.println(metadata.topic()+" Size:" + metadata.serializedValueSize());
