@@ -5,6 +5,7 @@ import com.synload.nucleo.consumer.ConsumerHandler;
 import com.synload.nucleo.event.EventHandler;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.event.NucleoResponder;
+import com.synload.nucleo.event.NucleoTimeout;
 import com.synload.nucleo.loader.LoadHandler;
 import com.synload.nucleo.producer.ProducerHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -104,22 +105,7 @@ public class Hub {
             Future x = producer.getProducer().send(record);
             RecordMetadata metadata = (RecordMetadata) x.get();
             if(data.getOrigin().equals(clientName)) {
-              new Thread(new Runnable() {
-                @Override
-                public void run() {
-                  try {
-                    Thread.sleep(5000);
-                    System.out.println(new ObjectMapper().writeValueAsString(data));
-                    if(responders.containsKey(data.getUuid().toString())) {
-                      System.out.println(new ObjectMapper().writeValueAsString(data));
-                      responders.get(data.getUuid().toString()).run(data);
-                    }
-                  } catch (Exception e) {
-                    e.printStackTrace();
-                  }
-
-                }
-              }).start();
+              new Thread(new NucleoTimeout(responders, data)).start();
             }
             //System.out.println(metadata.topic()+" Partition: " + metadata.partition());
             //System.out.println(metadata.topic()+" Size:" + metadata.serializedValueSize());
@@ -158,8 +144,9 @@ public class Hub {
             try {
               NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
               if(data.getChainBreak().isBreakChain() && data.getOrigin().equals(clientName)) {
-                responders.get(data.getRoot().toString()).run(data);
+                NucleoResponder responder = responders.get(data.getRoot().toString());
                 responders.remove(data.getRoot().toString());
+                responder.run(data);
               }else if (eventHandler.getChainToMethod().containsKey(record.topic())) {
                 Object[] methodData = eventHandler.getChainToMethod().get(record.topic());
                 Object obj;
@@ -173,11 +160,13 @@ public class Hub {
                 method.invoke(obj, data);
                 queue.add(new Object[]{ "nucleo.client."+data.getOrigin(), data });
               }else if(data.getUuid()!=null && responders.containsKey(data.getUuid().toString())){
-                responders.get(data.getUuid().toString()).run(data);
+                NucleoResponder responder = responders.get(data.getUuid().toString());
                 responders.remove(data.getUuid().toString());
+                responder.run(data);
               }else if(responders.containsKey(data.getRoot().toString())){
-                responders.get(data.getRoot().toString()).run(data);
+                NucleoResponder responder = responders.get(data.getRoot().toString());
                 responders.remove(data.getRoot().toString());
+                responder.run(data);
               } else {
                 System.out.println("Topic or responder not found: "  + record.topic());
               }
