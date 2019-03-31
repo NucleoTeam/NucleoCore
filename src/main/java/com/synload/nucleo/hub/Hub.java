@@ -109,6 +109,7 @@ public class Hub {
                 public void run() {
                   try {
                     Thread.sleep(5000);
+                    System.out.println(new ObjectMapper().writeValueAsString(data));
                     if(responders.containsKey(data.getUuid().toString())) {
                       System.out.println(new ObjectMapper().writeValueAsString(data));
                       responders.get(data.getUuid().toString()).run(data);
