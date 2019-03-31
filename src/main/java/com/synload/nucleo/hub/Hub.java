@@ -106,11 +106,13 @@ public class Hub {
               objectMapper.writeValueAsString(data)
             );
 
-            Future x = producer.getProducer().send(record);
-            RecordMetadata metadata = (RecordMetadata) x.get();
-            System.out.println(metadata.topic()+" Partition: " + metadata.partition());
-            System.out.println(metadata.topic()+" Size:" + metadata.serializedValueSize());
-            System.out.println(metadata.topic()+" Timestamp: " + metadata.timestamp());
+            producer.getProducer().send(record);
+
+            //Future x = producer.getProducer().send(record);
+            //RecordMetadata metadata = (RecordMetadata) x.get();
+            //System.out.println(metadata.topic()+" Partition: " + metadata.partition());
+            //System.out.println(metadata.topic()+" Size:" + metadata.serializedValueSize());
+            //System.out.println(metadata.topic()+" Timestamp: " + metadata.timestamp());
           }
           Thread.sleep(1L);
         } catch (Exception e) {
@@ -176,16 +178,16 @@ public class Hub {
               e.printStackTrace();
             }
 
-            String topicsAll = "";
-            try {
-              topicsAll = new ObjectMapper().writeValueAsString(topics);
-            } catch (Exception e) {
-              e.printStackTrace();
-            }
-            System.out.println(topicsAll+" Record Key " + record.key());
-            System.out.println(topicsAll+" Record value " + record.value());
-            System.out.println(topicsAll+" Record partition " + record.partition());
-            System.out.println(topicsAll+" Record offset " + record.offset());
+            //String topicsAll = "";
+            //try {
+            //  topicsAll = new ObjectMapper().writeValueAsString(topics);
+            //} catch (Exception e) {
+            //  e.printStackTrace();
+            //}
+            //System.out.println(topicsAll+" Record Key " + record.key());
+            //System.out.println(topicsAll+" Record value " + record.value());
+            //System.out.println(topicsAll+" Record partition " + record.partition());
+            //System.out.println(topicsAll+" Record offset " + record.offset());
           });
           consumer.getConsumer().commitAsync();
         }
