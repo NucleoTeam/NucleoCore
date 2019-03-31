@@ -79,17 +79,10 @@ public class NucleoMesh {
   public static void main(String[] args) {
     //createTopic();
     Logger.getRootLogger().setLevel(Level.DEBUG);
-    NucleoMesh mesh = new NucleoMesh("root", "192.168.1.170:9092", "mesh");
+    NucleoMesh mesh = new NucleoMesh("tester", "192.168.1.170:9092", "mesh");
     mesh.getHub().register(InformationHandler.class, HitsHandler.class);
     mesh.getHub().run();
-    while (mesh.getHub().isReady()) {
-      try {
-        Thread.sleep(1L);
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
-    mesh.call(new String[]{"information.hits", "information"},
+    mesh.call(new String[]{"information.hits", "information", "nonexistant"},
       new TreeMap<String, Object>() {{
         put("wow", "works?");
       }},
