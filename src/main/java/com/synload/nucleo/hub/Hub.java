@@ -103,6 +103,23 @@ public class Hub {
             String topicsAll = "";
             Future x = producer.getProducer().send(record);
             RecordMetadata metadata = (RecordMetadata) x.get();
+            if(data.getOrigin().equals(clientName)) {
+              new Thread(new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    Thread.sleep(5000);
+                    if(responders.containsKey(data.getUuid().toString())) {
+                      System.out.println(new ObjectMapper().writeValueAsString(data));
+                      responders.get(data.getUuid().toString()).run(data);
+                    }
+                  } catch (Exception e) {
+                    e.printStackTrace();
+                  }
+
+                }
+              });
+            }
             //System.out.println(metadata.topic()+" Partition: " + metadata.partition());
             //System.out.println(metadata.topic()+" Size:" + metadata.serializedValueSize());
             //System.out.println(metadata.topic()+" Timestamp: " + metadata.timestamp());
