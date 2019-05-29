@@ -181,7 +181,9 @@ public class Hub {
             //String topicsAll = "";
             //try {
             //  topicsAll = new ObjectMapper().writeValueAsString(topics);
-            //} catch (Exception e) {
+
+
+             //} catch (Exceptio e) {
             //  e.printStackTrace();
             //}
             //System.out.println(topicsAll+" Record Key " + record.key());
