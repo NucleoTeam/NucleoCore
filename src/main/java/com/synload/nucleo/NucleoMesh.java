@@ -20,18 +20,32 @@ public class NucleoMesh {
   private Hub hub;
   private String clientName;
 
-  public NucleoMesh(String clientName, String bootstrapServer, String groupName) {
-    hub = new Hub(bootstrapServer, clientName, groupName);
-    this.clientName = clientName;
+  public NucleoMesh(String bootstrapServer, String groupName) {
+    hub = new Hub(bootstrapServer, groupName);
+    this.clientName = hub.getClientName();
   }
-
-  public void call(String chain, TreeMap<String, Object> objects, Method onFinishedMethod, Object onFinishedObject) {
+  public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
     NucleoData data = new NucleoData();
     data.setObjects(objects);
     data.setOrigin(clientName);
     data.setLink(0);
-    data.setChain(chain.split("\\."));
-    this.getHub().push(data, new NucleoResponder() {
+    data.setOnChain(0);
+    data.getChainList().add(chain.split("\\."));
+    return data;
+  }
+  public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects){
+    NucleoData data = new NucleoData();
+    data.setObjects(objects);
+    data.setOrigin(clientName);
+    data.setLink(0);
+    data.setOnChain(0);
+    for(String chain : chains) {
+      data.getChainList().add(chain.split("\\."));
+    }
+    return data;
+  }
+  public void call(String chain, TreeMap<String, Object> objects, Method onFinishedMethod, Object onFinishedObject) {
+    this.getHub().push(this.constructNucleoData(chain, objects), new NucleoResponder() {
       @Override
       public void run(NucleoData returnedData) {
         try {
@@ -42,33 +56,14 @@ public class NucleoMesh {
       }
     });
   }
-
   public void call(String chain, TreeMap<String, Object> objects, NucleoResponder nucleoResponder) {
-    NucleoData data = new NucleoData();
-    data.setObjects(objects);
-    data.setOrigin(clientName);
-    data.setLink(0);
-    data.setChain(chain.split("\\."));
-    this.getHub().push(data, nucleoResponder);
+    this.getHub().push(this.constructNucleoData(chain, objects), nucleoResponder);
   }
-
   public boolean call(String[] chains, TreeMap<String, Object> objects, NucleoResponder nucleoResponder) {
     if (chains.length == 0) {
       return false;
     }
-    objects.put("_onChain", 0);
-    call(chains[0], objects, new NucleoResponder() {
-      @Override
-      public void run(NucleoData data) {
-        int onChain = (int) data.getObjects().get("_onChain") + 1;
-        if (chains.length == onChain || data.getChainBreak().isBreakChain()) {
-          nucleoResponder.run(data);
-        } else {
-          data.getObjects().put("_onChain", onChain);
-          call(chains[onChain], data.getObjects(), this);
-        }
-      }
-    });
+    this.getHub().push( constructNucleoData(chains, objects), nucleoResponder);
     return true;
   }
 
@@ -79,10 +74,15 @@ public class NucleoMesh {
   public static void main(String[] args) {
     //createTopic();
     Logger.getRootLogger().setLevel(Level.DEBUG);
-    NucleoMesh mesh = new NucleoMesh("tester", "192.168.1.170:9092", "mesh");
+    NucleoMesh mesh = new NucleoMesh( "192.168.1.112:9092", "mesh");
     mesh.getHub().register(InformationHandler.class, HitsHandler.class);
     mesh.getHub().run();
-    mesh.call(new String[]{"information.hits", "information", "nonexistant"},
+    try {
+      Thread.sleep(10000);
+    }catch (Exception e){
+
+    }
+    mesh.call(new String[]{"information.hits", "information", "information.changeme"},
       new TreeMap<String, Object>() {{
         put("wow", "works?");
       }},
@@ -91,6 +91,22 @@ public class NucleoMesh {
         public void run(NucleoData data) {
           try {
             System.out.println(new ObjectMapper().writeValueAsString(data));
+            System.out.println((data.getEnd()-data.getStart()) + "ms");
+            mesh.call(new String[]{"information.hits", "information", "information.changeme"},
+              new TreeMap<String, Object>() {{
+                put("wow", "works?");
+              }},
+              new NucleoResponder() {
+                @Override
+                public void run(NucleoData data) {
+                  try {
+                    System.out.println(new ObjectMapper().writeValueAsString(data));
+                    System.out.println((data.getEnd()-data.getStart()) + "ms");
+                  } catch (Exception e) {
+                    e.printStackTrace();
+                  }
+                }
+              });
           } catch (Exception e) {
             e.printStackTrace();
           }

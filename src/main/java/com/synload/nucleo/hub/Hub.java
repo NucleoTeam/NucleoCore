@@ -24,15 +24,16 @@ public class Hub {
   private Queue<Object[]> queue = new LinkedList<>();
   private EventHandler eventHandler = new EventHandler();
   private TreeMap<String, NucleoResponder> responders = new TreeMap();
+  private TreeMap<String, Thread> timeouts = new TreeMap<>();
   private String bootstrap;
   private ArrayList<Integer> ready = new ArrayList<>();
   private String groupName;
   private String clientName;
 
-  public Hub(String bootstrap, String clientName, String groupName) {
+  public Hub(String bootstrap, String groupName) {
     this.bootstrap = bootstrap;
     this.groupName = groupName;
-    this.clientName = clientName;
+    this.clientName = "client";
     producer = new ProducerHandler(this.bootstrap);
     int id = ready.size();
     ready.add(0);
@@ -45,8 +46,10 @@ public class Hub {
 
   public void push(NucleoData data, NucleoResponder responder) {
     responders.put(data.getRoot().toString(), responder);
-    new Thread(new NucleoTimeout(this, data)).start();
-    queue.add(new Object[]{data.getChain()[data.getLink()], data});
+    Thread timeout = new Thread(new NucleoTimeout(this, data));
+    timeout.start();
+    timeouts.put(data.getRoot().toString(), timeout);
+    queue.add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
   }
 
   public <T> void register(T... clazzez) {
@@ -80,26 +83,8 @@ public class Hub {
             String topic = (String) dataBlock[0];
             NucleoData data = (NucleoData) dataBlock[1];
 
-            if (data.getChain().length - 1 != data.getLink() && data.getOrigin().equals(clientName)) {
-              NucleoResponder responder = new NucleoResponder() {
-                public void run(NucleoData data) {
-                  String chain;
-                  if (!data.getChainBreak().isBreakChain()) {
-                    data.setLink(data.getLink() + 1);
-                    chain = data.getChain()[0];
-                    for (int i = 1; i <= data.getLink(); i++) {
-                      chain += "." + data.getChain()[i];
-                    }
-                  } else {
-                    chain = "nucleo.client." + data.getOrigin();
-                  }
-                  queue.add(new Object[]{chain, data});
-                }
-              };
-              UUID responderUUID = UUID.randomUUID();
-              data.setUuid(responderUUID);
-              responders.put(data.getUuid().toString(), responder);
-            }
+            data.setStart(System.currentTimeMillis());
+
             ProducerRecord record = new ProducerRecord(
               topic,
               UUID.randomUUID().toString(),
@@ -121,7 +106,71 @@ public class Hub {
       }
     }
   }
+  public class Executor implements Runnable {
+    public Hub hub;
+    public NucleoData data;
+    public String topic;
 
+    public Executor(Hub hub, NucleoData data, String topic) {
+      this.hub = hub;
+      this.data = data;
+      this.topic = topic;
+    }
+    public String getTopic(NucleoData data){
+      String chains = data.getChainList().get(data.getOnChain())[0];
+      for (int i = 1; i <= data.getLink(); i++) {
+        chains += "." + data.getChainList().get(data.getOnChain())[i];
+      }
+      return chains;
+    }
+    public void run() {
+      try {
+        if (topic.startsWith("nucleo.client.")) {
+          System.out.println("done");
+          NucleoResponder responder = responders.get(data.getRoot().toString());
+          if(responder!=null) {
+            responders.remove(data.getRoot().toString());
+            Thread timeout = timeouts.get(data.getRoot().toString());
+            if (timeout != null) {
+              timeout.interrupt();
+              timeouts.remove(data.getRoot().toString());
+            }
+            data.setEnd(System.currentTimeMillis());
+            responder.run(data);
+          }
+        } else if (eventHandler.getChainToMethod().containsKey(topic)) {
+          Object[] methodData = eventHandler.getChainToMethod().get(topic);
+          Object obj;
+          if (methodData[0] instanceof Class) {
+            Class clazz = (Class) methodData[0];
+            obj = clazz.newInstance();
+          } else {
+            obj = methodData[0];
+          }
+          Method method = (Method) methodData[1];
+          method.invoke(obj, data);
+          //System.out.println("Topic "+ getTopic(data) + " # Root "+ data.getRoot()+" # Value "+ new ObjectMapper().writeValueAsString(data));
+          if(data.getLink()+1==data.getChainList().get(data.getOnChain()).length){
+            if(data.getChainList().size()==data.getOnChain()+1) {
+              queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+              return;
+            } else {
+              data.setOnChain(data.getOnChain()+1);
+              data.setLink(0);
+            }
+          } else {
+            data.setLink(data.getLink() + 1);
+          }
+
+          queue.add(new Object[]{ getTopic(data) , data});
+        } else {
+          System.out.println("Topic or responder not found: " + topic);
+        }
+      }catch(Exception e){
+        e.printStackTrace();
+      }
+    }
+  }
   public class Listener implements Runnable {
     private ConsumerHandler consumer;
     private String[] topics;
@@ -142,56 +191,34 @@ public class Hub {
       ObjectMapper objectMapper = new ObjectMapper();
       ready.set(id, 1);
       while (true) {
-        ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(1));
-        if (consumerRecords != null) {
-          consumerRecords.forEach(record -> {
-            try {
-              NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
-              if (data.getChainBreak().isBreakChain() && data.getOrigin().equals(clientName)) {
-                NucleoResponder responder = responders.get(data.getRoot().toString());
-                responders.remove(data.getRoot().toString());
-                responder.run(data);
-              } else if (eventHandler.getChainToMethod().containsKey(record.topic())) {
-                Object[] methodData = eventHandler.getChainToMethod().get(record.topic());
-                Object obj;
-                if (methodData[0] instanceof Class) {
-                  Class clazz = (Class) methodData[0];
-                  obj = clazz.newInstance();
-                } else {
-                  obj = methodData[0];
-                }
-                Method method = (Method) methodData[1];
-                method.invoke(obj, data);
-                queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-              } else if (data.getUuid() != null && responders.containsKey(data.getUuid().toString())) {
-                NucleoResponder responder = responders.get(data.getUuid().toString());
-                responders.remove(data.getUuid().toString());
-                responder.run(data);
-              } else if (responders.containsKey(data.getRoot().toString())) {
-                NucleoResponder responder = responders.get(data.getRoot().toString());
-                responders.remove(data.getRoot().toString());
-                responder.run(data);
-              } else {
-                System.out.println("Topic or responder not found: " + record.topic());
+        try {
+          ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(100));
+          if (consumerRecords != null) {
+            consumerRecords.forEach(record -> {
+              try {
+                NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
+                new Thread(new Executor(hub, data, record.topic())).start();
+              } catch (Exception e) {
+                e.printStackTrace();
               }
-            } catch (Exception e) {
-              e.printStackTrace();
-            }
 
-            //String topicsAll = "";
-            //try {
-            //  topicsAll = new ObjectMapper().writeValueAsString(topics);
+              //String topicsAll = "";
+              //try {
+              //  topicsAll = new ObjectMapper().writeValueAsString(topics);
 
 
-             //} catch (Exceptio e) {
-            //  e.printStackTrace();
-            //}
-            //System.out.println(topicsAll+" Record Key " + record.key());
-            //System.out.println(topicsAll+" Record value " + record.value());
-            //System.out.println(topicsAll+" Record partition " + record.partition());
-            //System.out.println(topicsAll+" Record offset " + record.offset());
-          });
-          consumer.getConsumer().commitAsync();
+              //} catch (Exceptio e) {
+              //  e.printStackTrace();
+              //}
+              //System.out.println(record.topic()+" Record Key " + record.key());
+              //System.out.println(record.topic()+" Record value " + record.value());
+              //System.out.println(record.topic()+" Record partition " + record.partition());
+              //System.out.println(record.topic()+" Record offset " + record.offset());
+            });
+            consumer.getConsumer().commitAsync();
+          }
+        }catch (Exception e){
+          e.printStackTrace();
         }
       }
     }
@@ -231,5 +258,45 @@ public class Hub {
 
   public boolean isReady() {
     return ready.contains(0);
+  }
+
+  public String getBootstrap() {
+    return bootstrap;
+  }
+
+  public void setBootstrap(String bootstrap) {
+    this.bootstrap = bootstrap;
+  }
+
+  public ArrayList<Integer> getReady() {
+    return ready;
+  }
+
+  public void setReady(ArrayList<Integer> ready) {
+    this.ready = ready;
+  }
+
+  public String getGroupName() {
+    return groupName;
+  }
+
+  public void setGroupName(String groupName) {
+    this.groupName = groupName;
+  }
+
+  public String getClientName() {
+    return clientName;
+  }
+
+  public void setClientName(String clientName) {
+    this.clientName = clientName;
+  }
+
+  public TreeMap<String, Thread> getTimeouts() {
+    return timeouts;
+  }
+
+  public void setTimeouts(TreeMap<String, Thread> timeouts) {
+    this.timeouts = timeouts;
   }
 }

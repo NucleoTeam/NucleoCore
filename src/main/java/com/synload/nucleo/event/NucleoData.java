@@ -1,35 +1,23 @@
 package com.synload.nucleo.event;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.TreeMap;
 import java.util.UUID;
 
 public class NucleoData {
-  private UUID uuid;
   private UUID root;
-  private String[] chain;
+  private List<String[]> chainList = new ArrayList<>();
   private String origin;
   private int link;
+  private long start;
+  private long end;
+  private int onChain;
   private TreeMap<String, Object> objects;
   private NucleoChainStatus chainBreak = new NucleoChainStatus();
 
   public NucleoData(){
     root = UUID.randomUUID();
-  }
-
-  public UUID getUuid() {
-    return uuid;
-  }
-
-  public void setUuid(UUID uuid) {
-    this.uuid = uuid;
-  }
-
-  public String[] getChain() {
-    return chain;
-  }
-
-  public void setChain(String[] chain) {
-    this.chain = chain;
   }
 
   public TreeMap<String, Object> getObjects() {
@@ -70,5 +58,37 @@ public class NucleoData {
 
   public void setChainBreak(NucleoChainStatus chainBreak) {
     this.chainBreak = chainBreak;
+  }
+
+  public List<String[]> getChainList() {
+    return chainList;
+  }
+
+  public void setChainList(List<String[]> chainList) {
+    this.chainList = chainList;
+  }
+
+  public int getOnChain() {
+    return onChain;
+  }
+
+  public void setOnChain(int onChain) {
+    this.onChain = onChain;
+  }
+
+  public long getStart() {
+    return start;
+  }
+
+  public void setStart(long start) {
+    this.start = start;
+  }
+
+  public long getEnd() {
+    return end;
+  }
+
+  public void setEnd(long end) {
+    this.end = end;
   }
 }
