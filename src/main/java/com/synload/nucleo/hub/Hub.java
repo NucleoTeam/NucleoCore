@@ -30,10 +30,10 @@ public class Hub {
   private String groupName;
   private String clientName;
 
-  public Hub(String bootstrap, String groupName) {
+  public Hub(String clientName, String bootstrap, String groupName) {
     this.bootstrap = bootstrap;
     this.groupName = groupName;
-    this.clientName = "client";
+    this.clientName = clientName;
     producer = new ProducerHandler(this.bootstrap);
     int id = ready.size();
     ready.add(0);

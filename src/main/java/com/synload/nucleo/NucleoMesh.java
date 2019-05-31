@@ -20,8 +20,8 @@ public class NucleoMesh {
   private Hub hub;
   private String clientName;
 
-  public NucleoMesh(String bootstrapServer, String groupName) {
-    hub = new Hub(bootstrapServer, groupName);
+  public NucleoMesh(String clientName, String bootstrapServer, String groupName) {
+    hub = new Hub(clientName, bootstrapServer, groupName);
     this.clientName = hub.getClientName();
   }
   public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
@@ -74,7 +74,7 @@ public class NucleoMesh {
   public static void main(String[] args) {
     //createTopic();
     Logger.getRootLogger().setLevel(Level.DEBUG);
-    NucleoMesh mesh = new NucleoMesh( "192.168.1.112:9092", "mesh");
+    NucleoMesh mesh = new NucleoMesh( "test", "192.168.1.112:9092", "mesh");
     mesh.getHub().register(InformationHandler.class, HitsHandler.class);
     mesh.getHub().run();
     try {
@@ -92,7 +92,7 @@ public class NucleoMesh {
           try {
             System.out.println(new ObjectMapper().writeValueAsString(data));
             System.out.println((data.getEnd()-data.getStart()) + "ms");
-            mesh.call(new String[]{"information.hits", "information", "information.changeme"},
+            mesh.call(new String[]{"information.hits", "information"},
               new TreeMap<String, Object>() {{
                 put("wow", "works?");
               }},
