@@ -6,6 +6,9 @@ public class NucleoTiming {
     private long end;
     private long total;
 
+    public NucleoTiming() {
+    }
+
     public NucleoTiming(String step, long start) {
         this.step = step;
         this.start = start;
