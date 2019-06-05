@@ -1,15 +1,27 @@
 package com.synload.nucleo.event;
 
-public class NucleoTiming {
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+public class NucleoStep {
     private String step="";
+    private String ip;
+    private String host;
     private long start;
     private long end;
     private long total;
 
-    public NucleoTiming() {
+    public NucleoStep() {
+        try {
+            this.host = InetAddress.getLocalHost().getHostName();
+            this.ip = InetAddress.getLocalHost().getHostAddress();
+        }catch (UnknownHostException e){
+            e.printStackTrace();
+        }
     }
 
-    public NucleoTiming(String step, long start) {
+    public NucleoStep(String step, long start) {
+        this();
         this.step = step;
         this.start = start;
     }

@@ -7,14 +7,10 @@ import com.synload.nucleo.loader.LoadHandler;
 import com.synload.nucleo.producer.ProducerHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Future;
 
 public class Hub {
   private ProducerHandler producer;
@@ -80,8 +76,6 @@ public class Hub {
             String topic = (String) dataBlock[0];
             NucleoData data = (NucleoData) dataBlock[1];
 
-            data.getExecution().setStart(System.currentTimeMillis());
-
             ProducerRecord record = new ProducerRecord(
               topic,
               UUID.randomUUID().toString(),
@@ -137,7 +131,7 @@ public class Hub {
           }
         } else if (eventHandler.getChainToMethod().containsKey(topic)) {
           Object[] methodData = eventHandler.getChainToMethod().get(topic);
-          NucleoTiming timing = new NucleoTiming(topic, System.currentTimeMillis());
+          NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
           Object obj;
           if (methodData[0] instanceof Class) {
             Class clazz = (Class) methodData[0];
@@ -150,6 +144,8 @@ public class Hub {
           //System.out.println("Topic "+ getTopic(data) + " # Root "+ data.getRoot()+" # Value "+ new ObjectMapper().writeValueAsString(data));
           if(data.getLink()+1==data.getChainList().get(data.getOnChain()).length){
             if(data.getChainList().size()==data.getOnChain()+1) {
+              timing.setEnd(System.currentTimeMillis());
+              data.getSteps().add(timing);
               queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
               return;
             } else {

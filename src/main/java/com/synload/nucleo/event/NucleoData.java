@@ -10,14 +10,15 @@ public class NucleoData {
   private List<String[]> chainList = new ArrayList<>();
   private String origin;
   private int link;
-  private List<NucleoTiming> steps = new ArrayList<>();
-  private NucleoTiming execution = new NucleoTiming();
+  private List<NucleoStep> steps = new ArrayList<>();
+  private NucleoStep execution = new NucleoStep();
   private int onChain;
   private TreeMap<String, Object> objects;
   private NucleoChainStatus chainBreak = new NucleoChainStatus();
 
   public NucleoData(){
     root = UUID.randomUUID();
+    getExecution().setStart(System.currentTimeMillis());
   }
 
   public TreeMap<String, Object> getObjects() {
@@ -76,19 +77,19 @@ public class NucleoData {
     this.onChain = onChain;
   }
 
-  public List<NucleoTiming> getSteps() {
+  public List<NucleoStep> getSteps() {
     return steps;
   }
 
-  public void setSteps(List<NucleoTiming> steps) {
+  public void setSteps(List<NucleoStep> steps) {
     this.steps = steps;
   }
 
-  public NucleoTiming getExecution() {
+  public NucleoStep getExecution() {
     return execution;
   }
 
-  public void setExecution(NucleoTiming execution) {
+  public void setExecution(NucleoStep execution) {
     this.execution = execution;
   }
 }
