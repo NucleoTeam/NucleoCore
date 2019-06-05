@@ -10,8 +10,8 @@ public class NucleoData {
   private List<String[]> chainList = new ArrayList<>();
   private String origin;
   private int link;
-  private long start;
-  private long end;
+  private List<NucleoTiming> steps = new ArrayList<>();
+  private NucleoTiming execution = new NucleoTiming();
   private int onChain;
   private TreeMap<String, Object> objects;
   private NucleoChainStatus chainBreak = new NucleoChainStatus();
@@ -76,19 +76,19 @@ public class NucleoData {
     this.onChain = onChain;
   }
 
-  public long getStart() {
-    return start;
+  public List<NucleoTiming> getSteps() {
+    return steps;
   }
 
-  public void setStart(long start) {
-    this.start = start;
+  public void setSteps(List<NucleoTiming> steps) {
+    this.steps = steps;
   }
 
-  public long getEnd() {
-    return end;
+  public NucleoTiming getExecution() {
+    return execution;
   }
 
-  public void setEnd(long end) {
-    this.end = end;
+  public void setExecution(NucleoTiming execution) {
+    this.execution = execution;
   }
 }

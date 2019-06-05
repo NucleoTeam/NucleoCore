@@ -91,7 +91,7 @@ public class NucleoMesh {
         public void run(NucleoData data) {
           try {
             System.out.println(new ObjectMapper().writeValueAsString(data));
-            System.out.println((data.getEnd()-data.getStart()) + "ms");
+            System.out.println((data.getExecution().getTotal()) + "ms");
             mesh.call(new String[]{"information.hits", "information"},
               new TreeMap<String, Object>() {{
                 put("wow", "works?");
@@ -101,7 +101,7 @@ public class NucleoMesh {
                 public void run(NucleoData data) {
                   try {
                     System.out.println(new ObjectMapper().writeValueAsString(data));
-                    System.out.println((data.getEnd()-data.getStart()) + "ms");
+                    System.out.println((data.getExecution().getTotal()) + "ms");
                   } catch (Exception e) {
                     e.printStackTrace();
                   }

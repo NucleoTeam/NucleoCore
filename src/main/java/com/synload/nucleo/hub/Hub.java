@@ -2,12 +2,10 @@ package com.synload.nucleo.hub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.consumer.ConsumerHandler;
-import com.synload.nucleo.event.EventHandler;
-import com.synload.nucleo.event.NucleoData;
-import com.synload.nucleo.event.NucleoResponder;
-import com.synload.nucleo.event.NucleoTimeout;
+import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
 import com.synload.nucleo.producer.ProducerHandler;
+import jdk.nashorn.internal.runtime.Timing;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -83,7 +81,7 @@ public class Hub {
             String topic = (String) dataBlock[0];
             NucleoData data = (NucleoData) dataBlock[1];
 
-            data.setStart(System.currentTimeMillis());
+            data.getExecution().setStart(System.currentTimeMillis());
 
             ProducerRecord record = new ProducerRecord(
               topic,
@@ -135,15 +133,16 @@ public class Hub {
               timeout.interrupt();
               timeouts.remove(data.getRoot().toString());
             }
-            data.setEnd(System.currentTimeMillis());
+            data.getExecution().setEnd(System.currentTimeMillis());
             responder.run(data);
           }
         } else if (eventHandler.getChainToMethod().containsKey(topic)) {
           Object[] methodData = eventHandler.getChainToMethod().get(topic);
+          NucleoTiming timing = new NucleoTiming(topic, System.currentTimeMillis());
           Object obj;
           if (methodData[0] instanceof Class) {
             Class clazz = (Class) methodData[0];
-            obj = clazz.newInstance();
+            obj = clazz.getDeclaredConstructor().newInstance();
           } else {
             obj = methodData[0];
           }
@@ -161,7 +160,8 @@ public class Hub {
           } else {
             data.setLink(data.getLink() + 1);
           }
-
+          timing.setEnd(System.currentTimeMillis());
+          data.getSteps().add(timing);
           queue.add(new Object[]{ getTopic(data) , data});
         } else {
           System.out.println("Topic or responder not found: " + topic);
