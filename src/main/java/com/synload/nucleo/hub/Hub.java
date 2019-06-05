@@ -142,6 +142,12 @@ public class Hub {
           Method method = (Method) methodData[1];
           method.invoke(obj, data);
           //System.out.println("Topic "+ getTopic(data) + " # Root "+ data.getRoot()+" # Value "+ new ObjectMapper().writeValueAsString(data));
+          if(data.getChainBreak().isBreakChain()){
+            timing.setEnd(System.currentTimeMillis());
+            data.getSteps().add(timing);
+            queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+            return;
+          }
           if(data.getLink()+1==data.getChainList().get(data.getOnChain()).length){
             if(data.getChainList().size()==data.getOnChain()+1) {
               timing.setEnd(System.currentTimeMillis());
