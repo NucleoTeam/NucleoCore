@@ -5,7 +5,6 @@ import com.synload.nucleo.consumer.ConsumerHandler;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
 import com.synload.nucleo.producer.ProducerHandler;
-import jdk.nashorn.internal.runtime.Timing;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;

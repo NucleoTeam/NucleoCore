@@ -1,7 +1,7 @@
 package com.synload.nucleo.event;
 
 public class NucleoTiming {
-    private String step;
+    private String step="";
     private long start;
     private long end;
     private long total;
@@ -28,7 +28,7 @@ public class NucleoTiming {
 
     public void setEnd(long end) {
         this.end = end;
-        this.total = end - start;
+        this.total = this.end - this.start;
     }
 
     public long getTotal() {
@@ -37,5 +37,13 @@ public class NucleoTiming {
 
     public void setTotal(long total) {
         this.total = total;
+    }
+
+    public String getStep() {
+        return step;
+    }
+
+    public void setStep(String step) {
+        this.step = step;
     }
 }
