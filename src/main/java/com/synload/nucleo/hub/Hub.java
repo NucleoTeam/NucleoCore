@@ -122,8 +122,9 @@ public class Hub {
             return chains;
         }
 
-        public boolean verifyPrevious(String currentChain, Set<String> checkChains){
+        public Set<String> verifyPrevious(String currentChain, Set<String> checkChains){
             Set<String> previousChains = new HashSet<>();
+            Set<String> checkChainsTMP = new HashSet<>(checkChains);
             for(String[] chain : data.getChainList()) {
                 String prevChain = String.join(".", chain);
                 if(prevChain.equals(currentChain)){
@@ -132,10 +133,14 @@ public class Hub {
                     previousChains.add(prevChain);
                 }
             }
-            if(previousChains.containsAll(checkChains)){
-                return true;
+            System.out.println(checkChainsTMP);
+            if(previousChains.containsAll(checkChainsTMP)){
+                return null;
+            }else{
+                data.getChainBreak().getBreakReasons();
+                checkChainsTMP.removeAll(previousChains);
             }
-            return false;
+            return checkChainsTMP;
         }
 
         public void run() {
@@ -157,13 +162,14 @@ public class Hub {
                     Object[] methodData = eventHandler.getChainToMethod().get(topic);
                     NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
                     if(methodData[2]!=null) {
-                        if(!verifyPrevious(topic, (Set<String>)methodData[2])){
+                        Set<String> missingChains;
+                        if((missingChains = verifyPrevious(topic, (Set<String>)methodData[2]))!=null){
                             timing.setEnd(System.currentTimeMillis());
                             data.getChainBreak().setBreakChain(true);
-                            data.getChainBreak().getBreakReasons().add("Failed previous chain check!");
+                            data.getChainBreak().getBreakReasons().add("Missing required chains "+missingChains+"!");
                             data.getSteps().add(timing);
                             queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-                            return;git a
+                            return;
                         }
                     }
                     Object obj;

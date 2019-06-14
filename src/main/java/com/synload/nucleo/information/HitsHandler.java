@@ -12,7 +12,7 @@ public class HitsHandler {
   /*
      Only execute information.changeme only after information.hits is run
    */
-  @NucleoEvent("information.hits > information.changeme")
+  @NucleoEvent("information.hits > test > information.changeme")
   public NucleoData changeMe(NucleoData data){
     data.getObjects().put("wow", "kekekekeke");
     return data;
