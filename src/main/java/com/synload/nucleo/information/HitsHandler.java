@@ -9,7 +9,7 @@ public class HitsHandler {
     data.getObjects().put("test","run");
     return data;
   }
-  @NucleoEvent("information.changeme")
+  @NucleoEvent("information.hits > test > information.changeme")
   public NucleoData changeMe(NucleoData data){
     data.getObjects().put("wow", "Changed the value from another application");
     return data;

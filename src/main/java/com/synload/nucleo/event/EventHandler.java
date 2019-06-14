@@ -18,6 +18,23 @@ public class EventHandler {
         return hexString.toString();
     }
 
+    public Object[] getPrevious(String chainString){
+        Set<String> previous = null;
+        if(chainString.replaceAll("\\s+","").contains(">")){
+            previous = new HashSet<>();
+            String[] elements = chainString.replaceAll("\\s+","").split(">");
+            int items = elements.length;
+            if(items>0) {
+                chainString = elements[items - 1];
+            }
+            for(int x=0;x<items-1;x++){
+                previous.add(elements[x]);
+            }
+        }else{
+            chainString = chainString.replaceAll("\\s+","");
+        }
+        return new Object[]{chainString, previous};
+    }
 
     public String[] registerMethod(Object[] methodData){
         if(methodData.length==2) {
@@ -25,17 +42,22 @@ public class EventHandler {
             Method method = (Method)methodData[1];
             NucleoEvent nEvent = method.getAnnotation(NucleoEvent.class);
             String chain = nEvent.value();
-            if(chain.equals("")){
+            if(chain.equals("") && nEvent.chains().length>0){
                 String[] chains = nEvent.chains();
+                int x=0;
                 if(nEvent.chains().length>0){
                     for( String chainString: nEvent.chains()){
-                        chainToMethod.put(chainString, new Object[]{ clazz, method });
+                        Object[] elems = getPrevious(chainString);
+                        chainToMethod.put( (String)elems[0], new Object[]{ clazz, method, (Set<String>)elems[1] });
+                        chains[x]=(String)elems[0];
+                        x++;
                     }
                     return chains;
                 }
             }else{
-                chainToMethod.put(chain, new Object[]{ clazz, method });
-                return new String[]{chain};
+                Object[] elems = getPrevious(chain);
+                chainToMethod.put( (String)elems[0], new Object[]{ clazz, method, (Set<String>)elems[1] });
+                return new String[]{(String)elems[0]};
             }
         }
         return null;
