@@ -132,8 +132,6 @@ public class Hub {
                     previousChains.add(prevChain);
                 }
             }
-            System.out.println(previousChains);
-            System.out.println(checkChains);
             if(previousChains.containsAll(checkChains)){
                 return true;
             }

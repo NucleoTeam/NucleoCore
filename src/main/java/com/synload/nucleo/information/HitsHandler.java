@@ -9,9 +9,12 @@ public class HitsHandler {
     data.getObjects().put("test","run");
     return data;
   }
+  /*
+     Only execute information.changeme only after information.hits is run
+   */
   @NucleoEvent("information.hits > information.changeme")
   public NucleoData changeMe(NucleoData data){
-    data.getObjects().put("wow", "Changed the value from another application");
+    data.getObjects().put("wow", "kekekekeke");
     return data;
   }
 }
