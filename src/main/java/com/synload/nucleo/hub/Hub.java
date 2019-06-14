@@ -163,6 +163,7 @@ public class Hub {
                             data.getChainBreak().getBreakReasons().add("Failed previous chain check!");
                             data.getSteps().add(timing);
                             queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                            return;git a
                         }
                     }
                     Object obj;
