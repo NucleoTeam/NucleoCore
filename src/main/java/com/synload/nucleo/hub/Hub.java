@@ -85,19 +85,15 @@ public class Hub {
             while (true) {
                 try {
                     while (this.hub.queue.size() > 0) {
-
                         Object[] dataBlock = this.hub.queue.remove();
                         String topic = (String) dataBlock[0];
                         NucleoData data = (NucleoData) dataBlock[1];
-
                         ProducerRecord record = new ProducerRecord(
                             topic,
                             UUID.randomUUID().toString(),
                             objectMapper.writeValueAsString(data)
                         );
-
                         producer.getProducer().send(record);
-
                     }
                     Thread.sleep(1L);
                 } catch (Exception e) {
@@ -146,8 +142,10 @@ public class Hub {
             }
             return checkChainsTMP;
         }
-
         public void run() {
+            exec();
+        }
+        public void exec() {
             try {
                 if (topic.startsWith("nucleo.client.")) {
                     System.out.println("done");
@@ -184,39 +182,67 @@ public class Hub {
                         obj = methodData[0];
                     }
                     Method method = (Method) methodData[1];
-                    method.invoke(obj, data);
-                    if (data.getChainBreak().isBreakChain()) {
-                        timing.setEnd(System.currentTimeMillis());
-                        data.getSteps().add(timing);
-                        queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-                        return;
-                    }
-                    boolean sameChain = false;
-                    if (data.getLink() + 1 == data.getChainList().get(data.getOnChain()).length) {
-                        if (data.getChainList().size() == data.getOnChain() + 1) {
+                    NucleoResponder responder = new NucleoResponder(){
+                        public void run(NucleoData data){
+                            if (data.getChainBreak().isBreakChain()) {
+                                timing.setEnd(System.currentTimeMillis());
+                                data.getSteps().add(timing);
+                                queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                                return;
+                            }
+                            boolean sameChain = false;
+                            if (data.getLink() + 1 == data.getChainList().get(data.getOnChain()).length) {
+                                if (data.getChainList().size() == data.getOnChain() + 1) {
+                                    timing.setEnd(System.currentTimeMillis());
+                                    data.getSteps().add(timing);
+                                    queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                                    return;
+                                } else {
+                                    data.setOnChain(data.getOnChain() + 1);
+                                    data.setLink(0);
+                                }
+                            } else {
+                                data.setLink(data.getLink() + 1);
+                                sameChain = true;
+                            }
                             timing.setEnd(System.currentTimeMillis());
                             data.getSteps().add(timing);
-                            queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-                            return;
-                        } else {
-                            data.setOnChain(data.getOnChain() + 1);
-                            data.setLink(0);
+                            String newTopic = getTopic(data);
+                            if(sameChain){
+                                if(eventHandler.getChainToMethod().containsKey(newTopic)){
+                                    topic=newTopic;
+                                    exec();
+                                    return;
+                                }
+                            }
+                            queue.add(new Object[]{ newTopic, data});
                         }
-                    } else {
-                        data.setLink(data.getLink() + 1);
-                        sameChain = true;
-                    }
-                    timing.setEnd(System.currentTimeMillis());
-                    data.getSteps().add(timing);
-                    String newTopic = getTopic(data);
-                    if(sameChain){
-                        if(eventHandler.getChainToMethod().containsKey(newTopic)){
-                            this.topic=newTopic;
-                            run();
-                            return;
+                    };
+                    int len = method.getParameterTypes().length;
+                    if(len>0){
+                        if(method.getParameterTypes()[0]==NucleoData.class && len==1){
+                            try{
+                                method.invoke(obj, data);
+                            }catch (Exception e){
+                                e.printStackTrace();
+                            }
+                            responder.run(data);
+                        }else if(method.getParameterTypes()[0]==NucleoData.class && len==2 && method.getParameterTypes()[1]==NucleoResponder.class){
+                            try{
+                                method.invoke(obj, data, responder);
+                            }catch (Exception e){
+                                e.printStackTrace();
+                            }
+                            responder.run(data);
                         }
+                    }else{
+                        try{
+                            method.invoke(obj);
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                        responder.run(data);
                     }
-                    queue.add(new Object[]{ newTopic, data});
                 } else {
                     System.out.println("Topic or responder not found: " + topic);
                 }
