@@ -1,5 +1,5 @@
 group 'nucleocore'
-version '1.03.01'
+version '1.03.02'
 
 apply plugin: 'java'
 apply plugin: 'maven'

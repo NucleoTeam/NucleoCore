@@ -191,6 +191,7 @@ public class Hub {
                         queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                         return;
                     }
+                    boolean sameChain = false;
                     if (data.getLink() + 1 == data.getChainList().get(data.getOnChain()).length) {
                         if (data.getChainList().size() == data.getOnChain() + 1) {
                             timing.setEnd(System.currentTimeMillis());
@@ -203,10 +204,19 @@ public class Hub {
                         }
                     } else {
                         data.setLink(data.getLink() + 1);
+                        sameChain = true;
                     }
                     timing.setEnd(System.currentTimeMillis());
                     data.getSteps().add(timing);
-                    queue.add(new Object[]{getTopic(data), data});
+                    String newTopic = getTopic(data);
+                    if(sameChain){
+                        if(eventHandler.getChainToMethod().containsKey(newTopic)){
+                            this.topic=newTopic;
+                            run();
+                            return;
+                        }
+                    }
+                    queue.add(new Object[]{ newTopic, data});
                 } else {
                     System.out.println("Topic or responder not found: " + topic);
                 }
