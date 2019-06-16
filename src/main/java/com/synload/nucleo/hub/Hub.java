@@ -7,6 +7,7 @@ import com.synload.nucleo.loader.LoadHandler;
 import com.synload.nucleo.producer.ProducerHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.reflections.Reflections;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -55,9 +56,11 @@ public class Hub {
         queue.add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
     }
 
-    public <T> void register(T... clazzez) {
+    public void register(String servicePackage) {
         try {
-            LoadHandler.getMethods(clazzez).forEach((m) -> {
+            Reflections reflect = new Reflections(servicePackage);
+            Set<Class<?>> classes = reflect.getTypesAnnotatedWith(NucleoClass.class);
+            LoadHandler.getMethods(classes.toArray()).forEach((m) -> {
                 int id = ready.size();
                 ready.add(0);
                 new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();

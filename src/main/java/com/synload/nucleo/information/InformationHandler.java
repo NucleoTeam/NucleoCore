@@ -1,8 +1,10 @@
 package com.synload.nucleo.information;
 
+import com.synload.nucleo.event.NucleoClass;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.event.NucleoEvent;
 
+@NucleoClass
 public class InformationHandler {
   @NucleoEvent(chains={"information"})
   public NucleoData hitCount(NucleoData data){

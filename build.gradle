@@ -1,10 +1,10 @@
 group 'nucleocore'
-version '1.02.29'
+version '1.03.00'
 
 apply plugin: 'java'
 apply plugin: 'maven'
 
-sourceCompatibility = 1.8
+sourceCompatibility = 12
 
 repositories {
     mavenCentral()
@@ -15,7 +15,7 @@ dependencies {
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.2.3'
     compile group: 'com.101tec', name: 'zkclient', version: '0.11'
     compile group: 'org.apache.kafka', name: 'kafka_2.12', version: '2.1.1'
-
+    compile 'org.reflections:reflections:0.9.11'
     compile 'org.slf4j:slf4j-nop:1.7.25'
 }
 
