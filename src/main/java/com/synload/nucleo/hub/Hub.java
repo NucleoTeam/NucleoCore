@@ -60,6 +60,7 @@ public class Hub {
         try {
             Reflections reflect = new Reflections(servicePackage);
             Set<Class<?>> classes = reflect.getTypesAnnotatedWith(NucleoClass.class);
+            System.out.println(new ObjectMapper().writeValueAsString(classes));
             LoadHandler.getMethods(classes.toArray()).forEach((m) -> {
                 int id = ready.size();
                 ready.add(0);
