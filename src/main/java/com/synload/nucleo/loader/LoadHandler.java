@@ -13,12 +13,14 @@ public class LoadHandler {
             if(clazz instanceof Class) {
                 for (Method method : ((Class)clazz).getDeclaredMethods()) {
                     if (method.isAnnotationPresent(NucleoEvent.class)){
+                        System.out.println(((Class) clazz).getName() + "->" + method.getName());
                         methods.add(new Object[]{((Class) clazz).getDeclaredConstructor().newInstance(), method});
                     }
                 }
             }else if(clazz instanceof Object){
                 for (Method method:clazz.getClass().getDeclaredMethods()) {
                     if(method.isAnnotationPresent(NucleoEvent.class)){
+                        System.out.println(((Object) clazz).getClass().getName() + "->" + method.getName());
                         methods.add(new Object[]{clazz, method});
                     }
                 }
