@@ -233,7 +233,6 @@ public class Hub {
                             }catch (Exception e){
                                 e.printStackTrace();
                             }
-                            responder.run(data);
                         }
                     }else{
                         try{
