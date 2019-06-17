@@ -122,17 +122,18 @@ public class Hub {
             return chains;
         }
 
-        public Set<String> verifyPrevious(String currentChain, Set<String> checkChains){
+        public Set<String> verifyPrevious(Set<String> checkChains){
             Set<String> previousChains = new HashSet<>();
             Set<String> checkChainsTMP = new HashSet<>(checkChains);
-            int len = data.getSteps().size()-1;
-            data.getSteps().parallelStream().filter(s->s.getEnd()>0).forEach(step->previousChains.add(step.getStep()));
+            data.getSteps().stream().filter(s->s.getEnd()>0).forEach(s->previousChains.add(s.getStep()));
+            System.out.println("------");
+            System.out.println(previousChains);
+            System.out.println(checkChainsTMP);
             if(previousChains.containsAll(checkChainsTMP)){
                 return null;
-            }else{
-                data.getChainBreak().getBreakReasons();
-                checkChainsTMP.removeAll(previousChains);
             }
+            data.getChainBreak().getBreakReasons();
+            checkChainsTMP.removeAll(previousChains);
             return checkChainsTMP;
         }
         public void run() {
@@ -158,7 +159,7 @@ public class Hub {
                     NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
                     if(methodData[2]!=null) {
                         Set<String> missingChains;
-                        if((missingChains = verifyPrevious(topic, (Set<String>)methodData[2]))!=null){
+                        if((missingChains = verifyPrevious((Set<String>)methodData[2]))!=null){
                             timing.setEnd(System.currentTimeMillis());
                             data.getChainBreak().setBreakChain(true);
                             data.getChainBreak().getBreakReasons().add("Missing required chains "+missingChains+"!");
