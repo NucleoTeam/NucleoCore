@@ -125,15 +125,8 @@ public class Hub {
         public Set<String> verifyPrevious(String currentChain, Set<String> checkChains){
             Set<String> previousChains = new HashSet<>();
             Set<String> checkChainsTMP = new HashSet<>(checkChains);
-            for(String[] chain : data.getChainList()) {
-                String prevChain = String.join(".", chain);
-                if(prevChain.equals(currentChain)){
-                    break;
-                }else{
-                    previousChains.add(prevChain);
-                }
-            }
-            System.out.println(checkChainsTMP);
+            int len = data.getSteps().size()-1;
+            data.getSteps().parallelStream().filter(s->s.getEnd()>0).forEach(step->previousChains.add(step.getStep()));
             if(previousChains.containsAll(checkChainsTMP)){
                 return null;
             }else{
