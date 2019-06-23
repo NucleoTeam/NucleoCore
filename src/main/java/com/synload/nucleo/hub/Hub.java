@@ -95,7 +95,7 @@ public class Hub {
                         );
                         producer.getProducer().send(record);
                     }
-                    Thread.sleep(1L);
+                    Thread.sleep(1);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -266,7 +266,7 @@ public class Hub {
             ready.set(id, 1);
             while (true) {
                 try {
-                    ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(100));
+                    ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(1));
                     if (consumerRecords != null) {
                         consumerRecords.forEach(record -> {
                             try {
@@ -278,6 +278,7 @@ public class Hub {
                         });
                         consumer.getConsumer().commitAsync();
                     }
+                    Thread.sleep(1);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
