@@ -20,8 +20,8 @@ public class NucleoMesh {
   private Hub hub;
   private String clientName;
 
-  public NucleoMesh(String clientName, String bootstrapServer, String groupName) {
-    hub = new Hub(clientName, bootstrapServer, groupName, "192.168.1.112", 9200);
+  public NucleoMesh(String clientName, String bootstrapServer, String groupName, String elasticServer, int elasticPort) {
+    hub = new Hub(clientName, bootstrapServer, groupName, elasticServer, elasticPort);
     this.clientName = hub.getClientName();
   }
   public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
@@ -74,7 +74,7 @@ public class NucleoMesh {
   public static void main(String[] args) {
     //createTopic();
     Logger.getRootLogger().setLevel(Level.DEBUG);
-    NucleoMesh mesh = new NucleoMesh( "test", "192.168.1.112:9092", "mesh");
+    NucleoMesh mesh = new NucleoMesh( "test", "192.168.1.112:9092", "mesh", "192.168.1.112", 9200);
     mesh.getHub().register("com.synload.nucleo.information");
     mesh.getHub().run();
     try {
