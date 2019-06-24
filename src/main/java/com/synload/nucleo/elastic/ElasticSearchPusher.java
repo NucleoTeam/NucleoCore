@@ -3,6 +3,7 @@ package com.synload.nucleo.elastic;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.event.NucleoData;
 import org.apache.http.HttpHost;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -31,12 +32,12 @@ public class ElasticSearchPusher implements Runnable {
   }
   public void run(){
     while(true){
-      try{
+      try {
         if (queue.size() > 0) {
           NucleoData data = queue.pop();
           byte[] object = om.writeValueAsBytes(data);
           IndexRequest request = new IndexRequest("nucleo")
-            .id(data.getOrigin()+"-"+data.getRoot().toString())
+            .id(data.getOrigin() + "-" + data.getRoot().toString())
             .source(object, XContentType.JSON)
             .version(data.getSteps().size())
             .versionType(VersionType.EXTERNAL);
@@ -44,6 +45,8 @@ public class ElasticSearchPusher implements Runnable {
           System.out.println(indexResponse.toString());
         }
         Thread.sleep(1);
+      }catch (ElasticsearchStatusException x){
+        //x.printStackTrace();
       }catch (Exception e){
         e.printStackTrace();
         System.exit(-1);
