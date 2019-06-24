@@ -2,6 +2,7 @@ package com.synload.nucleo.hub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.consumer.ConsumerHandler;
+import com.synload.nucleo.elastic.ElasticSearchPusher;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
 import com.synload.nucleo.producer.ProducerHandler;
@@ -24,14 +25,19 @@ public class Hub {
     private ArrayList<Integer> ready = new ArrayList<>();
     private String groupName;
     private String clientName;
+    private ElasticSearchPusher esPusher;
 
-    public Hub(String clientName, String bootstrap, String groupName) {
+    public Hub(String clientName, String bootstrap, String groupName, String elasticServer, int elasticPort) {
         this.bootstrap = bootstrap;
         this.groupName = groupName;
         this.clientName = clientName;
         producer = new ProducerHandler(this.bootstrap);
+        esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
         int id = ready.size();
         ready.add(0);
+        new Thread(
+          esPusher
+        ).start();
         new Thread(
             new Listener(
                 this,
@@ -98,6 +104,8 @@ public class Hub {
                     Thread.sleep(1);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    System.exit(-1);
+                    return;
                 }
             }
         }
@@ -152,6 +160,7 @@ public class Hub {
                             timeouts.remove(data.getRoot().toString());
                         }
                         data.getExecution().setEnd(System.currentTimeMillis());
+                        esPusher.add(data);
                         responder.run(data);
                     }
                 } else if (eventHandler.getChainToMethod().containsKey(topic)) {
@@ -164,6 +173,7 @@ public class Hub {
                             data.getChainBreak().setBreakChain(true);
                             data.getChainBreak().getBreakReasons().add("Missing required chains "+missingChains+"!");
                             data.getSteps().add(timing);
+                            esPusher.add(data);
                             queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                             return;
                         }
@@ -181,6 +191,7 @@ public class Hub {
                             if (data.getChainBreak().isBreakChain()) {
                                 timing.setEnd(System.currentTimeMillis());
                                 data.getSteps().add(timing);
+                                esPusher.add(data);
                                 queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                                 return;
                             }
@@ -189,6 +200,7 @@ public class Hub {
                                 if (data.getChainList().size() == data.getOnChain() + 1) {
                                     timing.setEnd(System.currentTimeMillis());
                                     data.getSteps().add(timing);
+                                    esPusher.add(data);
                                     queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                                     return;
                                 } else {
@@ -201,6 +213,7 @@ public class Hub {
                             }
                             timing.setEnd(System.currentTimeMillis());
                             data.getSteps().add(timing);
+                            esPusher.add(data);
                             String newTopic = getTopic(data);
                             if(sameChain){
                                 if(eventHandler.getChainToMethod().containsKey(newTopic)){
@@ -281,6 +294,8 @@ public class Hub {
                     Thread.sleep(1);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    System.exit(-1);
+                    return;
                 }
             }
         }

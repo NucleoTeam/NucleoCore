@@ -21,7 +21,7 @@ public class NucleoMesh {
   private String clientName;
 
   public NucleoMesh(String clientName, String bootstrapServer, String groupName) {
-    hub = new Hub(clientName, bootstrapServer, groupName);
+    hub = new Hub(clientName, bootstrapServer, groupName, "192.168.1.112", 9200);
     this.clientName = hub.getClientName();
   }
   public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
