@@ -36,13 +36,15 @@ public class ElasticSearchPusher implements Runnable {
         if (queue.size() > 0) {
           NucleoData data = queue.pop();
           byte[] object = om.writeValueAsBytes(data);
-          IndexRequest request = new IndexRequest("nucleo")
-            .id(data.getOrigin() + "-" + data.getRoot().toString())
-            .source(object, XContentType.JSON)
-            .version(data.getSteps().size())
-            .versionType(VersionType.EXTERNAL);
-          IndexResponse indexResponse = client.index(request, RequestOptions.DEFAULT);
-          System.out.println(indexResponse.toString());
+          if (data.getSteps().stream().filter(x->x.getEnd()!=0).count()==0) {
+            IndexRequest request = new IndexRequest("nucleo")
+                .id(data.getOrigin() + "-" + data.getRoot().toString())
+                .source(object, XContentType.JSON)
+                .version(data.getSteps().size())
+                .versionType(VersionType.EXTERNAL);
+            IndexResponse indexResponse = client.index(request, RequestOptions.DEFAULT);
+            System.out.println(indexResponse.toString());
+          }
         }
         Thread.sleep(1);
       }catch (ElasticsearchStatusException x){
