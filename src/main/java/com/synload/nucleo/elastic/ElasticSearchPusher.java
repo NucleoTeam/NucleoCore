@@ -41,7 +41,7 @@ public class ElasticSearchPusher implements Runnable {
             IndexRequest request = new IndexRequest("nucleo")
                 .id(data.getOrigin() + "-" + data.getRoot().toString())
                 .source(object, XContentType.JSON)
-                .version(data.getSteps().size())
+                .version(data.getVersion())
                 .versionType(VersionType.EXTERNAL);
             IndexResponse indexResponse = client.index(request, RequestOptions.DEFAULT);
             System.out.println(indexResponse.toString());
