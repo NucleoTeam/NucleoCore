@@ -28,6 +28,7 @@ public class ElasticSearchPusher implements Runnable {
 
   }
   public void add(NucleoData item) {
+    item.setVersion(item.getVersion()+1);
     queue.add(item);
   }
   public void run(){

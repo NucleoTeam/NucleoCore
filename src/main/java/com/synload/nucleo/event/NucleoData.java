@@ -13,6 +13,7 @@ public class NucleoData {
   private List<NucleoStep> steps = new ArrayList<>();
   private NucleoStep execution = new NucleoStep();
   private int onChain;
+  private int version=0;
   private TreeMap<String, Object> objects;
   private NucleoChainStatus chainBreak = new NucleoChainStatus();
 
@@ -91,5 +92,13 @@ public class NucleoData {
 
   public void setExecution(NucleoStep execution) {
     this.execution = execution;
+  }
+
+  public int getVersion() {
+    return version;
+  }
+
+  public void setVersion(int version) {
+    this.version = version;
   }
 }
