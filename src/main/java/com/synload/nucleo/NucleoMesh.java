@@ -24,28 +24,9 @@ public class NucleoMesh {
     hub = new Hub(clientName, bootstrapServer, groupName, elasticServer, elasticPort);
     this.clientName = hub.getClientName();
   }
-  public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
-    NucleoData data = new NucleoData();
-    data.setObjects(objects);
-    data.setOrigin(clientName);
-    data.setLink(0);
-    data.setOnChain(0);
-    data.getChainList().add(chain.split("\\."));
-    return data;
-  }
-  public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects){
-    NucleoData data = new NucleoData();
-    data.setObjects(objects);
-    data.setOrigin(clientName);
-    data.setLink(0);
-    data.setOnChain(0);
-    for(String chain : chains) {
-      data.getChainList().add(chain.split("\\."));
-    }
-    return data;
-  }
+
   public void call(String chain, TreeMap<String, Object> objects, Method onFinishedMethod, Object onFinishedObject) {
-    this.getHub().push(this.constructNucleoData(chain, objects), new NucleoResponder() {
+    this.getHub().push(hub.constructNucleoData(chain, objects), new NucleoResponder() {
       @Override
       public void run(NucleoData returnedData) {
         try {
@@ -57,13 +38,13 @@ public class NucleoMesh {
     });
   }
   public void call(String chain, TreeMap<String, Object> objects, NucleoResponder nucleoResponder) {
-    this.getHub().push(this.constructNucleoData(chain, objects), nucleoResponder);
+    this.getHub().push(hub.constructNucleoData(chain, objects), nucleoResponder);
   }
   public boolean call(String[] chains, TreeMap<String, Object> objects, NucleoResponder nucleoResponder) {
     if (chains.length == 0) {
       return false;
     }
-    this.getHub().push( constructNucleoData(chains, objects), nucleoResponder);
+    this.getHub().push( hub.constructNucleoData(chains, objects), nucleoResponder);
     return true;
   }
 

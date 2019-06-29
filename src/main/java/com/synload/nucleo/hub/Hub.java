@@ -50,6 +50,28 @@ public class Hub {
         ).start();
     }
 
+    public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
+        NucleoData data = new NucleoData();
+        data.setObjects(objects);
+        data.setOrigin(clientName);
+        data.setLink(0);
+        data.setOnChain(0);
+        data.getChainList().add(chain.split("\\."));
+        return data;
+    }
+
+    public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects){
+        NucleoData data = new NucleoData();
+        data.setObjects(objects);
+        data.setOrigin(clientName);
+        data.setLink(0);
+        data.setOnChain(0);
+        for(String chain : chains) {
+            data.getChainList().add(chain.split("\\."));
+        }
+        return data;
+    }
+
     public void run() {
         new Thread(new Writer(this)).start();
     }
