@@ -184,6 +184,13 @@ public class Hub {
                         data.getExecution().setEnd(System.currentTimeMillis());
                         esPusher.add(data);
                         responder.run(data);
+                        hub.push(hub.constructNucleoData(new String[]{"_watch.complete"}, new TreeMap<String, Object>() {{
+                            put("root", data.getRoot());
+                        }}), new NucleoResponder() {
+                            @Override
+                            public void run(NucleoData returnedData) {
+                            }
+                        });
                     }
                 } else if (eventHandler.getChainToMethod().containsKey(topic)) {
                     Object[] methodData = eventHandler.getChainToMethod().get(topic);
