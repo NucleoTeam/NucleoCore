@@ -28,28 +28,32 @@ public class ElasticSearchPusher implements Runnable {
 
   }
   public void add(NucleoData item) {
-    item.setVersion(item.getVersion()+1);
-    queue.add(item);
+    try {
+      item.setVersion(item.getVersion()+1);
+      NucleoData itemTemp = (NucleoData) item.clone();
+      queue.add(itemTemp);
+    }catch (Exception e){
+      e.printStackTrace();
+    }
   }
   public void run(){
     while(true){
       try {
         if (queue.size() > 0) {
+          System.out.println("Processing");
           NucleoData data = queue.pop();
           byte[] object = om.writeValueAsBytes(data);
-          if (data.getSteps().stream().filter(x->x.getEnd()!=0).count()==0) {
-            IndexRequest request = new IndexRequest("nucleo")
-                .id(data.getOrigin() + "-" + data.getRoot().toString())
-                .source(object, XContentType.JSON)
-                .version(data.getVersion())
-                .versionType(VersionType.EXTERNAL);
-            IndexResponse indexResponse = client.index(request, RequestOptions.DEFAULT);
-            System.out.println(indexResponse.toString());
-          }
+          IndexRequest request = new IndexRequest("nucleo")
+              .id(data.getOrigin() + "-" + data.getRoot().toString())
+              .source(object, XContentType.JSON)
+              .version(data.getVersion())
+              .versionType(VersionType.EXTERNAL);
+          IndexResponse indexResponse = client.index(request, RequestOptions.DEFAULT);
+          System.out.println(indexResponse.toString());
         }
         Thread.sleep(1);
       }catch (ElasticsearchStatusException x){
-        //x.printStackTrace();
+        x.printStackTrace();
       }catch (Exception e){
         e.printStackTrace();
         System.exit(-1);

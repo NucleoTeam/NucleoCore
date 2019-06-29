@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.UUID;
 
-public class NucleoData {
+public class NucleoData implements Cloneable  {
   private UUID root;
   private List<String[]> chainList = new ArrayList<>();
   private String origin;
@@ -100,5 +100,8 @@ public class NucleoData {
 
   public void setVersion(int version) {
     this.version = version;
+  }
+  public Object clone() throws  CloneNotSupportedException {
+    return super.clone();
   }
 }

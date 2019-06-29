@@ -82,7 +82,7 @@ public class NucleoMesh {
     }catch (Exception e){
 
     }
-    mesh.call(new String[]{"information.hits", "information", "information.changeme"},
+    /*mesh.call(new String[]{"information.hits", "information", "information.changeme"},
       new TreeMap<String, Object>() {{
         put("wow", "works?");
       }},
@@ -111,6 +111,6 @@ public class NucleoMesh {
             e.printStackTrace();
           }
         }
-      });
+      });*/
   }
 }
