@@ -76,11 +76,15 @@ public class Hub {
         new Thread(new Writer(this)).start();
     }
 
-    public void push(NucleoData data, NucleoResponder responder) {
+    public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
         responders.put(data.getRoot().toString(), responder);
-        Thread timeout = new Thread(new NucleoTimeout(this, data));
-        timeout.start();
-        timeouts.put(data.getRoot().toString(), timeout);
+        if (allowTracking) {
+            Thread timeout = new Thread(new NucleoTimeout(this, data));
+            timeout.start();
+            timeouts.put(data.getRoot().toString(), timeout);
+        }else{
+            data.setTrack(0);
+        }
         queue.add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
     }
 
@@ -184,13 +188,15 @@ public class Hub {
                         data.getExecution().setEnd(System.currentTimeMillis());
                         esPusher.add(data);
                         responder.run(data);
-                        hub.push(hub.constructNucleoData(new String[]{"_watch.complete"}, new TreeMap<String, Object>() {{
-                            put("root", data.getRoot());
-                        }}), new NucleoResponder() {
-                            @Override
-                            public void run(NucleoData returnedData) {
-                            }
-                        });
+                        if (data.getTrack() == 1) {
+                            hub.push(hub.constructNucleoData(new String[]{"_watch.complete"}, new TreeMap<String, Object>() {{
+                                put("root", data.getRoot());
+                            }}), new NucleoResponder() {
+                                @Override
+                                public void run(NucleoData returnedData) {
+                                }
+                            }, false);
+                        }
                     }
                 } else if (eventHandler.getChainToMethod().containsKey(topic)) {
                     Object[] methodData = eventHandler.getChainToMethod().get(topic);

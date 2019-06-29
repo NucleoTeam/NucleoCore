@@ -29,9 +29,11 @@ public class ElasticSearchPusher implements Runnable {
   }
   public void add(NucleoData item) {
     try {
-      item.setVersion(item.getVersion()+1);
-      NucleoData itemTemp = (NucleoData) item.clone();
-      queue.add(itemTemp);
+      if(item.getTrack()==1) {
+        item.setVersion(item.getVersion() + 1);
+        NucleoData itemTemp = (NucleoData) item.clone();
+        queue.add(itemTemp);
+      }
     }catch (Exception e){
       e.printStackTrace();
     }

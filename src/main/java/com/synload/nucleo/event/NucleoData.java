@@ -13,6 +13,7 @@ public class NucleoData implements Cloneable  {
   private List<NucleoStep> steps = new ArrayList<>();
   private NucleoStep execution = new NucleoStep();
   private int onChain;
+  private int track = 1;
   private int version=0;
   private TreeMap<String, Object> objects;
   private NucleoChainStatus chainBreak = new NucleoChainStatus();
@@ -103,5 +104,13 @@ public class NucleoData implements Cloneable  {
   }
   public Object clone() throws  CloneNotSupportedException {
     return super.clone();
+  }
+
+  public int getTrack() {
+    return track;
+  }
+
+  public void setTrack(int track) {
+    this.track = track;
   }
 }
