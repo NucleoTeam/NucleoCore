@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.event.NucleoData;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -48,19 +49,20 @@ public class ElasticSearchPusher implements Runnable {
           IndexRequest request = new IndexRequest("nucleo")
               .id(data.getOrigin() + "-" + data.getRoot().toString())
               .source(object, XContentType.JSON)
+              .opType(DocWriteRequest.OpType.INDEX)
               .version(data.getVersion())
               .versionType(VersionType.EXTERNAL);
           IndexResponse indexResponse = client.index(request, RequestOptions.DEFAULT);
           System.out.println(indexResponse.toString());
         }
-        Thread.sleep(1);
       }catch (ElasticsearchStatusException x){
         x.printStackTrace();
       }catch (Exception e){
         e.printStackTrace();
-        System.exit(-1);
-        return;
       }
+      try{
+        Thread.sleep(1);
+      } catch (Exception e){ }
     }
   }
 }

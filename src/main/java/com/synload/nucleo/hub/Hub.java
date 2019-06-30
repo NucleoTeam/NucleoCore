@@ -127,12 +127,12 @@ public class Hub {
                         );
                         producer.getProducer().send(record);
                     }
-                    Thread.sleep(1);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    System.exit(-1);
-                    return;
                 }
+                try{
+                    Thread.sleep(1);
+                } catch (Exception e){ }
             }
         }
     }
@@ -326,12 +326,12 @@ public class Hub {
                         });
                         consumer.getConsumer().commitAsync();
                     }
-                    Thread.sleep(1);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    System.exit(-1);
-                    return;
                 }
+                try{
+                    Thread.sleep(1);
+                } catch (Exception e){ }
             }
         }
     }
