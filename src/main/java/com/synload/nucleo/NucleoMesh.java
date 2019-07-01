@@ -59,39 +59,33 @@ public class NucleoMesh {
     mesh.getHub().register("com.synload.nucleo.information");
     mesh.getHub().run();
     try {
-      Thread.sleep(10000);
+      Thread.sleep(5000);
     }catch (Exception e){
 
     }
-    /*mesh.call(new String[]{"information.hits", "information", "information.changeme"},
-      new TreeMap<String, Object>() {{
-        put("wow", "works?");
-      }},
-      new NucleoResponder() {
-        @Override
-        public void run(NucleoData data) {
-          try {
-            System.out.println(new ObjectMapper().writeValueAsString(data));
-            System.out.println((data.getExecution().getTotal()) + "ms");
-            mesh.call(new String[]{"information.hits", "information"},
-              new TreeMap<String, Object>() {{
-                put("wow", "works?");
-              }},
-              new NucleoResponder() {
-                @Override
-                public void run(NucleoData data) {
-                  try {
-                    System.out.println(new ObjectMapper().writeValueAsString(data));
-                    System.out.println((data.getExecution().getTotal()) + "ms");
-                  } catch (Exception e) {
-                    e.printStackTrace();
-                  }
-                }
-              });
-          } catch (Exception e) {
-            e.printStackTrace();
+    while(true) {
+      mesh.call(
+          new String[]{"information.hits", "information", "information.changeme"},
+          new TreeMap<String, Object>() {{
+            put("wow", "works?");
+          }},
+          new NucleoResponder() {
+            @Override
+            public void run(NucleoData data) {
+              try {
+                System.out.println(new ObjectMapper().writeValueAsString(data));
+                System.out.println((data.getExecution().getTotal()) + "ms");
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
+            }
           }
-        }
-      });*/
+      );
+      try {
+        Thread.sleep(10000);
+      }catch (Exception e){
+
+      }
+    }
   }
 }

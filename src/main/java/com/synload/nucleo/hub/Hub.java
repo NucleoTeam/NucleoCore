@@ -197,6 +197,7 @@ public class Hub {
                                 }
                             }, false);
                         }
+                        return;
                     }
                 } else if (eventHandler.getChainToMethod().containsKey(topic)) {
                     Object[] methodData = eventHandler.getChainToMethod().get(topic);
@@ -314,7 +315,7 @@ public class Hub {
             ready.set(id, 1);
             while (true) {
                 try {
-                    ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(1));
+                    ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(500));
                     if (consumerRecords != null) {
                         consumerRecords.forEach(record -> {
                             try {
