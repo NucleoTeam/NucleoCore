@@ -176,7 +176,6 @@ public class Hub {
         public void exec() {
             try {
                 if (topic.startsWith("nucleo.client.")) {
-                    System.out.println("done");
                     NucleoResponder responder = responders.get(data.getRoot().toString());
                     if (responder != null) {
                         responders.remove(data.getRoot().toString());

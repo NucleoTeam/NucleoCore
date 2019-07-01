@@ -5,21 +5,30 @@ import com.synload.nucleo.event.NucleoData;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.VersionType;
+import org.elasticsearch.script.Script;
+import org.elasticsearch.script.ScriptType;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
+import java.util.List;
 
 public class ElasticSearchPusher implements Runnable {
   private RestHighLevelClient client;
   private ObjectMapper om = new ObjectMapper();
-  private LinkedList<NucleoData> queue = new LinkedList<>();
+  private List<NucleoData> queue = new ArrayList<>();
   public ElasticSearchPusher(String server, int port, String scheme){
     client = new RestHighLevelClient(
       RestClient.builder(
@@ -43,16 +52,18 @@ public class ElasticSearchPusher implements Runnable {
     while(true){
       try {
         if (queue.size() > 0) {
-          System.out.println("Processing");
-          NucleoData data = queue.pop();
+          NucleoData data = queue.remove(0);
           byte[] object = om.writeValueAsBytes(data);
-          IndexRequest request = new IndexRequest("nucleo")
+          IndexRequest request = new IndexRequest()
+              .index("nucleo")
               .id(data.getOrigin() + "-" + data.getRoot().toString())
-              .source(object, XContentType.JSON)
-              .version(data.getVersion())
-              .versionType(VersionType.EXTERNAL);
-          IndexResponse indexResponse = client.index(request, RequestOptions.DEFAULT);
-          System.out.println(indexResponse.toString());
+              .source(object, XContentType.JSON);
+          UpdateRequest updateRequest = new UpdateRequest()
+              .index("nucleo")
+              .id(data.getOrigin() + "-" + data.getRoot().toString())
+              .upsert(request)
+              .doc(object, XContentType.JSON);
+          UpdateResponse indexResponse = client.update(updateRequest, RequestOptions.DEFAULT);
         }
       }catch (ElasticsearchStatusException x){
         x.printStackTrace();

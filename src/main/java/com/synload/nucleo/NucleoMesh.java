@@ -65,7 +65,7 @@ public class NucleoMesh {
     }
     while(true) {
       mesh.call(
-          new String[]{"information.hits", "information", "information.changeme"},
+          new String[]{"information.hits", "information"},
           new TreeMap<String, Object>() {{
             put("wow", "works?");
           }},

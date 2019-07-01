@@ -20,7 +20,6 @@ public class NucleoTimeout implements Runnable {
         NucleoResponder responder = hub.getResponders().get(data.getRoot().toString());
         hub.getResponders().remove(data.getRoot().toString());
         hub.getTimeouts().remove(data.getRoot().toString());
-        //System.out.println("Ending timeout "+data.getChain()[data.getLink()]+" and responding");
         data.getChainBreak().setBreakChain(true);
         data.getChainBreak().getBreakReasons().add("Timeout on latest topic call");
         data.getExecution().setEnd(System.currentTimeMillis());
