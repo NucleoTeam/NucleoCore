@@ -5,7 +5,6 @@ import com.synload.nucleo.event.NucleoData;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -57,13 +56,10 @@ public class ElasticSearchPusher implements Runnable {
           IndexRequest request = new IndexRequest()
               .index("nucleo")
               .id(data.getOrigin() + "-" + data.getRoot().toString())
+              .version(data.getVersion())
+              .versionType(VersionType.EXTERNAL)
               .source(object, XContentType.JSON);
-          UpdateRequest updateRequest = new UpdateRequest()
-              .index("nucleo")
-              .id(data.getOrigin() + "-" + data.getRoot().toString())
-              .upsert(request)
-              .doc(object, XContentType.JSON);
-          UpdateResponse indexResponse = client.update(updateRequest, RequestOptions.DEFAULT);
+          client.index(request, RequestOptions.DEFAULT);
         }
       }catch (ElasticsearchStatusException x){
         x.printStackTrace();
