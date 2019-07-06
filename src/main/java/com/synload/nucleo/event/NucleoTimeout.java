@@ -15,7 +15,7 @@ public class NucleoTimeout implements Runnable {
   public void run() {
     try {
       //System.out.println("Starting timeout "+data.getChain()[data.getLink()]);
-      Thread.sleep(5000);
+      Thread.sleep(1000);
       if (hub.getResponders().containsKey(data.getRoot().toString())) {
         NucleoResponder responder = hub.getResponders().get(data.getRoot().toString());
         hub.getResponders().remove(data.getRoot().toString());
