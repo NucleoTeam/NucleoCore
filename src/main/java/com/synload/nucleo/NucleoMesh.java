@@ -55,7 +55,7 @@ public class NucleoMesh {
   public static void main(String[] args) {
     //createTopic();
     Logger.getRootLogger().setLevel(Level.DEBUG);
-    NucleoMesh mesh = new NucleoMesh( "test", "192.168.1.112:9092", "mesh", "192.168.1.112", 9200);
+    NucleoMesh mesh = new NucleoMesh( "test", "192.168.1.29:9092", "mesh", "192.168.1.29", 9200);
     mesh.getHub().register("com.synload.nucleo.information");
     mesh.getHub().run();
     try {
