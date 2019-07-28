@@ -1,11 +1,10 @@
 package com.synload.nucleo.hub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.synload.nucleo.consumer.ConsumerHandler;
+import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.elastic.ElasticSearchPusher;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
-import com.synload.nucleo.producer.ProducerHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.reflections.Reflections;
@@ -15,45 +14,32 @@ import java.time.Duration;
 import java.util.*;
 
 public class Hub {
-    private ProducerHandler producer;
-    private Queue<Object[]> queue = new LinkedList<>();
+    private Stack<Object[]> queue = new Stack<>();
     private EventHandler eventHandler = new EventHandler();
     private TreeMap<String, NucleoResponder> responders = new TreeMap();
     private TreeMap<String, Thread> timeouts = new TreeMap<>();
     private String bootstrap;
     public static ObjectMapper objectMapper = new ObjectMapper();
     private ArrayList<Integer> ready = new ArrayList<>();
-    private String groupName;
-    private String clientName;
+    private String uniqueName;
     private ElasticSearchPusher esPusher;
+    private NucleoMesh mesh;
 
-    public Hub(String clientName, String bootstrap, String groupName, String elasticServer, int elasticPort) {
-        this.bootstrap = bootstrap;
-        this.groupName = groupName;
-        this.clientName = clientName;
-        producer = new ProducerHandler(this.bootstrap);
+    public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
+        this.uniqueName = uniqueName;
+        this.mesh = mesh;
         esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
         int id = ready.size();
         ready.add(0);
         new Thread(
           esPusher
         ).start();
-        new Thread(
-            new Listener(
-                this,
-                new String[]{
-                    "nucleo.client." + clientName
-                },
-                this.bootstrap,
-                id
-            )
-        ).start();
     }
 
     public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
         NucleoData data = new NucleoData();
         data.setObjects(objects);
-        data.setOrigin(clientName);
+        data.setOrigin(uniqueName);
         data.setLink(0);
         data.setOnChain(0);
         data.getChainList().add(chain.split("\\."));
@@ -63,7 +49,7 @@ public class Hub {
     public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects){
         NucleoData data = new NucleoData();
         data.setObjects(objects);
-        data.setOrigin(clientName);
+        data.setOrigin(uniqueName);
         data.setLink(0);
         data.setOnChain(0);
         for(String chain : chains) {
@@ -92,11 +78,10 @@ public class Hub {
         try {
             Reflections reflect = new Reflections(servicePackage);
             Set<Class<?>> classes = reflect.getTypesAnnotatedWith(NucleoClass.class);
-            System.out.println(new ObjectMapper().writeValueAsString(classes));
             LoadHandler.getMethods(classes.toArray()).forEach((m) -> {
                 int id = ready.size();
                 ready.add(0);
-                new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();
+                getEventHandler().registerMethod(m);
             });
         } catch (Exception e) {
             e.printStackTrace();
@@ -117,21 +102,16 @@ public class Hub {
             while (true) {
                 try {
                     while (this.hub.queue.size() > 0) {
-                        Object[] dataBlock = this.hub.queue.remove();
+                        Object[] dataBlock = this.hub.queue.pop();
                         String topic = (String) dataBlock[0];
                         NucleoData data = (NucleoData) dataBlock[1];
-                        ProducerRecord record = new ProducerRecord(
-                            topic,
-                            UUID.randomUUID().toString(),
-                            objectMapper.writeValueAsString(data)
-                        );
-                        producer.getProducer().send(record);
+                        this.hub.mesh.geteManager().robin(topic, data);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
                 try{
-                    Thread.sleep(1);
+                    Thread.sleep(1L);
                 } catch (Exception e){ }
             }
         }
@@ -293,62 +273,15 @@ public class Hub {
         }
     }
 
-    public class Listener implements Runnable {
-        private ConsumerHandler consumer;
-        private String[] topics;
-        private Hub hub;
-        private int id;
-
-        public Listener(Hub hub, String[] topics, String bootstrap, int id) {
-            this.hub = hub;
-            this.id = id;
-            this.topics = topics;
-            consumer = new ConsumerHandler(bootstrap, groupName);
-            consumer.getConsumer().unsubscribe();
-            consumer.subscribe(topics);
-        }
-
-        public void run() {
-            consumer.getConsumer().commitAsync();
-            ObjectMapper objectMapper = new ObjectMapper();
-            ready.set(id, 1);
-            while (true) {
-                try {
-                    ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(500));
-                    if (consumerRecords != null) {
-                        consumerRecords.forEach(record -> {
-                            try {
-                                NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
-                                new Thread(new Executor(hub, data, record.topic())).start();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        });
-                        consumer.getConsumer().commitAsync();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                try{
-                    Thread.sleep(1);
-                } catch (Exception e){ }
-            }
-        }
+    public void handle(Hub hub, NucleoData data, String topic){
+        new Thread(new Executor(hub, data, topic)).start();
     }
 
-    public ProducerHandler getProducer() {
-        return producer;
-    }
-
-    public void setProducer(ProducerHandler producer) {
-        this.producer = producer;
-    }
-
-    public Queue<Object[]> getQueue() {
+    public Stack<Object[]> getQueue() {
         return queue;
     }
 
-    public void setQueue(Queue<Object[]> queue) {
+    public void setQueue(Stack<Object[]> queue) {
         this.queue = queue;
     }
 
@@ -386,22 +319,6 @@ public class Hub {
 
     public void setReady(ArrayList<Integer> ready) {
         this.ready = ready;
-    }
-
-    public String getGroupName() {
-        return groupName;
-    }
-
-    public void setGroupName(String groupName) {
-        this.groupName = groupName;
-    }
-
-    public String getClientName() {
-        return clientName;
-    }
-
-    public void setClientName(String clientName) {
-        this.clientName = clientName;
     }
 
     public TreeMap<String, Thread> getTimeouts() {
