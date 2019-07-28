@@ -68,17 +68,21 @@ public class NucleoMesh {
                 @Override
                 public void run(String path, List<String> registeredServices) {
                     for (String service : registeredServices) {
+                        System.out.println(service);
                         manager.getServiceNodeList(service, new DataUpdate() {
                             @Override
                             public void run(String service, List<String> serviceNodes) {
                                 for (String node : serviceNodes) {
+                                    System.out.println(service + " : " + node);
                                     manager.getServiceNodeInformation(service, node, new DataUpdate() {
                                         @Override
                                         public void run(String service, String node, ServiceInformation data) {
                                             if (data != null) {
+                                                System.out.println(service + " : " + node+ " is still here" );
                                                 eManager.sync(data);
                                             } else {
-                                                eManager.delete(data);
+                                                System.out.println(service + " : " + node+ " has left");
+                                                eManager.delete(node);
                                             }
                                         }
                                     });
@@ -205,10 +209,10 @@ public class NucleoMesh {
     public static void main(String[] args) {
         //createTopic();
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.29:2181", "192.168.1.112", 9200);
+        NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.29:2181", "192.168.1.29", 9200);
         mesh.register("com.synload.nucleo.information");
         mesh.start();
-
+        /*
         while (true) {
             mesh.call(
                 new String[]{"information.hits", "information"},
@@ -232,6 +236,6 @@ public class NucleoMesh {
             } catch (Exception e) {
 
             }
-        }
+        }*/
     }
 }

@@ -35,12 +35,16 @@ public class EManager {
             connections.put(node.getName(), nodeClient);
         }
     }
-    public void delete(ServiceInformation node){
-        if(connections.containsKey(node.getName())){
-            EClient client = connections.remove(node.getName());
-            for(String event : node.getEvents()){
+    public void delete(String node){
+        if(connections.containsKey(node)){
+            System.out.println("Removed " + node);
+            EClient client = connections.remove(node);
+            client.setReconnect(false);
+            for(String event : client.getNode().getEvents()){
                 if(topics.containsKey(event)){
+                    System.out.println("State of nodes for ["+event+"]: " + topics.get(event).nodes.size());
                     topics.get(event).nodes.remove(client);
+                    System.out.println("Removed from ["+event+"], nodes left: " + topics.get(event).nodes.size());
                 }
             }
         }
