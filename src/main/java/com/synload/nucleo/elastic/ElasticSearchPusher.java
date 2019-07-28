@@ -29,11 +29,11 @@ public class ElasticSearchPusher implements Runnable {
   private ObjectMapper om = new ObjectMapper();
   private List<NucleoData> queue = new ArrayList<>();
   public ElasticSearchPusher(String server, int port, String scheme){
-    /*client = new RestHighLevelClient(
+    client = new RestHighLevelClient(
       RestClient.builder(
         new HttpHost(server, port, scheme)
       )
-    );*/
+    );
 
   }
   public void add(NucleoData item) {
