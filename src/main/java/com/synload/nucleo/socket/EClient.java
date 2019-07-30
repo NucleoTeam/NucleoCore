@@ -5,10 +5,14 @@ import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.hub.Hub;
 import com.synload.nucleo.zookeeper.ServiceInformation;
+import org.apache.logging.log4j.core.util.IOUtils;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.Stack;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class EClient implements Runnable {
     public ServiceInformation node;
@@ -36,22 +40,41 @@ public class EClient implements Runnable {
             while (reconnect) {
                 if (this.direction) {
                     try {
-                        DataInputStream is = new DataInputStream(client.getInputStream());
+                        GZIPInputStream is = new GZIPInputStream(new DataInputStream(client.getInputStream()));
                         String objRead = "";
+                        byte[] buffer = new byte[4];
                         while (reconnect) {
                             if (is.available() > 0) {
-                                objRead += is.readUTF();
-                                String[] arr = objRead.split("§");
-                                if (arr.length > 1) {
-                                    int i = 0;
-                                    for (i = 0; i < arr.length - 1; i++) {
-                                        String[] arrTop = arr[i].split("þ");
-                                        NucleoData data = mapper.readValue(arrTop[1], NucleoData.class);
-                                        mesh.getHub().handle(mesh.getHub(), data, arrTop[0].trim());
+                                is.read(buffer);
+                                int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
+                                buffer = new byte[2048];
+                                ByteBuffer buff = ByteBuffer.allocate(sizeRemaining);
+                                while(sizeRemaining>0){
+                                    if(sizeRemaining<2048){
+                                        buffer = new byte[sizeRemaining];
                                     }
+                                    is.read(buffer);
+                                    buff.put(buffer);
+                                    sizeRemaining -= 2048;
                                 }
-                                objRead = arr[arr.length - 1];
-                                System.out.println(objRead);
+                                is.read(buffer);
+                                NucleoData data = mapper.readValue(buff.array(), NucleoData.class);
+
+                                buffer = new byte[4];
+                                is.read(buffer);
+                                sizeRemaining = ByteBuffer.wrap(buffer).getInt();
+                                buffer = new byte[2048];
+                                buff = ByteBuffer.allocate(sizeRemaining);
+                                while(sizeRemaining>0){
+                                    if(sizeRemaining<2048){
+                                        buffer = new byte[sizeRemaining];
+                                    }
+                                    is.read(buffer);
+                                    buff.put(buffer);
+                                    sizeRemaining -= 2048;
+                                }
+                                mesh.getHub().handle(mesh.getHub(), data, new String(buff.array()));
+                                buffer = new byte[2048];
                             }
                             Thread.sleep(1L);
                         }
@@ -66,10 +89,16 @@ public class EClient implements Runnable {
                     client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                     try {
                         DataOutputStream os = new DataOutputStream(client.getOutputStream());
+                        GZIPOutputStream gos = new GZIPOutputStream(os);
                         while (reconnect) {
                             if (!queue.empty()) {
                                 NucleoTopicPush push = queue.pop();
-                                os.writeUTF(push.getTopic() + "þ" + mapper.writeValueAsString(push.getData()) + "§ ");
+                                byte[] data = mapper.writeValueAsBytes(push.getData());
+                                gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
+                                gos.write(data);
+                                byte[] topic = push.getTopic().getBytes();
+                                gos.write(ByteBuffer.allocate(4).putInt(topic.length).array());
+                                gos.write(topic);
                             }
                             Thread.sleep(1L);
                         }
