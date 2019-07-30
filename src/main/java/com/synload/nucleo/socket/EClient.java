@@ -40,8 +40,10 @@ public class EClient implements Runnable {
             while (reconnect) {
                 if (this.direction) {
                     try {
+                        if(client.isClosed()){
+                            return;
+                        }
                         GZIPInputStream is = new GZIPInputStream(new DataInputStream(client.getInputStream()));
-                        String objRead = "";
                         byte[] buffer = new byte[4];
                         while (reconnect) {
                             if (is.available() > 0) {
