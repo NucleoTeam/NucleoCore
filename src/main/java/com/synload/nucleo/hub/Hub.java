@@ -328,4 +328,36 @@ public class Hub {
     public void setTimeouts(TreeMap<String, Thread> timeouts) {
         this.timeouts = timeouts;
     }
+
+    public static ObjectMapper getObjectMapper() {
+        return objectMapper;
+    }
+
+    public static void setObjectMapper(ObjectMapper objectMapper) {
+        Hub.objectMapper = objectMapper;
+    }
+
+    public String getUniqueName() {
+        return uniqueName;
+    }
+
+    public void setUniqueName(String uniqueName) {
+        this.uniqueName = uniqueName;
+    }
+
+    public ElasticSearchPusher getEsPusher() {
+        return esPusher;
+    }
+
+    public void setEsPusher(ElasticSearchPusher esPusher) {
+        this.esPusher = esPusher;
+    }
+
+    public NucleoMesh getMesh() {
+        return mesh;
+    }
+
+    public void setMesh(NucleoMesh mesh) {
+        this.mesh = mesh;
+    }
 }
