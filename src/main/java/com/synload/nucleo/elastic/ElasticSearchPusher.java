@@ -62,9 +62,9 @@ public class ElasticSearchPusher implements Runnable {
           client.index(request, RequestOptions.DEFAULT);
         }
       }catch (ElasticsearchStatusException x){
-        x.printStackTrace();
+        //x.printStackTrace();
       }catch (Exception e){
-        e.printStackTrace();
+        //e.printStackTrace();
       }
       try{
         Thread.sleep(1);

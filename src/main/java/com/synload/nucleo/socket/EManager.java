@@ -60,7 +60,7 @@ public class EManager {
                 System.out.println("[" + node + "] connection not found");
             }
         }else{
-            System.out.println("[" + topic + "] route not found");
+            //System.out.println("[" + topic + "] route not found");
         }
     }
 

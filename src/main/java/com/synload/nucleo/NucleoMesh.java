@@ -21,10 +21,7 @@ import java.lang.reflect.Method;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeMap;
-import java.util.UUID;
+import java.util.*;
 
 
 public class NucleoMesh {
@@ -205,26 +202,34 @@ public class NucleoMesh {
     public void seteManager(EManager eManager) {
         this.eManager = eManager;
     }
-
+    static long[] avg = new long[50];
+    static int k = 0;
     public static void main(String[] args) {
         //createTopic();
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.29:2181", "192.168.1.29", 9200);
+        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.29:2181", "192.168.1.29", 9200);
         mesh.register("com.synload.nucleo.information");
         mesh.start();
-        /*
+
         while (true) {
             mesh.call(
                 new String[]{"information.hits", "information"},
                 new TreeMap<String, Object>() {{
                     put("wow", "works?");
+                    put("time", System.currentTimeMillis());
                 }},
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
                         try {
-                            System.out.println(new ObjectMapper().writeValueAsString(data));
-                            System.out.println((data.getExecution().getTotal()) + "ms");
+                            avg[k] = (System.currentTimeMillis() - ((long)data.getObjects().get("time")));
+                            k++;
+                            if(k>=50){
+                                k=0;
+                            }
+                            //System.out.println(new ObjectMapper().writeValueAsString(data));
+                            System.out.println((Arrays.stream(avg).sum()/50) + "ms");
+
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -232,10 +237,10 @@ public class NucleoMesh {
                 }
             );
             try {
-                Thread.sleep(10000);
+                Thread.sleep(10);
             } catch (Exception e) {
 
             }
-        }*/
+        }
     }
 }

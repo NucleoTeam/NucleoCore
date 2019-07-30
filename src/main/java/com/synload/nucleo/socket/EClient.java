@@ -33,7 +33,57 @@ public class EClient implements Runnable {
         this.direction = ( client != null );
         this.mapper = new ObjectMapper();
     }
+    public byte[] compress(byte[] data) {
+        byte[] compressed = new byte[0];
+        GZIPOutputStream gzip = null;
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try {
+            gzip = new GZIPOutputStream(bos);
+            gzip.write(data, 0, data.length);
+            gzip.finish();
+            compressed = bos.toByteArray();
+        }catch (IOException e){
+            e.printStackTrace();
+        }finally {
+            try {
+                if (bos != null)
+                    bos.close();
+                if (gzip != null)
+                    gzip.close();
+            }catch (Exception ex){
 
+            }
+        }
+        return compressed;
+    }
+
+    public byte[] decompress(byte[] compressed) {
+        ByteArrayInputStream bais = new ByteArrayInputStream(compressed);
+        GZIPInputStream gz = null;
+        String content = "";
+        try {
+            gz = new GZIPInputStream(bais);
+            InputStreamReader reader = new InputStreamReader(gz);
+            BufferedReader in = new BufferedReader(reader);
+
+            String read;
+            while ((read = in.readLine()) != null) {
+                content += read;
+            }
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }finally {
+            try {
+                if (bais != null)
+                    bais.close();
+                if (gz != null)
+                    gz.close();
+            }catch (Exception ex){
+                ex.printStackTrace();
+            }
+        }
+        return content.getBytes();
+    }
     @Override
     public void run() {
         try {
@@ -43,40 +93,40 @@ public class EClient implements Runnable {
                         if(client.isClosed()){
                             return;
                         }
-                        GZIPInputStream is = new GZIPInputStream(new DataInputStream(client.getInputStream()));
-                        byte[] buffer = new byte[4];
+                        DataInputStream is = new DataInputStream(client.getInputStream());
+                        byte[] buffer;
                         while (reconnect) {
-                            if (is.available() > 0) {
-                                is.read(buffer);
+                            if (is.available()>0) {
+                                buffer = new byte[4];
+                                is.read(buffer, 0, 4);
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
+
                                 buffer = new byte[2048];
                                 ByteBuffer buff = ByteBuffer.allocate(sizeRemaining);
                                 while(sizeRemaining>0){
                                     if(sizeRemaining<2048){
                                         buffer = new byte[sizeRemaining];
                                     }
-                                    is.read(buffer);
+                                    sizeRemaining -= is.read(buffer, 0, sizeRemaining);
                                     buff.put(buffer);
-                                    sizeRemaining -= 2048;
                                 }
-                                is.read(buffer);
-                                NucleoData data = mapper.readValue(buff.array(), NucleoData.class);
+
+                                NucleoData data = mapper.readValue(decompress(buff.array()), NucleoData.class);
 
                                 buffer = new byte[4];
-                                is.read(buffer);
+                                is.read(buffer, 0, 4);
                                 sizeRemaining = ByteBuffer.wrap(buffer).getInt();
+
                                 buffer = new byte[2048];
                                 buff = ByteBuffer.allocate(sizeRemaining);
                                 while(sizeRemaining>0){
                                     if(sizeRemaining<2048){
                                         buffer = new byte[sizeRemaining];
                                     }
-                                    is.read(buffer);
+                                    sizeRemaining -= is.read(buffer, 0, sizeRemaining);
                                     buff.put(buffer);
-                                    sizeRemaining -= 2048;
                                 }
-                                mesh.getHub().handle(mesh.getHub(), data, new String(buff.array()));
-                                buffer = new byte[2048];
+                                mesh.getHub().handle(mesh.getHub(), data, new String(decompress(buff.array())));
                             }
                             Thread.sleep(1L);
                         }
@@ -87,18 +137,16 @@ public class EClient implements Runnable {
                     }
                 } else {
                     String[] connectArr = node.getConnectString().split(":");
-                    System.out.println("Connecting to " + connectArr[0] + " on port " + connectArr[1]);
                     client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                     try {
-                        DataOutputStream os = new DataOutputStream(client.getOutputStream());
-                        GZIPOutputStream gos = new GZIPOutputStream(os);
+                        DataOutputStream gos = new DataOutputStream(client.getOutputStream());
                         while (reconnect) {
                             if (!queue.empty()) {
                                 NucleoTopicPush push = queue.pop();
-                                byte[] data = mapper.writeValueAsBytes(push.getData());
+                                byte[] data = compress(mapper.writeValueAsBytes(push.getData()));
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
                                 gos.write(data);
-                                byte[] topic = push.getTopic().getBytes();
+                                byte[] topic = compress(push.getTopic().getBytes());
                                 gos.write(ByteBuffer.allocate(4).putInt(topic.length).array());
                                 gos.write(topic);
                             }
@@ -107,6 +155,7 @@ public class EClient implements Runnable {
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
+                        System.out.println("disconnected");
                         client.close();
                     }
                 }
