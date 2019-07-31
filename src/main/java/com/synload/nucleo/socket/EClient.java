@@ -102,7 +102,7 @@ public class EClient implements Runnable {
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                                 buffer = new byte[2048];
-                                ByteBuffer buff = ByteBuffer.allocate(sizeRemaining);
+                                ByteBuffer buff = ByteBuffer.allocate(50000);
                                 while(sizeRemaining>0){
                                     if(sizeRemaining<2048){
                                         buffer = new byte[sizeRemaining];
@@ -118,7 +118,7 @@ public class EClient implements Runnable {
                                 sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                                 buffer = new byte[2048];
-                                buff = ByteBuffer.allocate(sizeRemaining);
+                                buff = ByteBuffer.allocate(5000);
                                 while(sizeRemaining>0){
                                     if(sizeRemaining<2048){
                                         buffer = new byte[sizeRemaining];
