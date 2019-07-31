@@ -22,42 +22,54 @@ public class EManager {
         new Thread(new EServer(this.port, this.mesh)).start();
     }
     public void sync(ServiceInformation node){
-        if(!connections.containsKey(node.getName())){
-            EClient nodeClient = new EClient(null, node, mesh);
+        EClient nodeClient = null;
+        if (!connections.containsKey(node.getName())) {
+            nodeClient = new EClient(null, node, mesh);
+            connections.put(node.getName(), nodeClient);
+        }
+        if(nodeClient!=null){
             try {
                 new Thread(nodeClient).start();
-            }catch (Exception e){
+            } catch (Exception e) {
 
             }
-            synchronized (topics) {
-                for (String event : node.getEvents()) {
-                    System.out.println(nodeClient.getNode().getConnectString() + " <- " + event);
+
+            for (String event : node.getEvents()) {
+                System.out.println(nodeClient.getNode().getConnectString() + " <- " + event);
+                synchronized (topics) {
                     if (!topics.containsKey(event)) {
                         topics.put(event, new TopicRound());
                     }
                     topics.get(event).nodes.add(nodeClient);
                 }
             }
-            connections.put(node.getName(), nodeClient);
+
         }
     }
     public void delete(String node){
-        if(connections.containsKey(node)){
-            EClient client = connections.remove(node);
+        EClient client = null;
+        synchronized(connections) {
+            if (connections.containsKey(node)) {
+                client = connections.remove(node);
+            }
+        }
+        if(client!=null){
             client.setReconnect(false);
             try {
-                if(client.getClient()!=null)
+                if (client.getClient() != null)
                     client.getClient().close();
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
-            synchronized (topics) {
-                for (String event : client.getNode().getEvents()) {
-                    if (topics.containsKey(event)) {
+            for (String event : client.getNode().getEvents()) {
+                if (topics.containsKey(event)) {
+                    synchronized (topics) {
                         topics.get(event).nodes.remove(client);
-                        System.out.println("Removed from [ " + event + " ], nodes left: " + topics.get(event).nodes.size());
-                        if (topics.get(event).nodes.size() == 0) {
-                            System.out.println("no nodes on [ " + event + " ], removing");
+                    }
+                    System.out.println("Removed from [ " + event + " ], nodes left: " + topics.get(event).nodes.size());
+                    if (topics.get(event).nodes.size() == 0) {
+                        System.out.println("no nodes on [ " + event + " ], removing");
+                        synchronized (topics) {
                             topics.remove(event);
                         }
                     }
@@ -93,7 +105,6 @@ public class EManager {
             EClient ec = tmpNodes.get(lastNode);
             ec.add(topic, data);
             lastNode++;
-            ec.getLatch().countDown();
         }
     }
 

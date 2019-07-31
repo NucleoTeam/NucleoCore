@@ -24,9 +24,11 @@ public class EClient implements Runnable {
     public Stack<NucleoTopicPush> queue = new Stack<>();
     public ObjectMapper mapper;
     public boolean reconnect = true;
+    public CountDownLatch latch = new CountDownLatch(1);
 
-    public void add(String topic, NucleoData data){
+    public synchronized void add(String topic, NucleoData data){
         queue.add(new NucleoTopicPush(topic, data));
+        latch.countDown();
     }
     public EClient(Socket client, ServiceInformation node, NucleoMesh mesh){
         this.node = node;
@@ -86,49 +88,47 @@ public class EClient implements Runnable {
         }
         return content.getBytes();
     }
-    public CountDownLatch latch = new CountDownLatch(1);
+    public void readFromSock(int sizeRemaining, DataInputStream is, ByteArrayOutputStream output) throws IOException{
+        byte[] buffer = new byte[2048];
+        output.reset();
+        while(sizeRemaining>0){
+            if(sizeRemaining<2048){
+                buffer = new byte[sizeRemaining];
+            }
+            sizeRemaining -= is.read(buffer, 0, sizeRemaining);
+            output.write(buffer);
+        }
+    }
     @Override
     public void run() {
         try {
-            while (reconnect) {
+
+            while (reconnect && !Thread.currentThread().isInterrupted()) {
+
                 if (this.direction) {
                     try {
-                        DataInputStream is = new DataInputStream(client.getInputStream());
+                        InputStream cis = client.getInputStream();
+                        DataInputStream is = new DataInputStream(cis);
                         ByteArrayOutputStream output = new ByteArrayOutputStream();
                         byte[] buffer;
-                        while (reconnect) {
-                            if (is.available()>0) {
+                        while (reconnect && !Thread.currentThread().isInterrupted()) {
+                            while (cis.available() == 0) {}
+                            System.out.println("reading");
+                            // Get nucleodata
+                            buffer = new byte[4];
+                            is.read(buffer, 0, 4);
+                            int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
-                                buffer = new byte[4];
-                                is.read(buffer, 0, 4);
-                                int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
+                            readFromSock(sizeRemaining, is, output);
+                            NucleoData data = mapper.readValue(output.toByteArray(), NucleoData.class);
 
-                                buffer = new byte[2048];
-                                output.reset();
-                                while(sizeRemaining>0){
-                                    if(sizeRemaining<2048){
-                                        buffer = new byte[sizeRemaining];
-                                    }
-                                    sizeRemaining -= is.read(buffer, 0, sizeRemaining);
-                                    output.write(buffer);
-                                }
+                            // Get Topic
+                            buffer = new byte[4];
+                            is.read(buffer, 0, 4);
+                            sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
-                                NucleoData data = mapper.readValue(output.toByteArray(), NucleoData.class);
-                                buffer = new byte[4];
-                                is.read(buffer, 0, 4);
-                                sizeRemaining = ByteBuffer.wrap(buffer).getInt();
-
-                                buffer = new byte[2048];
-                                output.reset();
-                                while(sizeRemaining>0){
-                                    if(sizeRemaining<2048){
-                                        buffer = new byte[sizeRemaining];
-                                    }
-                                    sizeRemaining -= is.read(buffer, 0, sizeRemaining);
-                                    output.write(buffer);
-                                }
-                                mesh.getHub().handle(mesh.getHub(), data, new String(output.toByteArray()));
-                            }
+                            readFromSock(sizeRemaining, is, output);
+                            mesh.getHub().handle(mesh.getHub(), data, new String(output.toByteArray()));
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -143,7 +143,9 @@ public class EClient implements Runnable {
                     client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                     try {
                         DataOutputStream gos = new DataOutputStream(client.getOutputStream());
-                        while (reconnect) {
+                        while (reconnect && !Thread.currentThread().isInterrupted()) {
+                            latch.await();
+                            System.out.println("writing to socket");
                             while (!queue.isEmpty()) {
                                 NucleoTopicPush push = queue.pop();
                                 byte[] data = mapper.writeValueAsBytes(push.getData());
@@ -153,7 +155,7 @@ public class EClient implements Runnable {
                                 gos.write(ByteBuffer.allocate(4).putInt(topic.length).array());
                                 gos.write(topic);
                             }
-                            latch.await(1, TimeUnit.MICROSECONDS);
+                            latch = new CountDownLatch(1);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();

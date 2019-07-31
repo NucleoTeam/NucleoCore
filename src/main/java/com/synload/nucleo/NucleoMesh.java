@@ -228,7 +228,7 @@ public class NucleoMesh {
                                 k=0;
                             }
                             //System.out.println(new ObjectMapper().writeValueAsString(data));
-                            System.out.println((Arrays.stream(avg).sum()/50) + "ms");
+                            System.out.println(data.markTime() + "ms avg:" + (Arrays.stream(avg).sum()/50) + "ms");
 
                         } catch (Exception e) {
                             e.printStackTrace();
