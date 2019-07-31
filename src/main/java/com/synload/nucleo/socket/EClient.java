@@ -99,6 +99,7 @@ public class EClient implements Runnable {
                         ByteArrayOutputStream output = new ByteArrayOutputStream();
                         byte[] buffer;
                         while (reconnect) {
+                            if (is.available()>0) {
 
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
@@ -129,6 +130,7 @@ public class EClient implements Runnable {
                                     output.write(buffer);
                                 }
                                 mesh.getHub().handle(mesh.getHub(), data, new String(output.toByteArray()));
+                            }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
