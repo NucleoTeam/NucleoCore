@@ -136,6 +136,7 @@ public class EClient implements Runnable {
                         e.printStackTrace();
                     } finally {
                         client.close();
+                        return;
                     }
                 } else {
                     String[] connectArr = node.getConnectString().split(":");
