@@ -11,6 +11,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Stack;
+import java.util.concurrent.CountDownLatch;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -84,6 +85,7 @@ public class EClient implements Runnable {
         }
         return content.getBytes();
     }
+    public CountDownLatch latch = new CountDownLatch(1);
     @Override
     public void run() {
         try {
@@ -94,41 +96,39 @@ public class EClient implements Runnable {
                             return;
                         }
                         DataInputStream is = new DataInputStream(client.getInputStream());
+                        ByteArrayOutputStream output = new ByteArrayOutputStream();
                         byte[] buffer;
                         while (reconnect) {
-                            if (is.available()>0) {
+
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                                 buffer = new byte[2048];
-                                ByteBuffer buff = ByteBuffer.allocate(50000);
+                                output.reset();
                                 while(sizeRemaining>0){
                                     if(sizeRemaining<2048){
                                         buffer = new byte[sizeRemaining];
                                     }
                                     sizeRemaining -= is.read(buffer, 0, sizeRemaining);
-                                    buff.put(buffer);
+                                    output.write(buffer);
                                 }
 
-                                NucleoData data = mapper.readValue(decompress(buff.array()), NucleoData.class);
-
+                                NucleoData data = mapper.readValue(output.toByteArray(), NucleoData.class);
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
                                 sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                                 buffer = new byte[2048];
-                                buff = ByteBuffer.allocate(5000);
+                                output.reset();
                                 while(sizeRemaining>0){
                                     if(sizeRemaining<2048){
                                         buffer = new byte[sizeRemaining];
                                     }
                                     sizeRemaining -= is.read(buffer, 0, sizeRemaining);
-                                    buff.put(buffer);
+                                    output.write(buffer);
                                 }
-                                mesh.getHub().handle(mesh.getHub(), data, new String(decompress(buff.array())));
-                            }
-                            Thread.sleep(1L);
+                                mesh.getHub().handle(mesh.getHub(), data, new String(output.toByteArray()));
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -143,14 +143,14 @@ public class EClient implements Runnable {
                         while (reconnect) {
                             if (!queue.empty()) {
                                 NucleoTopicPush push = queue.pop();
-                                byte[] data = compress(mapper.writeValueAsBytes(push.getData()));
+                                byte[] data = mapper.writeValueAsBytes(push.getData());
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
                                 gos.write(data);
-                                byte[] topic = compress(push.getTopic().getBytes());
+                                byte[] topic = push.getTopic().getBytes();
                                 gos.write(ByteBuffer.allocate(4).putInt(topic.length).array());
                                 gos.write(topic);
                             }
-                            Thread.sleep(1L);
+                            latch.await();
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -219,6 +219,14 @@ public class EClient implements Runnable {
 
     public void setReconnect(boolean reconnect) {
         this.reconnect = reconnect;
+    }
+
+    public CountDownLatch getLatch() {
+        return latch;
+    }
+
+    public void setLatch(CountDownLatch latch) {
+        this.latch = latch;
     }
 
     public class NucleoTopicPush{

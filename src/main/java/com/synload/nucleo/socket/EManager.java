@@ -72,7 +72,9 @@ public class EManager {
             if(tmpNodes.size()>=lastNode){
                 lastNode=0;
             }
-            tmpNodes.get(lastNode).add(topic, data);
+            EClient ec = tmpNodes.get(lastNode);
+            ec.add(topic, data);
+            ec.getLatch().countDown();
             lastNode++;
         }
     }

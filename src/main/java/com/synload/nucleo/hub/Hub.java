@@ -12,9 +12,9 @@ import org.reflections.Reflections;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 public class Hub {
-    private Stack<Object[]> queue = new Stack<>();
     private EventHandler eventHandler = new EventHandler();
     private TreeMap<String, NucleoResponder> responders = new TreeMap();
     private TreeMap<String, Thread> timeouts = new TreeMap<>();
@@ -24,6 +24,8 @@ public class Hub {
     private String uniqueName;
     private ElasticSearchPusher esPusher;
     private NucleoMesh mesh;
+    private Writer writer;
+
 
     public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
         this.uniqueName = uniqueName;
@@ -59,7 +61,8 @@ public class Hub {
     }
 
     public void run() {
-        new Thread(new Writer(this)).start();
+        writer = new Writer(this);
+        new Thread(writer).start();
     }
 
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
@@ -71,7 +74,7 @@ public class Hub {
         }else{
             data.setTrack(0);
         }
-        queue.add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
+        writer.add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
     }
 
     public void register(String servicePackage) {
@@ -91,28 +94,32 @@ public class Hub {
     public class Writer implements Runnable {
 
         private Hub hub;
+        private Stack<Object[]> queue = new Stack<>();
+        public CountDownLatch latch = new CountDownLatch(1);
 
         public Writer(Hub hub) {
             this.hub = hub;
+        }
 
+        public void add(Object[] item){
+            queue.add(item);
+            latch.countDown();
         }
 
         public void run() {
 
             while (true) {
                 try {
-                    while (this.hub.queue.size() > 0) {
-                        Object[] dataBlock = this.hub.queue.pop();
+                    while (queue.size() > 0) {
+                        Object[] dataBlock = queue.pop();
                         String topic = (String) dataBlock[0];
                         NucleoData data = (NucleoData) dataBlock[1];
                         this.hub.mesh.geteManager().robin(topic, data);
                     }
+                    latch.await();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                 }
-                try{
-                    Thread.sleep(1L);
-                } catch (Exception e){ }
             }
         }
     }
@@ -189,7 +196,7 @@ public class Hub {
                             data.getChainBreak().getBreakReasons().add("Missing required chains "+missingChains+"!");
                             data.getSteps().add(timing);
                             esPusher.add(data);
-                            queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                            writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                             return;
                         }
                     }
@@ -207,7 +214,7 @@ public class Hub {
                                 timing.setEnd(System.currentTimeMillis());
                                 data.getSteps().add(timing);
                                 esPusher.add(data);
-                                queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                                writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                                 return;
                             }
                             boolean sameChain = false;
@@ -216,7 +223,7 @@ public class Hub {
                                     timing.setEnd(System.currentTimeMillis());
                                     data.getSteps().add(timing);
                                     esPusher.add(data);
-                                    queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                                    writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                                     return;
                                 } else {
                                     data.setOnChain(data.getOnChain() + 1);
@@ -237,7 +244,7 @@ public class Hub {
                                     return;
                                 }
                             }
-                            queue.add(new Object[]{ newTopic, data});
+                            writer.add(new Object[]{ newTopic, data});
                         }
                     };
                     int len = method.getParameterTypes().length;
@@ -275,14 +282,6 @@ public class Hub {
 
     public void handle(Hub hub, NucleoData data, String topic){
         new Thread(new Executor(hub, data, topic)).start();
-    }
-
-    public Stack<Object[]> getQueue() {
-        return queue;
-    }
-
-    public void setQueue(Stack<Object[]> queue) {
-        this.queue = queue;
     }
 
     public EventHandler getEventHandler() {
@@ -359,5 +358,13 @@ public class Hub {
 
     public void setMesh(NucleoMesh mesh) {
         this.mesh = mesh;
+    }
+
+    public Writer getWriter() {
+        return writer;
+    }
+
+    public void setWriter(Writer writer) {
+        this.writer = writer;
     }
 }

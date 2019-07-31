@@ -45,7 +45,7 @@ public class NucleoTimeout implements Runnable {
           hub.getTimeouts().put(data.getRoot().toString(), timeout);
         }
         data.setRetries(retries+1);
-        hub.getQueue().add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
+        hub.getWriter().add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
       }
     } catch (Exception e) {
       //e.printStackTrace();
