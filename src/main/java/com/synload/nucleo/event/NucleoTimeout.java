@@ -8,7 +8,7 @@ import java.util.TreeMap;
 public class NucleoTimeout implements Runnable {
   private Hub hub;
   private final static int maxRetries = 10;
-  private final static long loopTimer = 1000;
+  private final static long loopTimer = 3000;
   private NucleoData data;
   public NucleoTimeout(Hub hub, NucleoData data) {
     this.data = data;
