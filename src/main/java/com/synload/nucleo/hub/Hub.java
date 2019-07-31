@@ -13,6 +13,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class Hub {
     private EventHandler eventHandler = new EventHandler();
@@ -70,7 +71,9 @@ public class Hub {
         if (allowTracking) {
             Thread timeout = new Thread(new NucleoTimeout(this, data));
             timeout.start();
-            timeouts.put(data.getRoot().toString(), timeout);
+            synchronized (timeouts){
+                timeouts.put(data.getRoot().toString(), timeout);
+            }
         }else{
             data.setTrack(0);
         }
@@ -110,13 +113,13 @@ public class Hub {
 
             while (true) {
                 try {
-                    while (queue.size() > 0) {
+                    while (!queue.isEmpty()) {
                         Object[] dataBlock = queue.pop();
                         String topic = (String) dataBlock[0];
                         NucleoData data = (NucleoData) dataBlock[1];
                         this.hub.mesh.geteManager().robin(topic, data);
                     }
-                    latch.await();
+                    latch.await(1, TimeUnit.MICROSECONDS);
                 } catch (Exception e) {
                     //e.printStackTrace();
                 }
@@ -166,10 +169,12 @@ public class Hub {
                     NucleoResponder responder = responders.get(data.getRoot().toString());
                     if (responder != null) {
                         responders.remove(data.getRoot().toString());
-                        Thread timeout = timeouts.get(data.getRoot().toString());
-                        if (timeout != null) {
-                            timeout.interrupt();
-                            timeouts.remove(data.getRoot().toString());
+                        synchronized (timeouts) {
+                            Thread timeout = timeouts.get(data.getRoot().toString());
+                            if (timeout != null) {
+                                timeout.interrupt();
+                                timeouts.remove(data.getRoot().toString());
+                            }
                         }
                         data.getExecution().setEnd(System.currentTimeMillis());
                         esPusher.add(data);

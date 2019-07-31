@@ -12,6 +12,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -52,7 +53,7 @@ public class EClient implements Runnable {
                 if (gzip != null)
                     gzip.close();
             }catch (Exception ex){
-
+                ex.printStackTrace();
             }
         }
         return compressed;
@@ -92,9 +93,6 @@ public class EClient implements Runnable {
             while (reconnect) {
                 if (this.direction) {
                     try {
-                        if(client.isClosed()){
-                            return;
-                        }
                         DataInputStream is = new DataInputStream(client.getInputStream());
                         ByteArrayOutputStream output = new ByteArrayOutputStream();
                         byte[] buffer;
@@ -144,7 +142,7 @@ public class EClient implements Runnable {
                     try {
                         DataOutputStream gos = new DataOutputStream(client.getOutputStream());
                         while (reconnect) {
-                            if (!queue.empty()) {
+                            while (!queue.isEmpty()) {
                                 NucleoTopicPush push = queue.pop();
                                 byte[] data = mapper.writeValueAsBytes(push.getData());
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
@@ -153,7 +151,7 @@ public class EClient implements Runnable {
                                 gos.write(ByteBuffer.allocate(4).putInt(topic.length).array());
                                 gos.write(topic);
                             }
-                            latch.await();
+                            latch.await(1, TimeUnit.MICROSECONDS);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();

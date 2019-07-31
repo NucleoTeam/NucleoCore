@@ -8,7 +8,7 @@ import java.util.TreeMap;
 public class NucleoTimeout implements Runnable {
   private Hub hub;
   private final static int maxRetries = 10;
-  private final static long loopTimer = 3000;
+  private final static long loopTimer = 1000;
   private NucleoData data;
   public NucleoTimeout(Hub hub, NucleoData data) {
     this.data = data;
@@ -19,7 +19,9 @@ public class NucleoTimeout implements Runnable {
       //System.out.println("Starting timeout "+data.getChain()[data.getLink()]);
       Thread.sleep(loopTimer);
       if (hub.getResponders().containsKey(data.getRoot().toString())) {
-        hub.getTimeouts().remove(data.getRoot().toString());
+        synchronized (hub.getTimeouts()) {
+          hub.getTimeouts().remove(data.getRoot().toString());
+        }
         int retries = data.getRetries();
         if(retries>=maxRetries){
           NucleoResponder responder = hub.getResponders().get(data.getRoot().toString());
@@ -42,7 +44,9 @@ public class NucleoTimeout implements Runnable {
         if (data.getTrack() == 1) {
           Thread timeout = new Thread(new NucleoTimeout(hub, data));
           timeout.start();
-          hub.getTimeouts().put(data.getRoot().toString(), timeout);
+          synchronized (hub.getTimeouts()) {
+            hub.getTimeouts().put(data.getRoot().toString(), timeout);
+          }
         }
         data.setRetries(retries+1);
         hub.getWriter().add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});

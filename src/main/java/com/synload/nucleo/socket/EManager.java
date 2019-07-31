@@ -26,7 +26,7 @@ public class EManager {
             EClient nodeClient = new EClient(null, node, mesh);
             new Thread(nodeClient).start();
             for(String event : node.getEvents()){
-                System.out.println(node.getHost() +" <- " + event);
+                System.out.println(nodeClient.getNode().getConnectString() +" <- " + event);
                 if(!topics.containsKey(event)){
                     topics.put(event, new TopicRound());
                 }
@@ -37,12 +37,15 @@ public class EManager {
     }
     public void delete(String node){
         if(connections.containsKey(node)){
-            System.out.println("Removed " + node);
             EClient client = connections.remove(node);
             client.setReconnect(false);
+            try {
+                client.getClient().close();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
             for(String event : client.getNode().getEvents()){
                 if(topics.containsKey(event)){
-                    System.out.println("State of nodes for ["+event+"]: " + topics.get(event).nodes.size());
                     topics.get(event).nodes.remove(client);
                     System.out.println("Removed from ["+event+"], nodes left: " + topics.get(event).nodes.size());
                 }
@@ -74,8 +77,8 @@ public class EManager {
             }
             EClient ec = tmpNodes.get(lastNode);
             ec.add(topic, data);
-            ec.getLatch().countDown();
             lastNode++;
+            ec.getLatch().countDown();
         }
     }
 

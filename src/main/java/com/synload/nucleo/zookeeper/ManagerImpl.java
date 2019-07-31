@@ -19,7 +19,6 @@ public class ManagerImpl implements Manager{
     private static ZooKeeper zkeeper;
     private static Connection connection;
     private String meshName;
-    private Stack<String> disconnected = new Stack<>();
 
     public ManagerImpl(String zkConnectionString, String meshName) {
         try {
@@ -50,6 +49,7 @@ public class ManagerImpl implements Manager{
                 ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
         }catch (Exception e){
+            e.printStackTrace();
         }
     }
     public List<String> getServiceList(){
@@ -57,7 +57,7 @@ public class ManagerImpl implements Manager{
             List<String> services = zkeeper.getChildren("/" + this.meshName + "/services", null);
             return services;
         }catch (Exception e){
-
+            e.printStackTrace();
         }
         return null;
     }
@@ -66,7 +66,7 @@ public class ManagerImpl implements Manager{
             List<String> nodes = zkeeper.getChildren("/" + this.meshName + "/services/"+service, null);
             return nodes;
         }catch (Exception e){
-
+            e.printStackTrace();
         }
         return null;
     }
@@ -75,7 +75,7 @@ public class ManagerImpl implements Manager{
             byte[] data = zkeeper.getData("/" + this.meshName + "/services/"+service+"/"+node, null, null);
             return data;
         }catch (Exception e){
-
+            e.printStackTrace();
         }
         return null;
     }
@@ -118,24 +118,19 @@ public class ManagerImpl implements Manager{
     public void getServiceNodeInformation(String service, String node, DataUpdate responder){
         zkeeper.getData("/" + this.meshName + "/services/" + service + "/" + node, new Watcher() {
             public void process(WatchedEvent we) {
-                if(disconnected.search(node)==-1) {
-                    getServiceNodeInformation(service, node, responder);
-                }
+                getServiceNodeInformation(service, node, responder);
             }
         }, new AsyncCallback.DataCallback() {
             @Override
             public void processResult(int rc, String path, Object ctx, byte[] data, Stat stat) {
-                if(disconnected.search(node)==-1) {
-                    if (data != null) {
-                        try {
-                            responder.run(service, node, new ObjectMapper().readValue(data, ServiceInformation.class));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    } else {
-                        disconnected.add(node);
-                        responder.run(service, node, null);
+                if (data != null) {
+                    try {
+                        responder.run(service, node, new ObjectMapper().readValue(data, ServiceInformation.class));
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
+                } else {
+                    responder.run(service, node, null);
                 }
             }
         }, null);

@@ -28,7 +28,6 @@ public class EServer implements Runnable {
             while ((socket = server.accept())!=null) {
                 System.out.println("Client connected!");
                 new Thread(new EClient(socket, null, this.mesh)).start();
-                Thread.sleep(1L);
             }
         }catch (Exception e){
             e.printStackTrace();
