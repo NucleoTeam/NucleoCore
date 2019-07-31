@@ -10,14 +10,20 @@ public class NucleoStep {
     private long start;
     private long end;
     private long total;
+    public static String hostName = null;
+    public static String hostIP = "";
 
     public NucleoStep() {
-        try {
-            this.host = InetAddress.getLocalHost().getHostName();
-            this.ip = InetAddress.getLocalHost().getHostAddress();
-        }catch (UnknownHostException e){
-            e.printStackTrace();
+        if (hostName == null) {
+            try {
+                hostName = InetAddress.getLocalHost().getHostName();
+                hostIP = InetAddress.getLocalHost().getHostAddress();
+            }catch(UnknownHostException e){
+                e.printStackTrace();
+            }
         }
+        this.host = hostName;
+        this.ip = hostIP;
     }
 
     public NucleoStep(String step, long start) {

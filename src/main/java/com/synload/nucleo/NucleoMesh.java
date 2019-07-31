@@ -202,8 +202,9 @@ public class NucleoMesh {
     public void seteManager(EManager eManager) {
         this.eManager = eManager;
     }
-    static long[] avg = new long[50];
+    static long[] avg = new long[20];
     static int k = 0;
+    static int counter = 0;
     public static void main(String[] args) {
         //createTopic();
         Logger.getRootLogger().setLevel(Level.DEBUG);
@@ -216,19 +217,19 @@ public class NucleoMesh {
                 new String[]{"information.hits", "information"},
                 new TreeMap<String, Object>() {{
                     put("wow", "works?");
-                    put("time", System.currentTimeMillis());
                 }},
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
                         try {
-                            avg[k] = (System.currentTimeMillis() - ((long)data.getObjects().get("time")));
+                            avg[k] = data.markTime();
                             k++;
-                            if(k>=50){
+                            counter++;
+                            if(k>=20){
                                 k=0;
                             }
                             //System.out.println(new ObjectMapper().writeValueAsString(data));
-                            System.out.println(data.markTime() + "ms avg:" + (Arrays.stream(avg).sum()/50) + "ms");
+                            System.out.println("counter: " + counter + " avg: " + (Arrays.stream(avg).sum()/20) + "ms");
 
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -237,7 +238,7 @@ public class NucleoMesh {
                 }
             );
             try {
-                Thread.sleep(10);
+                Thread.sleep(5);
             } catch (Exception e) {
 
             }

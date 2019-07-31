@@ -88,7 +88,7 @@ public class EClient implements Runnable {
         }
         return content.getBytes();
     }
-    public void readFromSock(int sizeRemaining, DataInputStream is, ByteArrayOutputStream output) throws IOException{
+    public void readFromSock(int sizeRemaining, InputStream is, ByteArrayOutputStream output) throws IOException{
         byte[] buffer = new byte[2048];
         output.reset();
         while(sizeRemaining>0){
@@ -107,28 +107,21 @@ public class EClient implements Runnable {
 
                 if (this.direction) {
                     try {
-                        InputStream cis = client.getInputStream();
-                        DataInputStream is = new DataInputStream(cis);
+                        InputStream is = client.getInputStream();
                         ByteArrayOutputStream output = new ByteArrayOutputStream();
+
                         byte[] buffer;
                         while (reconnect && !Thread.currentThread().isInterrupted()) {
-                            while (cis.available() == 0) {}
-                            System.out.println("reading");
+                            while (is.available() == 0) {}
                             // Get nucleodata
                             buffer = new byte[4];
                             is.read(buffer, 0, 4);
                             int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                             readFromSock(sizeRemaining, is, output);
-                            NucleoData data = mapper.readValue(output.toByteArray(), NucleoData.class);
+                            NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
 
-                            // Get Topic
-                            buffer = new byte[4];
-                            is.read(buffer, 0, 4);
-                            sizeRemaining = ByteBuffer.wrap(buffer).getInt();
-
-                            readFromSock(sizeRemaining, is, output);
-                            mesh.getHub().handle(mesh.getHub(), data, new String(output.toByteArray()));
+                            mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -145,15 +138,12 @@ public class EClient implements Runnable {
                         DataOutputStream gos = new DataOutputStream(client.getOutputStream());
                         while (reconnect && !Thread.currentThread().isInterrupted()) {
                             latch.await();
-                            System.out.println("writing to socket");
                             while (!queue.isEmpty()) {
                                 NucleoTopicPush push = queue.pop();
-                                byte[] data = mapper.writeValueAsBytes(push.getData());
+                                byte[] data = mapper.writeValueAsBytes(push);
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
                                 gos.write(data);
-                                byte[] topic = push.getTopic().getBytes();
-                                gos.write(ByteBuffer.allocate(4).putInt(topic.length).array());
-                                gos.write(topic);
+                                gos.flush();
                             }
                             latch = new CountDownLatch(1);
                         }
@@ -234,27 +224,5 @@ public class EClient implements Runnable {
         this.latch = latch;
     }
 
-    public class NucleoTopicPush{
-        NucleoData data = null;
-        String topic = null;
-        public NucleoTopicPush(String topic, NucleoData data){
-            this.topic = topic;
-            this.data = data;
-        }
-        public NucleoData getData() {
-            return data;
-        }
 
-        public void setData(NucleoData data) {
-            this.data = data;
-        }
-
-        public String getTopic() {
-            return topic;
-        }
-
-        public void setTopic(String topic) {
-            this.topic = topic;
-        }
-    }
 }

@@ -69,11 +69,11 @@ public class Hub {
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
         responders.put(data.getRoot().toString(), responder);
         if (allowTracking) {
-            Thread timeout = new Thread(new NucleoTimeout(this, data));
+            /*Thread timeout = new Thread(new NucleoTimeout(this, data));
             timeout.start();
             synchronized (timeouts){
                 timeouts.put(data.getRoot().toString(), timeout);
-            }
+            }*/
         }else{
             data.setTrack(0);
         }
@@ -104,7 +104,7 @@ public class Hub {
             this.hub = hub;
         }
 
-        public void add(Object[] item){
+        public synchronized void add(Object[] item){
             queue.add(item);
             latch.countDown();
         }
@@ -113,13 +113,14 @@ public class Hub {
 
             while (true) {
                 try {
+                    latch.await();
                     while (!queue.isEmpty()) {
                         Object[] dataBlock = queue.pop();
                         String topic = (String) dataBlock[0];
                         NucleoData data = (NucleoData) dataBlock[1];
                         this.hub.mesh.geteManager().robin(topic, data);
                     }
-                    latch.await(1, TimeUnit.MICROSECONDS);
+                    latch = new CountDownLatch(1);
                 } catch (Exception e) {
                     //e.printStackTrace();
                 }
@@ -161,20 +162,15 @@ public class Hub {
             return checkChainsTMP;
         }
         public void run() {
-            exec();
-        }
-        public void exec() {
             try {
                 if (topic.startsWith("nucleo.client.")) {
                     NucleoResponder responder = responders.get(data.getRoot().toString());
                     if (responder != null) {
                         responders.remove(data.getRoot().toString());
-                        synchronized (timeouts) {
-                            Thread timeout = timeouts.get(data.getRoot().toString());
-                            if (timeout != null) {
-                                timeout.interrupt();
-                                timeouts.remove(data.getRoot().toString());
-                            }
+                        Thread timeout = timeouts.get(data.getRoot().toString());
+                        if (timeout != null) {
+                            timeout.interrupt();
+                            timeouts.remove(data.getRoot().toString());
                         }
                         data.getExecution().setEnd(System.currentTimeMillis());
                         esPusher.add(data);
@@ -245,7 +241,7 @@ public class Hub {
                             if(sameChain){
                                 if(eventHandler.getChainToMethod().containsKey(newTopic)){
                                     topic=newTopic;
-                                    exec();
+                                    Executor.this.run();
                                     return;
                                 }
                             }
