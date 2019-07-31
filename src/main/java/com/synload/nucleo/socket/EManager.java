@@ -24,13 +24,19 @@ public class EManager {
     public void sync(ServiceInformation node){
         if(!connections.containsKey(node.getName())){
             EClient nodeClient = new EClient(null, node, mesh);
-            new Thread(nodeClient).start();
-            for(String event : node.getEvents()){
-                System.out.println(nodeClient.getNode().getConnectString() +" <- " + event);
-                if(!topics.containsKey(event)){
-                    topics.put(event, new TopicRound());
+            try {
+                new Thread(nodeClient).start();
+            }catch (Exception e){
+
+            }
+            synchronized (topics) {
+                for (String event : node.getEvents()) {
+                    System.out.println(nodeClient.getNode().getConnectString() + " <- " + event);
+                    if (!topics.containsKey(event)) {
+                        topics.put(event, new TopicRound());
+                    }
+                    topics.get(event).nodes.add(nodeClient);
                 }
-                topics.get(event).nodes.add(nodeClient);
             }
             connections.put(node.getName(), nodeClient);
         }
@@ -40,30 +46,39 @@ public class EManager {
             EClient client = connections.remove(node);
             client.setReconnect(false);
             try {
-                client.getClient().close();
+                if(client.getClient()!=null)
+                    client.getClient().close();
             }catch (Exception e){
                 e.printStackTrace();
             }
-            for(String event : client.getNode().getEvents()){
-                if(topics.containsKey(event)){
-                    topics.get(event).nodes.remove(client);
-                    System.out.println("Removed from ["+event+"], nodes left: " + topics.get(event).nodes.size());
+            synchronized (topics) {
+                for (String event : client.getNode().getEvents()) {
+                    if (topics.containsKey(event)) {
+                        topics.get(event).nodes.remove(client);
+                        System.out.println("Removed from [ " + event + " ], nodes left: " + topics.get(event).nodes.size());
+                        if (topics.get(event).nodes.size() == 0) {
+                            System.out.println("no nodes on [ " + event + " ], removing");
+                            topics.remove(event);
+                        }
+                    }
                 }
             }
         }
     }
     public void robin(String topic, NucleoData data){
-        if(topics.containsKey(topic)) {
-            topics.get(topic).send(topic, data);
-        }else if(topic.startsWith("nucleo.client.")){
-            String node = topic.substring(14);
-            if(connections.containsKey(node)) {
-                connections.get(node).add(topic, data);
-            }else{
-                System.out.println("[" + node + "] connection not found");
+        synchronized (topics) {
+            if (topics.containsKey(topic)) {
+                topics.get(topic).send(topic, data);
+            } else if (topic.startsWith("nucleo.client.")) {
+                String node = topic.substring(14);
+                if (connections.containsKey(node)) {
+                    connections.get(node).add(topic, data);
+                } else {
+                    System.out.println("[" + node + "] connection not found");
+                }
+            } else {
+                //System.out.println("[" + topic + "] route not found");
             }
-        }else{
-            //System.out.println("[" + topic + "] route not found");
         }
     }
 

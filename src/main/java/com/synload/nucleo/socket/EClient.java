@@ -137,6 +137,8 @@ public class EClient implements Runnable {
                         return;
                     }
                 } else {
+                    if(node.getConnectString()==null)
+                        return;
                     String[] connectArr = node.getConnectString().split(":");
                     client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                     try {
