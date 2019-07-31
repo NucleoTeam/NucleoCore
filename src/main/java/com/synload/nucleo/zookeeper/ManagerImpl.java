@@ -7,6 +7,8 @@ import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Stack;
+import java.util.TreeMap;
 
 public class ManagerImpl implements Manager{
     @Override
@@ -17,6 +19,7 @@ public class ManagerImpl implements Manager{
     private static ZooKeeper zkeeper;
     private static Connection connection;
     private String meshName;
+    private Stack<String> disconnected = new Stack<>();
 
     public ManagerImpl(String zkConnectionString, String meshName) {
         try {
@@ -115,19 +118,24 @@ public class ManagerImpl implements Manager{
     public void getServiceNodeInformation(String service, String node, DataUpdate responder){
         zkeeper.getData("/" + this.meshName + "/services/" + service + "/" + node, new Watcher() {
             public void process(WatchedEvent we) {
-                getServiceNodeInformation( service, node,  responder);
+                if(disconnected.search(node)==-1) {
+                    getServiceNodeInformation(service, node, responder);
+                }
             }
         }, new AsyncCallback.DataCallback() {
             @Override
             public void processResult(int rc, String path, Object ctx, byte[] data, Stat stat) {
-                if(data!=null){
-                    try{
-                        responder.run(service, node, new ObjectMapper().readValue( data, ServiceInformation.class));
-                    }catch (Exception e){
-                        e.printStackTrace();
+                if(disconnected.search(node)==-1) {
+                    if (data != null) {
+                        try {
+                            responder.run(service, node, new ObjectMapper().readValue(data, ServiceInformation.class));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+                        disconnected.add(node);
+                        responder.run(service, node, null);
                     }
-                }else {
-                    responder.run(service, node, null);
                 }
             }
         }, null);
