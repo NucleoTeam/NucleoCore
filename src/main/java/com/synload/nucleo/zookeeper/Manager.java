@@ -11,7 +11,7 @@ public interface Manager {
      List<String> getServiceNodeList(String service);
      void getServiceList(DataUpdate responder);
      void getServiceNodeList(String service, DataUpdate responder);
-     void getServiceNodeInformation(String service, String node, DataUpdate responder);
+     void getServiceNodeInformation(String service, String node, DataUpdate responder, boolean initial);
      byte[] getServiceNodeInformation(String service, String node);
      void update(String path, byte[] data) throws KeeperException, InterruptedException;
      void createPath(String path) throws KeeperException, InterruptedException;

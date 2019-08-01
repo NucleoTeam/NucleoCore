@@ -6,6 +6,7 @@ import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Stack;
 import java.util.TreeMap;
@@ -104,21 +105,23 @@ public class ManagerImpl implements Manager{
         }, null);
     }
     public void getServiceNodeList(String service, DataUpdate responder){
-        zkeeper.getChildren("/" + this.meshName + "/services/"+service, new Watcher() {
-            public void process(WatchedEvent we) {
-                getServiceNodeList(service, responder);
-            }
-        }, new AsyncCallback.Children2Callback(){
+        zkeeper.getChildren("/" + this.meshName + "/services/"+service, null, new AsyncCallback.Children2Callback(){
             @Override
             public void processResult(int rc, String path, Object ctx, List<String> nodes, Stat stat) {
                 responder.run(service, nodes);
             }
         }, null);
     }
-    public void getServiceNodeInformation(String service, String node, DataUpdate responder){
+    public static Stack<String> nodeHit = new Stack<>();
+    public void getServiceNodeInformation(String service, String node, DataUpdate responder, boolean initial){
+        if(initial && nodeHit.search(node)==-1){
+            nodeHit.add(node);
+        }else if(initial){
+            return;
+        }
         zkeeper.getData("/" + this.meshName + "/services/" + service + "/" + node, new Watcher() {
             public void process(WatchedEvent we) {
-                getServiceNodeInformation(service, node, responder);
+                getServiceNodeInformation(service, node, responder, false);
             }
         }, new AsyncCallback.DataCallback() {
             @Override
