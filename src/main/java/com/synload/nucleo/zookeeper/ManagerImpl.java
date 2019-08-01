@@ -115,7 +115,9 @@ public class ManagerImpl implements Manager{
     public static Stack<String> nodeHit = new Stack<>();
     public void getServiceNodeInformation(String service, String node, DataUpdate responder, boolean initial){
         if(initial && nodeHit.search(node)==-1){
-            nodeHit.add(node);
+            synchronized (ManagerImpl.nodeHit) {
+                nodeHit.add(node);
+            }
         }else if(initial){
             return;
         }

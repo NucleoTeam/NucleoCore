@@ -2,6 +2,7 @@ package com.synload.nucleo.socket;
 
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
+import com.synload.nucleo.zookeeper.ManagerImpl;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 
 import java.util.ArrayList;
@@ -89,6 +90,9 @@ public class EManager {
             client.getQueue().forEach((NucleoTopicPush p) -> {
                 this.robin(p.getTopic(), p.getData()); // preserve the queue for this client and send to other clients
             });
+        }
+        synchronized (ManagerImpl.nodeHit) {
+            ManagerImpl.nodeHit.remove(node);
         }
     }
     public void robin(String topic, NucleoData data){
