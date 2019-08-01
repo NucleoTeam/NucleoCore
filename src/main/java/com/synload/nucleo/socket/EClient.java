@@ -9,6 +9,7 @@ import org.apache.logging.log4j.core.util.IOUtils;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
@@ -102,7 +103,6 @@ public class EClient implements Runnable {
     @Override
     public void run() {
         try {
-
             while (reconnect && !Thread.currentThread().isInterrupted()) {
 
                 if (this.direction) {
@@ -120,8 +120,11 @@ public class EClient implements Runnable {
 
                             readFromSock(sizeRemaining, is, output);
                             NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
-
-                            mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
+                            if(data.getData()!=null) {
+                                mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
+                            } else if(data.getInformation()!=null){
+                                System.out.println(data.getInformation().getName()+ "."+data.getInformation().getService()+ " "+data.getInformation().getHost());
+                            }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -134,18 +137,26 @@ public class EClient implements Runnable {
                         return;
                     String[] connectArr = node.getConnectString().split(":");
                     client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
+                    NucleoTopicPush push = null;
                     try {
                         DataOutputStream gos = new DataOutputStream(client.getOutputStream());
                         while (reconnect && !Thread.currentThread().isInterrupted()) {
                             latch.await();
                             while (!queue.isEmpty()) {
-                                NucleoTopicPush push = queue.pop();
+                                push = queue.pop();
+                                if(push.getTopic().startsWith("nucleo.client")){
+                                    System.out.println("[ " + push.getTopic() + " ] "+push.getData().getRoot()+" -> "+node.getConnectString());
+                                }
                                 byte[] data = mapper.writeValueAsBytes(push);
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
                                 gos.write(data);
                                 gos.flush();
                             }
                             latch = new CountDownLatch(1);
+                        }
+                    } catch (SocketException e) {
+                        if(push!=null){
+                            this.getMesh().geteManager().robin(push.getTopic(), push.getData());
                         }
                     } catch (Exception e) {
                         e.printStackTrace();

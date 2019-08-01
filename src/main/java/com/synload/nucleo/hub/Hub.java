@@ -175,6 +175,7 @@ public class Hub {
                         data.getExecution().setEnd(System.currentTimeMillis());
                         esPusher.add(data);
                         responder.run(data);
+                        //System.out.println("response: " + data.markTime() + "ms");
                         if (data.getTrack() == 1) {
                             hub.push(hub.constructNucleoData(new String[]{"_watch.complete"}, new TreeMap<String, Object>() {{
                                 put("root", data.getRoot());
@@ -211,41 +212,41 @@ public class Hub {
                     Method method = (Method) methodData[1];
                     NucleoResponder responder = new NucleoResponder(){
                         public void run(NucleoData data){
-                            if (data.getChainBreak().isBreakChain()) {
+                        if (data.getChainBreak().isBreakChain()) {
+                            timing.setEnd(System.currentTimeMillis());
+                            data.getSteps().add(timing);
+                            esPusher.add(data);
+                            writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                            return;
+                        }
+                        boolean sameChain = false;
+                        if (data.getLink() + 1 == data.getChainList().get(data.getOnChain()).length) {
+                            if (data.getChainList().size() == data.getOnChain() + 1) {
                                 timing.setEnd(System.currentTimeMillis());
                                 data.getSteps().add(timing);
                                 esPusher.add(data);
                                 writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                                 return;
-                            }
-                            boolean sameChain = false;
-                            if (data.getLink() + 1 == data.getChainList().get(data.getOnChain()).length) {
-                                if (data.getChainList().size() == data.getOnChain() + 1) {
-                                    timing.setEnd(System.currentTimeMillis());
-                                    data.getSteps().add(timing);
-                                    esPusher.add(data);
-                                    writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-                                    return;
-                                } else {
-                                    data.setOnChain(data.getOnChain() + 1);
-                                    data.setLink(0);
-                                }
                             } else {
-                                data.setLink(data.getLink() + 1);
-                                sameChain = true;
+                                data.setOnChain(data.getOnChain() + 1);
+                                data.setLink(0);
                             }
-                            timing.setEnd(System.currentTimeMillis());
-                            data.getSteps().add(timing);
-                            esPusher.add(data);
-                            String newTopic = getTopic(data);
-                            if(sameChain){
-                                if(eventHandler.getChainToMethod().containsKey(newTopic)){
-                                    topic=newTopic;
-                                    Executor.this.run();
-                                    return;
-                                }
+                        } else {
+                            data.setLink(data.getLink() + 1);
+                            sameChain = true;
+                        }
+                        timing.setEnd(System.currentTimeMillis());
+                        data.getSteps().add(timing);
+                        esPusher.add(data);
+                        String newTopic = getTopic(data);
+                        if(sameChain){
+                            if(eventHandler.getChainToMethod().containsKey(newTopic)){
+                                topic=newTopic;
+                                //Executor.this.run();
+                                //return;
                             }
-                            writer.add(new Object[]{ newTopic, data});
+                        }
+                        writer.add(new Object[]{ newTopic, data});
                         }
                     };
                     int len = method.getParameterTypes().length;
@@ -270,7 +271,7 @@ public class Hub {
                         }catch (Exception e){
                             e.printStackTrace();
                         }
-                        responder.run(data);
+                        responder.run();
                     }
                 } else {
                     System.out.println("Topic or responder not found: " + topic);
