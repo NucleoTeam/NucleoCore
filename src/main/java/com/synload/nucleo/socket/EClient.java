@@ -170,11 +170,7 @@ public class EClient implements Runnable {
                     try {
                         clientLocal = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                         OutputStream gos = clientLocal.getOutputStream();
-                        while (reconnect && !Thread.currentThread().isInterrupted()) {
-                            if (clientLocal.isClosed()) {
-                                Thread.currentThread().interrupt();
-                                return;
-                            }
+                        while (!clientLocal.isClosed() && reconnect && !Thread.currentThread().isInterrupted()) {
                             if (queue.size() > 15 && streams<10) {
                                 streams();
                                 new Thread(this).start();
