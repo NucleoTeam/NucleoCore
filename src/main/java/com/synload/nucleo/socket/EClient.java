@@ -123,9 +123,6 @@ public class EClient implements Runnable {
     }
     @Override
     public void run() {
-        if(node!=null) {
-            System.out.println("Starting new connection to " + node.getConnectString()+ " size:"+queue.size());
-        }
         try {
             while (reconnect && !Thread.currentThread().isInterrupted()) {
                 if (this.direction) {
@@ -160,7 +157,10 @@ public class EClient implements Runnable {
                         reconnect = false;
                         return;
                     }
-                } else {
+                } else { // Connecting to service
+                    if(node!=null) {
+                        System.out.println("Starting new connection to " + node.getConnectString()+ " size:"+queue.size());
+                    }
                     if(node.getConnectString()==null) {
                         return;
                     }
@@ -177,9 +177,9 @@ public class EClient implements Runnable {
                             }
                             push = pop();
                             if (push != null) {
-                                if (push.getTopic().startsWith("nucleo.client")) {
-                                    System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
-                                }
+                                //if (push.getTopic().startsWith("nucleo.client")) {
+                                    //System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
+                                //}
                                 byte[] data = mapper.writeValueAsBytes(push);
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array(), 0, 4);
                                 gos.write(data, 0, data.length);

@@ -48,7 +48,7 @@ public class EManager {
                         topics.put(event, new TopicRound());
                     }
                     topics.get(event).nodes.add(nodeClient);
-                    System.out.println("Added to [ " + event + " ], nodes available: " + topics.get(event).nodes.size());
+                    //System.out.println("Added to [ " + event + " ], nodes available: " + topics.get(event).nodes.size());
                 }
             }
 
@@ -66,8 +66,8 @@ public class EManager {
                 }
             }
         }
-        System.out.println("connectionThreads: "+connectionThreads.size());
-        System.out.println("connections: "+connections.size());
+        //System.out.println("connectionThreads: "+connectionThreads.size());
+        //System.out.println("connections: "+connections.size());
         if(client!=null){
             client.setReconnect(false);
             try {
@@ -81,9 +81,9 @@ public class EManager {
                 synchronized (topics) {
                     if (topics.containsKey(event)) {
                         topics.get(event).nodes.remove(client);
-                        System.out.println("Removed from [ " + event + " ], nodes available: " + topics.get(event).nodes.size());
+                        //System.out.println("Removed from [ " + event + " ], nodes available: " + topics.get(event).nodes.size());
                         if (topics.get(event).nodes.size() == 0) {
-                            System.out.println("no nodes on [ " + event + " ], removing");
+                            //System.out.println("no nodes on [ " + event + " ], removing");
                             topics.remove(event);
                         }
                     }
@@ -106,7 +106,7 @@ public class EManager {
             if (connections.containsKey(node)) {
                 connections.get(node).add(topic, data);
             } else {
-                System.out.println("[" + node + "] missing, ignoring broken chain");
+                //System.out.println("[" + node + "] missing, ignoring broken chain");
             }
         } else {
             //System.out.println("[" + topic + "] route not found");
