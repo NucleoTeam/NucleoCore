@@ -243,8 +243,8 @@ public class Hub {
                         if(sameChain){
                             if(eventHandler.getChainToMethod().containsKey(newTopic)){
                                 topic=newTopic;
-                                //Executor.this.run();
-                                //return;
+                                Executor.this.run();
+                                return;
                             }
                         }
                         writer.add(new Object[]{ newTopic, data});
