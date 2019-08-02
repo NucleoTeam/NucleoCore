@@ -8,6 +8,7 @@ import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.apache.logging.log4j.core.util.IOUtils;
 
 import java.io.*;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
@@ -22,14 +23,13 @@ public class EClient implements Runnable {
     public boolean direction;
     public NucleoMesh mesh;
     public Socket client;
+    public int streams = 0;
     public Stack<NucleoTopicPush> queue = new Stack<>();
     public ObjectMapper mapper;
     public boolean reconnect = true;
-    public CountDownLatch latch = new CountDownLatch(1);
 
     public void add(String topic, NucleoData data){
         queue.add(new NucleoTopicPush(topic, data));
-        latch.countDown();
     }
     public EClient(Socket client, ServiceInformation node, NucleoMesh mesh){
         this.node = node;
@@ -37,6 +37,15 @@ public class EClient implements Runnable {
         this.client = client;
         this.direction = ( client != null );
         this.mapper = new ObjectMapper();
+    }
+    public synchronized NucleoTopicPush pop(){
+        if(!queue.isEmpty()) {
+            return queue.pop();
+        }
+        return null;
+    }
+    private synchronized void streams(){
+        streams++;
     }
     public byte[] compress(byte[] data) {
         byte[] compressed = new byte[0];
@@ -102,9 +111,11 @@ public class EClient implements Runnable {
     }
     @Override
     public void run() {
+        if(node!=null) {
+            System.out.println("Starting new connection to " + node.getConnectString()+ " size:"+queue.size());
+        }
         try {
             while (reconnect && !Thread.currentThread().isInterrupted()) {
-                System.out.println("RUN BABY RUN");
                 if (this.direction) {
                     try {
                         InputStream is = client.getInputStream();
@@ -136,30 +147,39 @@ public class EClient implements Runnable {
                         return;
                     }
                 } else {
-                    if(node.getConnectString()==null)
+                    if(node.getConnectString()==null) {
                         return;
+                    }
+                    Socket clientLocal = null;
                     String[] connectArr = node.getConnectString().split(":");
-                    client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                     NucleoTopicPush push = null;
                     try {
-                        OutputStream gos = client.getOutputStream();
+                        clientLocal = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
+                        OutputStream gos = clientLocal.getOutputStream();
                         while (reconnect && !Thread.currentThread().isInterrupted()) {
-                            latch.await();
-                            if(client.isClosed()){
+                            if (clientLocal.isClosed()) {
+                                Thread.currentThread().interrupt();
                                 return;
                             }
-                            while (!queue.isEmpty()) {
-                                push = queue.pop();
-                                if(push.getTopic().startsWith("nucleo.client")){
-                                    System.out.println("[ " + push.getTopic() + " ] "+push.getData().getRoot()+" -> "+node.getConnectString());
-                                }
+                            if (queue.size() > 15 && streams<10) {
+                                streams();
+                                new Thread(this).start();
+                            }
+                            push = pop();
+                            if (push != null) {
+                                //if (push.getTopic().startsWith("nucleo.client")) {
+                                    //System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
+                                //}
                                 byte[] data = mapper.writeValueAsBytes(push);
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array(), 0, 4);
                                 gos.write(data, 0, data.length);
                                 gos.flush();
                             }
-                            latch = new CountDownLatch(1);
+                            Thread.sleep(0, 100);
                         }
+                    } catch (ConnectException c){
+                        reconnect=false;
+                        Thread.currentThread().interrupt();
                     } catch (SocketException e) {
                         if(push!=null){
                             this.getMesh().geteManager().robin(push.getTopic(), push.getData());
@@ -168,12 +188,16 @@ public class EClient implements Runnable {
                         e.printStackTrace();
                     } finally {
                         System.out.println("disconnected");
-                        client.close();
+                        if(clientLocal!=null){
+                            clientLocal.close();
+                        }
+                        reconnect=false;
                     }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
+            node=null;
         }
     }
 
@@ -231,14 +255,6 @@ public class EClient implements Runnable {
 
     public void setReconnect(boolean reconnect) {
         this.reconnect = reconnect;
-    }
-
-    public CountDownLatch getLatch() {
-        return latch;
-    }
-
-    public void setLatch(CountDownLatch latch) {
-        this.latch = latch;
     }
 
 

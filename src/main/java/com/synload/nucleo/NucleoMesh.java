@@ -237,12 +237,12 @@ public class NucleoMesh {
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
-                        System.out.println("total: "+data.markTime()+"ms");
+                        //System.out.println("total: "+data.markTime()+"ms");
                     }
                 }
             );
             try {
-                Thread.sleep(6);
+                Thread.sleep(1);
             } catch (Exception e) {
 
             }

@@ -24,7 +24,7 @@ public class EManager {
     public void createServer(){
         new Thread(new EServer(this.port, this.mesh, this)).start();
     }
-    public synchronized void sync(ServiceInformation node){
+    public void sync(ServiceInformation node){
         EClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
             System.out.println(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
@@ -54,7 +54,7 @@ public class EManager {
 
         }
     }
-    public synchronized void delete(String node){
+    public void delete(String node){
         EClient client = null;
         synchronized(connections) {
             if (connections.containsKey(node)) {
@@ -121,8 +121,11 @@ public class EManager {
             if(lastNode >= tmpNodes.size()){
                 lastNode=0;
             }
-            tmpNodes.get(lastNode).add(topic, data);
-            lastNode++;
+            if(tmpNodes.size()>0){
+                tmpNodes.get(lastNode).add(topic, data);
+                lastNode++;
+            }
+            // just drop any other data with no destination
         }
     }
 
