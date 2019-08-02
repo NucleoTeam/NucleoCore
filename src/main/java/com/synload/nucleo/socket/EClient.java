@@ -139,7 +139,7 @@ public class EClient implements Runnable {
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                                 if(readFromSock(sizeRemaining, is, output)) {
-                                    NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
+                                    NucleoTopicPush data = mapper.readValue(decompress(output.toByteArray()), NucleoTopicPush.class);
                                     if (data.getData() != null) {
                                         mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
                                     } else if (data.getInformation() != null) {
@@ -180,7 +180,7 @@ public class EClient implements Runnable {
                                 //if (push.getTopic().startsWith("nucleo.client")) {
                                     //System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
                                 //}
-                                byte[] data = mapper.writeValueAsBytes(push);
+                                byte[] data = compress(mapper.writeValueAsBytes(push));
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array(), 0, 4);
                                 gos.write(data, 0, data.length);
                                 gos.flush();
