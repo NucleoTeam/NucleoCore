@@ -135,7 +135,7 @@ public class EClient implements Runnable {
 
                         byte[] buffer;
                         while (reconnect && !Thread.currentThread().isInterrupted() && !client.isClosed()) {
-                            while (is.available()>0 && !client.isClosed()) {
+                            while (!client.isClosed() && is.available()>0) {
                                 // Get nucleodata
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
