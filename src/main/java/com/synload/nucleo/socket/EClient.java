@@ -98,7 +98,7 @@ public class EClient implements Runnable {
         }
         return content.getBytes();
     }
-    public void readFromSock(int sizeRemaining, InputStream is, ByteArrayOutputStream output) throws IOException{
+    public boolean readFromSock(int sizeRemaining, InputStream is, ByteArrayOutputStream output) throws IOException{
         try {
             byte[] buffer = new byte[2048];
             output.reset();
@@ -108,7 +108,9 @@ public class EClient implements Runnable {
                 }
                 sizeRemaining -= is.read(buffer, 0, sizeRemaining);
                 output.write(buffer);
+
             }
+            return true;
         }catch (Exception e){
             try {
                 client.close();
@@ -117,6 +119,7 @@ public class EClient implements Runnable {
                 ex.printStackTrace();
             }
         }
+        return false;
     }
     @Override
     public void run() {
@@ -138,13 +141,13 @@ public class EClient implements Runnable {
                                 is.read(buffer, 0, 4);
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
-                                readFromSock(sizeRemaining, is, output);
-
-                                NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
-                                if (data.getData() != null) {
-                                    mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
-                                } else if (data.getInformation() != null) {
-                                    System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
+                                if(readFromSock(sizeRemaining, is, output)) {
+                                    NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
+                                    if (data.getData() != null) {
+                                        mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
+                                    } else if (data.getInformation() != null) {
+                                        System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
+                                    }
                                 }
 
                             }
