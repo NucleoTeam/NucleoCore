@@ -110,7 +110,11 @@ public class EClient implements Runnable {
                 output.write(buffer);
             }
         }catch (Exception e){
-            is.reset();
+            try {
+                client.close();
+            }catch (Exception ex){
+                ex.printStackTrace();
+            }
         }
     }
     @Override
@@ -119,21 +123,22 @@ public class EClient implements Runnable {
             System.out.println("Starting new connection to " + node.getConnectString()+ " size:"+queue.size());
         }
         try {
-            while (reconnect && !Thread.currentThread().isInterrupted()) {
+            while (reconnect && !Thread.currentThread().isInterrupted() && !client.isClosed()) {
                 if (this.direction) {
                     try {
                         InputStream is = client.getInputStream();
                         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
                         byte[] buffer;
-                        while (reconnect && !Thread.currentThread().isInterrupted()) {
-                            while (is.available()>0) {
+                        while (reconnect && !Thread.currentThread().isInterrupted() && !client.isClosed()) {
+                            while (is.available()>0 && !client.isClosed()) {
                                 // Get nucleodata
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                                 readFromSock(sizeRemaining, is, output);
+
                                 NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
                                 if (data.getData() != null) {
                                     mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
