@@ -27,7 +27,7 @@ public class EClient implements Runnable {
     public boolean reconnect = true;
     public CountDownLatch latch = new CountDownLatch(1);
 
-    public synchronized void add(String topic, NucleoData data){
+    public void add(String topic, NucleoData data){
         queue.add(new NucleoTopicPush(topic, data));
         latch.countDown();
     }
@@ -104,7 +104,7 @@ public class EClient implements Runnable {
     public void run() {
         try {
             while (reconnect && !Thread.currentThread().isInterrupted()) {
-
+                System.out.println("RUN BABY RUN");
                 if (this.direction) {
                     try {
                         InputStream is = client.getInputStream();
@@ -112,19 +112,22 @@ public class EClient implements Runnable {
 
                         byte[] buffer;
                         while (reconnect && !Thread.currentThread().isInterrupted()) {
-                            while (is.available() == 0) {}
-                            // Get nucleodata
-                            buffer = new byte[4];
-                            is.read(buffer, 0, 4);
-                            int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
+                            while (is.available()>0) {
+                                // Get nucleodata
+                                buffer = new byte[4];
+                                is.read(buffer, 0, 4);
+                                int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
-                            readFromSock(sizeRemaining, is, output);
-                            NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
-                            if(data.getData()!=null) {
-                                mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
-                            } else if(data.getInformation()!=null){
-                                System.out.println(data.getInformation().getName()+ "."+data.getInformation().getService()+ " "+data.getInformation().getHost());
+                                readFromSock(sizeRemaining, is, output);
+                                NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
+                                if (data.getData() != null) {
+                                    mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
+                                } else if (data.getInformation() != null) {
+                                    System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
+                                }
+
                             }
+                            Thread.sleep(0, 200);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -139,17 +142,20 @@ public class EClient implements Runnable {
                     client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                     NucleoTopicPush push = null;
                     try {
-                        DataOutputStream gos = new DataOutputStream(client.getOutputStream());
+                        OutputStream gos = client.getOutputStream();
                         while (reconnect && !Thread.currentThread().isInterrupted()) {
                             latch.await();
+                            if(client.isClosed()){
+                                return;
+                            }
                             while (!queue.isEmpty()) {
                                 push = queue.pop();
                                 if(push.getTopic().startsWith("nucleo.client")){
                                     System.out.println("[ " + push.getTopic() + " ] "+push.getData().getRoot()+" -> "+node.getConnectString());
                                 }
                                 byte[] data = mapper.writeValueAsBytes(push);
-                                gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
-                                gos.write(data);
+                                gos.write(ByteBuffer.allocate(4).putInt(data.length).array(), 0, 4);
+                                gos.write(data, 0, data.length);
                                 gos.flush();
                             }
                             latch = new CountDownLatch(1);

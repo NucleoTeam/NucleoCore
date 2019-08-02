@@ -10,6 +10,7 @@ public interface Manager {
      List<String> getServiceList();
      List<String> getServiceNodeList(String service);
      void getServiceList(DataUpdate responder);
+     void createBlock(String path);
      void getServiceNodeList(String service, DataUpdate responder);
      void getServiceNodeInformation(String service, String node, DataUpdate responder, boolean initial);
      byte[] getServiceNodeInformation(String service, String node);

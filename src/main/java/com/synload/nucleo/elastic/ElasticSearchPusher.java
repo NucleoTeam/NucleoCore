@@ -60,6 +60,7 @@ public class ElasticSearchPusher implements Runnable {
               .versionType(VersionType.EXTERNAL)
               .source(object, XContentType.JSON);
           client.index(request, RequestOptions.DEFAULT);
+          Thread.sleep(500);
         }
       }catch (ElasticsearchStatusException x){
         //x.printStackTrace();

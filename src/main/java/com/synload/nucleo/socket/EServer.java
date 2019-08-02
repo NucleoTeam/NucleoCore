@@ -11,9 +11,11 @@ import java.util.Stack;
 
 public class EServer implements Runnable {
     ServerSocket server;
+    EManager em;
     NucleoMesh mesh;
-    public EServer(int port, NucleoMesh mesh){
+    public EServer(int port, NucleoMesh mesh, EManager em){
         this.mesh = mesh;
+        this.em = em;
         try {
             server = new ServerSocket(port);
         }catch (IOException e){

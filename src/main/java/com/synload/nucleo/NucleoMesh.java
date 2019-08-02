@@ -15,6 +15,7 @@ import com.synload.nucleo.zookeeper.ManagerImpl;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.zookeeper.KeeperException;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -41,11 +42,29 @@ public class NucleoMesh {
         this.eManager = new EManager(this, ePort);
         this.eManager.createServer();
         try {
-            manager = new ManagerImpl(zookeeper, meshName);
-            manager.createPath("/" + meshName + "/services/" + serviceName);
+            manager = new ManagerImpl(zookeeper, this);
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void zookeeperConnected() throws IOException, KeeperException, InterruptedException {
+        System.out.println("UpSet service "+serviceName+" to zookeeper");
+        manager.createBlock("/" + meshName + "/services/" + serviceName);
+        System.out.println("Registering this service to zookeeper");
+        manager.create(
+            "/" + meshName + "/services/" + serviceName + "/" + uniqueName,
+            new ObjectMapper().writeValueAsBytes(new ServiceInformation(
+                meshName,
+                serviceName,
+                this.uniqueName,
+                getHub().getEventHandler().getChainToMethod().keySet(),
+                InetAddress.getLocalHost().getHostAddress() + ":" + eManager.getPort(),
+                InetAddress.getLocalHost().getHostName()
+            ))
+        );
+        System.out.println("Starting zookeeper sync");
+        new Thread(new SyncList()).start();
     }
 
     public class SyncList implements Runnable{
@@ -77,7 +96,7 @@ public class NucleoMesh {
                     }
                 });
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(200);
                 }catch (Exception e){
 
                 }
@@ -87,18 +106,6 @@ public class NucleoMesh {
 
     public void start() {
         try {
-            manager.create(
-                "/" + meshName + "/services/" + serviceName + "/" + uniqueName,
-                new ObjectMapper().writeValueAsBytes(new ServiceInformation(
-                    meshName,
-                    serviceName,
-                    this.uniqueName,
-                    getHub().getEventHandler().getChainToMethod().keySet(),
-                    InetAddress.getLocalHost().getHostAddress() + ":" + eManager.getPort(),
-                    InetAddress.getLocalHost().getHostName()
-                ))
-            );
-            new Thread(new SyncList()).start();
             getHub().run();
         } catch (Exception e) {
             e.printStackTrace();
@@ -230,17 +237,12 @@ public class NucleoMesh {
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
-                        try {
-
-
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                        System.out.println("total: "+data.markTime()+"ms");
                     }
                 }
             );
             try {
-                Thread.sleep(2000);
+                Thread.sleep(6);
             } catch (Exception e) {
 
             }

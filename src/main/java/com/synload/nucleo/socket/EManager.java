@@ -14,6 +14,7 @@ public class EManager {
     NucleoMesh mesh;
     int port;
     TreeMap<String, EClient> connections = new TreeMap<>();
+    TreeMap<String, List<EClient>> clientConnections = new TreeMap<>();
     TreeMap<String, Thread> connectionThreads = new TreeMap<>();
     TreeMap<String, TopicRound> topics = new TreeMap<>();
     public EManager(NucleoMesh mesh, int port){
@@ -21,15 +22,14 @@ public class EManager {
         this.port = port;
     }
     public void createServer(){
-        new Thread(new EServer(this.port, this.mesh)).start();
+        new Thread(new EServer(this.port, this.mesh, this)).start();
     }
-    public void sync(ServiceInformation node){
+    public synchronized void sync(ServiceInformation node){
         EClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
             System.out.println(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
             nodeClient = new EClient(null, node, mesh);
             connections.put(node.getName(), nodeClient);
-
         }
         if(nodeClient!=null){
             try {
@@ -54,7 +54,7 @@ public class EManager {
 
         }
     }
-    public void delete(String node){
+    public synchronized void delete(String node){
         EClient client = null;
         synchronized(connections) {
             if (connections.containsKey(node)) {
@@ -66,6 +66,8 @@ public class EManager {
                 }
             }
         }
+        System.out.println("connectionThreads: "+connectionThreads.size());
+        System.out.println("connections: "+connections.size());
         if(client!=null){
             client.setReconnect(false);
             try {
@@ -96,19 +98,15 @@ public class EManager {
         }
     }
     public void robin(String topic, NucleoData data){
-        synchronized (topics) {
-            if (topics.containsKey(topic)) {
-                topics.get(topic).send(topic, data);
-            }
+        if (topics.containsKey(topic)) {
+            topics.get(topic).send(topic, data);
         }
         if (topic.startsWith("nucleo.client.")) {
             String node = topic.substring(14);
-            synchronized (connections) {
-                if (connections.containsKey(node)) {
-                    connections.get(node).add(topic, data);
-                } else {
-                    System.out.println("[" + node + "] missing, ignoring broken chain");
-                }
+            if (connections.containsKey(node)) {
+                connections.get(node).add(topic, data);
+            } else {
+                System.out.println("[" + node + "] missing, ignoring broken chain");
             }
         } else {
             //System.out.println("[" + topic + "] route not found");
@@ -119,14 +117,12 @@ public class EManager {
         public List<EClient> nodes = new ArrayList<>();
         public int lastNode=0;
         public void send(String topic, NucleoData data){
-            synchronized (this.nodes) {
-                List<EClient> tmpNodes = new ArrayList<>(this.nodes);
-                if(lastNode >= tmpNodes.size()){
-                    lastNode=0;
-                }
-                tmpNodes.get(lastNode).add(topic, data);
-                lastNode++;
+            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
+            if(lastNode >= tmpNodes.size()){
+                lastNode=0;
             }
+            tmpNodes.get(lastNode).add(topic, data);
+            lastNode++;
         }
     }
 

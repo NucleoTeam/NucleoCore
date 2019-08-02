@@ -14,7 +14,7 @@ public class NucleoData implements Cloneable  {
   private NucleoStep execution = new NucleoStep();
   private int onChain;
   private int track = 1;
-  private long timeTrack = System.currentTimeMillis();
+  private long timeTrack;
   private int retries = 0;
   private int version=0;
   private TreeMap<String, Object> objects;
@@ -127,5 +127,13 @@ public class NucleoData implements Cloneable  {
 
   public void setRetries(int retries) {
     this.retries = retries;
+  }
+
+  public long getTimeTrack() {
+    return timeTrack;
+  }
+
+  public void setTimeTrack(long timeTrack) {
+    this.timeTrack = timeTrack;
   }
 }

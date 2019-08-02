@@ -52,6 +52,7 @@ public class Hub {
     public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects){
         NucleoData data = new NucleoData();
         data.setObjects(objects);
+        data.setTimeTrack(System.currentTimeMillis());
         data.setOrigin(uniqueName);
         data.setLink(0);
         data.setOnChain(0);

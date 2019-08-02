@@ -1,6 +1,7 @@
 package com.synload.nucleo.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoResponder;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
@@ -11,32 +12,45 @@ import java.util.List;
 import java.util.Stack;
 import java.util.TreeMap;
 
-public class ManagerImpl implements Manager{
+public class ManagerImpl implements Manager, Runnable{
     @Override
     public Object getServiceData(String path, boolean watchFlag) throws KeeperException, InterruptedException {
         return null;
     }
 
-    private static ZooKeeper zkeeper;
-    private static Connection connection;
+    private ZooKeeper zkeeper;
+    private Connection connection;
+    private String connString;
     private String meshName;
+    private NucleoMesh mesh;
 
-    public ManagerImpl(String zkConnectionString, String meshName) {
+    public ManagerImpl(String zkConnectionString, NucleoMesh mesh) {
         try {
-            initialize(zkConnectionString, meshName);
+            this.connString = zkConnectionString;
+            this.meshName = mesh.getMeshName();
+            this.mesh = mesh;
+            connection = new Connection();
+            new Thread(this).start();
         }catch (Exception e){
             e.printStackTrace();
         }
 
     }
 
-    private void initialize(String zkConnectionString, String meshName) throws IOException, InterruptedException {
-        this.meshName = meshName;
-        connection = new Connection();
-        zkeeper = connection.connect(zkConnectionString);
-        createPath("/"+this.meshName);
-        createPath("/"+this.meshName+"/services");
-        createPath("/"+this.meshName+"/databases");
+    public void run() {
+        try {
+            System.out.println("Connecting to Zookeeper.");
+            zkeeper = connection.connect(this.connString);
+            System.out.println("Registering mesh to ZK");
+            createBlock("/"+this.meshName);
+            System.out.println("Creating paths for services and databases to ZK");
+            createBlock("/"+this.meshName+"/services");
+            createBlock("/"+this.meshName+"/databases");
+            System.out.println("Zookeeper connect finished.");
+            mesh.zookeeperConnected();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     public void closeConnection() throws Exception {
@@ -44,18 +58,33 @@ public class ManagerImpl implements Manager{
     }
     public void createPath(String path) {
         try {
-            zkeeper.create(
-                path,
-                null,
-                ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+            zkeeper.exists(path, null, new AsyncCallback.StatCallback() {
+                @Override
+                public void processResult(int rc, String path, Object ctx, Stat stat) {
+                    try {
+                        if( stat == null ) {
+                            zkeeper.create(
+                                path,
+                                null,
+                                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                                CreateMode.PERSISTENT);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }, null);
         }catch (Exception e){
             e.printStackTrace();
         }
     }
     public List<String> getServiceList(){
         try {
-            List<String> services = zkeeper.getChildren("/" + this.meshName + "/services", null);
+            List<String> services = zkeeper.getChildren("/" + this.meshName + "/services", new Watcher() {
+                public void process(WatchedEvent we) {
+
+                }
+            });
             return services;
         }catch (Exception e){
             e.printStackTrace();
@@ -64,7 +93,11 @@ public class ManagerImpl implements Manager{
     }
     public List<String> getServiceNodeList(String service){
         try {
-            List<String> nodes = zkeeper.getChildren("/" + this.meshName + "/services/"+service, null);
+            List<String> nodes = zkeeper.getChildren("/" + this.meshName + "/services/"+service, new Watcher() {
+                public void process(WatchedEvent we) {
+
+                }
+            });
             return nodes;
         }catch (Exception e){
             e.printStackTrace();
@@ -73,7 +106,11 @@ public class ManagerImpl implements Manager{
     }
     public byte[] getServiceNodeInformation(String service, String node){
         try {
-            byte[] data = zkeeper.getData("/" + this.meshName + "/services/"+service+"/"+node, null, null);
+            byte[] data = zkeeper.getData("/" + this.meshName + "/services/"+service+"/"+node, new Watcher() {
+                public void process(WatchedEvent we) {
+
+                }
+            }, null);
             return data;
         }catch (Exception e){
             e.printStackTrace();
@@ -90,7 +127,17 @@ public class ManagerImpl implements Manager{
             ZooDefs.Ids.OPEN_ACL_UNSAFE,
             CreateMode.EPHEMERAL);
     }
+    public void createBlock(String path) {
+        try {
+            zkeeper.create(
+                path,
+                null,
+                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.EPHEMERAL);
+        }catch (Exception e){
 
+        }
+    }
 
     public void getServiceList(DataUpdate responder) {
         zkeeper.getChildren("/" + this.meshName + "/services", new Watcher() {
