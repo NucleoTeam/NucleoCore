@@ -201,7 +201,6 @@ public class EClient implements Runnable {
                         if(clientLocal!=null){
                             clientLocal.close();
                         }
-                        reconnect=false;
                     }
                 }
             }
