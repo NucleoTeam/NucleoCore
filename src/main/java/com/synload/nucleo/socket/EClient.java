@@ -112,6 +112,7 @@ public class EClient implements Runnable {
         }catch (Exception e){
             try {
                 client.close();
+                reconnect = false;
             }catch (Exception ex){
                 ex.printStackTrace();
             }
@@ -123,7 +124,7 @@ public class EClient implements Runnable {
             System.out.println("Starting new connection to " + node.getConnectString()+ " size:"+queue.size());
         }
         try {
-            while (reconnect && !Thread.currentThread().isInterrupted() && !client.isClosed()) {
+            while (reconnect && !Thread.currentThread().isInterrupted()) {
                 if (this.direction) {
                     try {
                         InputStream is = client.getInputStream();
@@ -153,6 +154,7 @@ public class EClient implements Runnable {
                         e.printStackTrace();
                     } finally {
                         client.close();
+                        reconnect = false;
                         return;
                     }
                 } else {
