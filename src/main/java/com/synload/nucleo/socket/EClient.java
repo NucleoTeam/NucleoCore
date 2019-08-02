@@ -99,14 +99,18 @@ public class EClient implements Runnable {
         return content.getBytes();
     }
     public void readFromSock(int sizeRemaining, InputStream is, ByteArrayOutputStream output) throws IOException{
-        byte[] buffer = new byte[2048];
-        output.reset();
-        while(sizeRemaining>0){
-            if(sizeRemaining<2048){
-                buffer = new byte[sizeRemaining];
+        try {
+            byte[] buffer = new byte[2048];
+            output.reset();
+            while (sizeRemaining > 0) {
+                if (sizeRemaining < 2048) {
+                    buffer = new byte[sizeRemaining];
+                }
+                sizeRemaining -= is.read(buffer, 0, sizeRemaining);
+                output.write(buffer);
             }
-            sizeRemaining -= is.read(buffer, 0, sizeRemaining);
-            output.write(buffer);
+        }catch (Exception e){
+            is.reset();
         }
     }
     @Override
