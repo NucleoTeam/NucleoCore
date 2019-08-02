@@ -197,7 +197,7 @@ public class EClient implements Runnable {
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
-                        System.out.println("disconnected");
+                        System.out.println(node.getConnectString() + " disconnected!");
                         if(clientLocal!=null){
                             clientLocal.close();
                         }
