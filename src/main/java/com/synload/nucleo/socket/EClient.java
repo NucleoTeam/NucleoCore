@@ -167,9 +167,9 @@ public class EClient implements Runnable {
                             }
                             push = pop();
                             if (push != null) {
-                                //if (push.getTopic().startsWith("nucleo.client")) {
-                                    //System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
-                                //}
+                                if (push.getTopic().startsWith("nucleo.client")) {
+                                    System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
+                                }
                                 byte[] data = mapper.writeValueAsBytes(push);
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array(), 0, 4);
                                 gos.write(data, 0, data.length);
