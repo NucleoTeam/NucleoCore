@@ -73,30 +73,31 @@ public class NucleoMesh {
                 manager.getServiceList(new DataUpdate() {
                     @Override
                     public void run(String path, List<String> registeredServices) {
-                        for (String service : registeredServices) {
-                            manager.getServiceNodeList(service, new DataUpdate() {
-                                @Override
-                                public void run(String service, List<String> serviceNodes) {
-                                    for (String node : serviceNodes) {
-                                        manager.getServiceNodeInformation(service, node, new DataUpdate() {
-                                            @Override
-                                            public void run(String service, String node, ServiceInformation data) {
-                                                if (data != null) {
-                                                    eManager.sync(data);
-                                                } else {
-                                                    eManager.delete(node);
+                        if(registeredServices!=null) {
+                            for (String service : registeredServices) {
+                                manager.getServiceNodeList(service, new DataUpdate() {
+                                    @Override
+                                    public void run(String service, List<String> serviceNodes) {
+                                        for (String node : serviceNodes) {
+                                            manager.getServiceNodeInformation(service, node, new DataUpdate() {
+                                                @Override
+                                                public void run(String service, String node, ServiceInformation data) {
+                                                    if (data != null) {
+                                                        eManager.sync(data);
+                                                    } else {
+                                                        eManager.delete(node);
+                                                    }
                                                 }
-                                            }
-                                        }, true);
+                                            }, true);
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }
                         }
-                        ;
                     }
                 });
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(1000);
                 }catch (Exception e){
 
                 }
