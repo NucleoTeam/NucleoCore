@@ -133,7 +133,7 @@ public class ManagerImpl implements Manager, Runnable{
                 path,
                 null,
                 ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
+                CreateMode.PERSISTENT);
         }catch (Exception e){
 
         }

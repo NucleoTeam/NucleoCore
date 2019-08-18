@@ -39,6 +39,7 @@ public class NucleoMesh {
         this.meshName = meshName;
         this.serviceName = serviceName;
         int ePort = nextAvailable(8000);
+        System.out.println("Selected Port: "+ePort);
         this.eManager = new EManager(this, ePort);
         this.eManager.createServer();
         try {
