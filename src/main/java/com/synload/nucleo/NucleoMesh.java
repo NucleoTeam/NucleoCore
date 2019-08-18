@@ -130,6 +130,7 @@ public class NucleoMesh {
             ds.setReuseAddress(true);
             return port;
         } catch (IOException e) {
+            e.printStackTrace();
         } finally {
             if (ds != null) {
                 ds.close();
