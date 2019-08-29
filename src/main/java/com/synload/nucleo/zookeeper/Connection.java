@@ -1,34 +1,28 @@
 package com.synload.nucleo.zookeeper;
 
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
-
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 public class Connection {
-    private ZooKeeper zoo;
+    private CuratorFramework zooClient;
     CountDownLatch connectionLatch = new CountDownLatch(1);
 
     // ...
 
-    public ZooKeeper connect(String host)
-        throws IOException,
-        InterruptedException {
-        zoo = new ZooKeeper(host, 100, new Watcher() {
-            public void process(WatchedEvent we) {
-                if (we.getState() == Event.KeeperState.SyncConnected) {
-                    connectionLatch.countDown();
-                }
-            }
-        });
-
-        connectionLatch.await();
-        return zoo;
+    public CuratorFramework connect(String host) throws InterruptedException{
+        RetryPolicy retryPolicy = new ExponentialBackoffRetry(4000, 10);
+        System.out.println("Connecting to zookeeper: "+host);
+        zooClient = CuratorFrameworkFactory.newClient(host, retryPolicy);
+        zooClient.start();
+        zooClient.blockUntilConnected();
+        return zooClient;
     }
 
     public void close() throws InterruptedException {
-        zoo.close();
+        zooClient.close();
     }
 }

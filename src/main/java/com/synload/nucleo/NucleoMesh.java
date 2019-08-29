@@ -1,22 +1,15 @@
 package com.synload.nucleo;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.hub.Hub;
-import com.synload.nucleo.information.HitsHandler;
-import com.synload.nucleo.information.InformationHandler;
-import com.synload.nucleo.loader.LoadHandler;
 import com.synload.nucleo.socket.EManager;
 import com.synload.nucleo.zookeeper.DataUpdate;
-import com.synload.nucleo.zookeeper.Manager;
-import com.synload.nucleo.zookeeper.ManagerImpl;
+import com.synload.nucleo.zookeeper.ZooKeeperManager;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.KeeperException;
-
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.DatagramSocket;
@@ -28,7 +21,7 @@ import java.util.*;
 public class NucleoMesh {
     private Hub hub;
     private String uniqueName;
-    private Manager manager;
+    private ZooKeeperManager manager;
     private String meshName;
     private String serviceName;
     private EManager eManager;
@@ -43,17 +36,15 @@ public class NucleoMesh {
         this.eManager = new EManager(this, ePort);
         this.eManager.createServer();
         try {
-            manager = new ManagerImpl(zookeeper, this);
+            manager = new ZooKeeperManager(zookeeper, this);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public void zookeeperConnected() throws IOException, KeeperException, InterruptedException {
-        System.out.println("UpSet service "+serviceName+" to zookeeper");
-        manager.createBlock("/" + meshName + "/services/" + serviceName);
+    public void zookeeperConnected() throws IOException {
         System.out.println("Registering this service to zookeeper");
-        manager.create(
+        manager.register(
             "/" + meshName + "/services/" + serviceName + "/" + uniqueName,
             new ObjectMapper().writeValueAsBytes(new ServiceInformation(
                 meshName,
@@ -64,46 +55,6 @@ public class NucleoMesh {
                 InetAddress.getLocalHost().getHostName()
             ))
         );
-        System.out.println("Starting zookeeper sync");
-        new Thread(new SyncList()).start();
-    }
-
-    public class SyncList implements Runnable{
-        public void run(){
-            while(true) {
-                manager.getServiceList(new DataUpdate() {
-                    @Override
-                    public void run(String path, List<String> registeredServices) {
-                        if(registeredServices!=null) {
-                            for (String service : registeredServices) {
-                                manager.getServiceNodeList(service, new DataUpdate() {
-                                    @Override
-                                    public void run(String service, List<String> serviceNodes) {
-                                        for (String node : serviceNodes) {
-                                            manager.getServiceNodeInformation(service, node, new DataUpdate() {
-                                                @Override
-                                                public void run(String service, String node, ServiceInformation data) {
-                                                    if (data != null) {
-                                                        eManager.sync(data);
-                                                    } else {
-                                                        eManager.delete(node);
-                                                    }
-                                                }
-                                            }, true);
-                                        }
-                                    }
-                                });
-                            }
-                        }
-                    }
-                });
-                try {
-                    Thread.sleep(1000);
-                }catch (Exception e){
-
-                }
-            }
-        }
     }
 
     public void start() {
@@ -190,14 +141,6 @@ public class NucleoMesh {
         this.uniqueName = uniqueName;
     }
 
-    public Manager getManager() {
-        return manager;
-    }
-
-    public void setManager(Manager manager) {
-        this.manager = manager;
-    }
-
     public String getMeshName() {
         return meshName;
     }
@@ -227,7 +170,7 @@ public class NucleoMesh {
     public static void main(String[] args) {
         //createTopic();
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.29:2181", "192.168.1.29", 9200);
+        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.200:2181/mcbans", "192.168.1.200", 9200);
         mesh.register("com.synload.nucleo.information");
         mesh.start();
 
@@ -245,7 +188,7 @@ public class NucleoMesh {
                 }
             );
             try {
-                Thread.sleep(1);
+                Thread.sleep(10000);
             } catch (Exception e) {
 
             }
