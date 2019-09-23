@@ -2,16 +2,16 @@ package com.synload.nucleo.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.event.NucleoData;
+import com.synload.nucleo.event.NucleoResponder;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ZooKeeperManager implements Runnable{
 
@@ -32,6 +32,38 @@ public class ZooKeeperManager implements Runnable{
             e.printStackTrace();
         }
 
+    }
+
+    public String getConnString() {
+        return connString;
+    }
+
+    public void setConnString(String connString) {
+        this.connString = connString;
+    }
+
+    public Set<String> getNodes() {
+        return nodes;
+    }
+
+    public void setNodes(Set<String> nodes) {
+        this.nodes = nodes;
+    }
+
+    public TreeMap<String, NodeStatus> getNodePing() {
+        return nodePing;
+    }
+
+    public void setNodePing(TreeMap<String, NodeStatus> nodePing) {
+        this.nodePing = nodePing;
+    }
+
+    public int getShowIndex() {
+        return showIndex;
+    }
+
+    public void setShowIndex(int showIndex) {
+        this.showIndex = showIndex;
     }
 
     public void run() {
@@ -134,31 +166,70 @@ public class ZooKeeperManager implements Runnable{
             e.printStackTrace();
         }
     }
+
     Set<String> nodes = new HashSet<>();
+    TreeMap<String, NodeStatus> nodePing = new TreeMap<>();
+    int showIndex = 0;
     public class WatchNodeList implements Runnable{
         public void run(){
+            ObjectMapper om = new ObjectMapper();
             while(true) {
-                synchronized (nodes) {
-                    for (String nodeStr : nodes) {
+                Set<String> nodesTMP = new HashSet<>(nodes);
+                for (String nodeStr : nodesTMP) {
+                    //System.out.println("Checking node "+nodeStr);
+                    String[] parts = nodeStr.split(",");
+                    TreeMap<String, Object> objects = new TreeMap<>();
+                    objects.put("_ping", new Stack(){{ add(parts[0]);}});
+                    NucleoData nodeData = mesh.getHub().constructNucleoData("", objects );
+                    nodeData.setTrack(0);
+                    mesh.getHub().getWriter().add(new Object[]{"nucleo.client." + parts[0], nodeData});
+                    mesh.getHub().getResponders().put(nodeData.getRoot().toString(), new NucleoResponder(){
+                        @Override
+                        public void run(NucleoData data) {
+                            synchronized (nodePing) {
+                                if(nodePing.containsKey(parts[0])) {
+                                    nodePing.get(parts[0]).add(data.getExecution().getTotal());
+                                }
+                            }
+                        }
+                    });
+                }
+                if(showIndex>10){
+                    try{
+                        System.out.println(om.writeValueAsString(nodePing));
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                    for (String nodeStr : nodesTMP) {
                         //System.out.println("Checking node "+nodeStr);
                         String[] parts = nodeStr.split(",");
                         getServiceNodeInformation(parts[1], parts[0], new DataUpdate() {
                             @Override
                             public void run(String service, String node, ServiceInformation data) {
                                 if (data != null) {
+                                    synchronized (nodePing) {
+                                        if(!nodePing.containsKey(node)) {
+                                            nodePing.put(node, new NodeStatus(node, data.getConnectString()));
+                                        }
+                                    }
                                     mesh.geteManager().sync(data);
                                 } else {
                                     mesh.geteManager().delete(node);
                                     synchronized (nodes) {
                                         nodes.remove(nodeStr);
                                     }
+                                    synchronized (nodePing) {
+                                        nodePing.remove(node);
+                                    }
                                 }
                             }
                         }, true);
                     }
+                    showIndex=0;
                 }
+                showIndex++;
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(1000);
                 }catch (Exception e){
 
                 }
@@ -181,7 +252,7 @@ public class ZooKeeperManager implements Runnable{
                                             synchronized (nodes){
                                                 exists = nodes.contains(node+","+service);
                                             }
-                                            if(!exists) {
+                                            if(!exists && !mesh.getUniqueName().equals(node)) {
                                                 synchronized (nodes){
                                                     exists = nodes.add(node+","+service);
                                                 }

@@ -148,7 +148,7 @@ public class EClient implements Runnable {
                                 }
 
                             }
-                            Thread.sleep(0, 200);
+                            Thread.sleep(0, 100);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -190,10 +190,12 @@ public class EClient implements Runnable {
                     } catch (ConnectException c){
                         reconnect=false;
                         Thread.currentThread().interrupt();
+                        c.printStackTrace();
                     } catch (SocketException e) {
                         if(push!=null){
                             this.getMesh().geteManager().robin(push.getTopic(), push.getData());
                         }
+                        e.printStackTrace();
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {

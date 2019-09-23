@@ -107,21 +107,18 @@ public class Hub {
 
         public synchronized void add(Object[] item){
             queue.add(item);
-            latch.countDown();
         }
 
         public void run() {
-
             while (true) {
                 try {
-                    latch.await();
                     while (!queue.isEmpty()) {
                         Object[] dataBlock = queue.pop();
                         String topic = (String) dataBlock[0];
                         NucleoData data = (NucleoData) dataBlock[1];
                         this.hub.mesh.geteManager().robin(topic, data);
                     }
-                    latch = new CountDownLatch(1);
+                    Thread.sleep(0, 100);
                 } catch (Exception e) {
                     //e.printStackTrace();
                 }
@@ -133,6 +130,7 @@ public class Hub {
         public Hub hub;
         public NucleoData data;
         public String topic;
+
 
         public Executor(Hub hub, NucleoData data, String topic) {
             this.hub = hub;
@@ -165,6 +163,21 @@ public class Hub {
         public void run() {
             try {
                 if (topic.startsWith("nucleo.client.")) {
+                    if(data.getObjects().containsKey("_ping")){
+                        Stack<String> hosts = (Stack<String>)data.getObjects().get("ping");
+                        if(hosts!=null && !hosts.isEmpty()){
+                            String host = hosts.pop();
+                            //System.out.println("going to: nucleo.client." + host);
+                            writer.add(new Object[]{"nucleo.client." + host, data});
+                            return;
+                        }else{
+                            esPusher.add(data);
+                            data.getObjects().remove("_ping");
+                            writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                            //System.out.println("ping going home!");
+                            return;
+                        }
+                    }
                     NucleoResponder responder = responders.get(data.getRoot().toString());
                     if (responder != null) {
                         responders.remove(data.getRoot().toString());

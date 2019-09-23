@@ -170,7 +170,7 @@ public class NucleoMesh {
     public static void main(String[] args) {
         //createTopic();
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.200:2181/mcbans", "192.168.1.200", 9200);
+        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.124:2181", "192.168.1.124", 9200);
         mesh.register("com.synload.nucleo.information");
         mesh.start();
 
