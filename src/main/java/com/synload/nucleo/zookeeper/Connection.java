@@ -4,12 +4,9 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
 
 public class Connection {
     private CuratorFramework zooClient;
-    CountDownLatch connectionLatch = new CountDownLatch(1);
 
     // ...
 

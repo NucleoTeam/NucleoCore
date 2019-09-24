@@ -12,8 +12,8 @@ import java.util.TreeMap;
 public class EManager {
     NucleoMesh mesh;
     int port;
-    TreeMap<String, EClient> connections = new TreeMap<>();
-    TreeMap<String, List<EClient>> clientConnections = new TreeMap<>();
+    TreeMap<String, ChannelClient> connections = new TreeMap<>();
+    TreeMap<String, List<ChannelClient>> clientConnections = new TreeMap<>();
     TreeMap<String, Thread> connectionThreads = new TreeMap<>();
     TreeMap<String, TopicRound> topics = new TreeMap<>();
     public EManager(NucleoMesh mesh, int port){
@@ -21,13 +21,13 @@ public class EManager {
         this.port = port;
     }
     public void createServer(){
-        new Thread(new EServer(this.port, this.mesh, this)).start();
+        new Thread(new ChannelServer(this.port, this.mesh, this)).start();
     }
     public void sync(ServiceInformation node){
-        EClient nodeClient = null;
+        ChannelClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
             System.out.println(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
-            nodeClient = new EClient(null, node, mesh);
+            nodeClient = new ChannelClient( node, mesh);
             connections.put(node.getName(), nodeClient);
         }
         if(nodeClient!=null){
@@ -54,7 +54,7 @@ public class EManager {
         }
     }
     public void delete(String node){
-        EClient client = null;
+        ChannelClient client = null;
         synchronized(connections) {
             if (connections.containsKey(node)) {
                 client = connections.remove(node);
@@ -69,12 +69,6 @@ public class EManager {
         //System.out.println("connections: "+connections.size());
         if(client!=null){
             client.setReconnect(false);
-            try {
-                if (client.getClient() != null)
-                    client.getClient().close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
             System.out.println(client.getNode().getService() + " : " + node+ " has left the mesh");
             for (String event : client.getNode().getEvents()) {
                 synchronized (topics) {
@@ -110,10 +104,10 @@ public class EManager {
     }
 
     public class TopicRound{
-        public List<EClient> nodes = new ArrayList<>();
+        public List<ChannelClient> nodes = new ArrayList<>();
         public int lastNode=0;
         public void send(String topic, NucleoData data){
-            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
+            List<ChannelClient> tmpNodes = new ArrayList<>(this.nodes);
             if(lastNode >= tmpNodes.size()){
                 lastNode=0;
             }
@@ -141,11 +135,11 @@ public class EManager {
         this.port = port;
     }
 
-    public TreeMap<String, EClient> getConnections() {
+    public TreeMap<String, ChannelClient> getConnections() {
         return connections;
     }
 
-    public void setConnections(TreeMap<String, EClient> connections) {
+    public void setConnections(TreeMap<String, ChannelClient> connections) {
         this.connections = connections;
     }
 

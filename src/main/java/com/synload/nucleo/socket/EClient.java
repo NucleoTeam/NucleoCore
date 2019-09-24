@@ -1,6 +1,8 @@
 package com.synload.nucleo.socket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.hub.Hub;
@@ -8,13 +10,13 @@ import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.apache.logging.log4j.core.util.IOUtils;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.Queue;
 import java.util.Stack;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -24,9 +26,11 @@ public class EClient implements Runnable {
     public NucleoMesh mesh;
     public Socket client;
     public int streams = 0;
-    public Stack<NucleoTopicPush> queue = new Stack<>();
+    public Queue<NucleoTopicPush> queue = Queues.newArrayDeque();
     public ObjectMapper mapper;
     public boolean reconnect = true;
+
+    public static int readSize = 2048;
 
     public void add(String topic, NucleoData data){
         queue.add(new NucleoTopicPush(topic, data));
@@ -40,7 +44,7 @@ public class EClient implements Runnable {
     }
     public synchronized NucleoTopicPush pop(){
         if(!queue.isEmpty()) {
-            return queue.pop();
+            return queue.poll();
         }
         return null;
     }
@@ -100,10 +104,10 @@ public class EClient implements Runnable {
     }
     public boolean readFromSock(int sizeRemaining, InputStream is, ByteArrayOutputStream output) throws IOException{
         try {
-            byte[] buffer = new byte[2048];
+            byte[] buffer = new byte[readSize];
             output.reset();
             while (sizeRemaining > 0) {
-                if (sizeRemaining < 2048) {
+                if (sizeRemaining < readSize) {
                     buffer = new byte[sizeRemaining];
                 }
                 sizeRemaining -= is.read(buffer, 0, sizeRemaining);
@@ -127,7 +131,7 @@ public class EClient implements Runnable {
             while (reconnect && !Thread.currentThread().isInterrupted()) {
                 if (this.direction) {
                     try {
-                        InputStream is = client.getInputStream();
+                        BufferedInputStream is = new BufferedInputStream(client.getInputStream());
                         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
                         byte[] buffer;
@@ -139,7 +143,7 @@ public class EClient implements Runnable {
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
 
                                 if(readFromSock(sizeRemaining, is, output)) {
-                                    NucleoTopicPush data = mapper.readValue(decompress(output.toByteArray()), NucleoTopicPush.class);
+                                    NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
                                     if (data.getData() != null) {
                                         mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
                                     } else if (data.getInformation() != null) {
@@ -148,7 +152,7 @@ public class EClient implements Runnable {
                                 }
 
                             }
-                            Thread.sleep(0, 100);
+                            Thread.sleep(0, 1);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -169,7 +173,7 @@ public class EClient implements Runnable {
                     NucleoTopicPush push = null;
                     try {
                         clientLocal = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
-                        OutputStream gos = clientLocal.getOutputStream();
+                        BufferedOutputStream gos = new BufferedOutputStream(clientLocal.getOutputStream());
                         while (!clientLocal.isClosed() && reconnect && !Thread.currentThread().isInterrupted()) {
                             if (queue.size() > 15 && streams<10) {
                                 streams();
@@ -180,12 +184,12 @@ public class EClient implements Runnable {
                                 //if (push.getTopic().startsWith("nucleo.client")) {
                                     //System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
                                 //}
-                                byte[] data = compress(mapper.writeValueAsBytes(push));
-                                gos.write(ByteBuffer.allocate(4).putInt(data.length).array(), 0, 4);
-                                gos.write(data, 0, data.length);
+                                byte[] data = mapper.writeValueAsBytes(push);
+                                gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
+                                gos.write(data);
                                 gos.flush();
                             }
-                            Thread.sleep(0, 100);
+                            Thread.sleep(0, 1);
                         }
                     } catch (ConnectException c){
                         reconnect=false;
@@ -244,11 +248,11 @@ public class EClient implements Runnable {
         this.client = client;
     }
 
-    public Stack<NucleoTopicPush> getQueue() {
+    public Queue<NucleoTopicPush> getQueue() {
         return queue;
     }
 
-    public void setQueue(Stack<NucleoTopicPush> queue) {
+    public void setQueue(Queue<NucleoTopicPush> queue) {
         this.queue = queue;
     }
 

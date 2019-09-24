@@ -1,27 +1,24 @@
 package com.synload.nucleo.hub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Tables;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.elastic.ElasticSearchPusher;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.reflections.Reflections;
-
 import java.lang.reflect.Method;
-import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class Hub {
     private EventHandler eventHandler = new EventHandler();
-    private TreeMap<String, NucleoResponder> responders = new TreeMap();
-    private TreeMap<String, Thread> timeouts = new TreeMap<>();
+    private HashMap<String, NucleoResponder> responders = Maps.newHashMap();
+    private HashMap<String, Thread> timeouts = Maps.newHashMap();
     private String bootstrap;
     public static ObjectMapper objectMapper = new ObjectMapper();
-    private ArrayList<Integer> ready = new ArrayList<>();
     private String uniqueName;
     private ElasticSearchPusher esPusher;
     private NucleoMesh mesh;
@@ -32,8 +29,6 @@ public class Hub {
         this.uniqueName = uniqueName;
         this.mesh = mesh;
         esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
-        int id = ready.size();
-        ready.add(0);
         new Thread(
           esPusher
         ).start();
@@ -86,8 +81,6 @@ public class Hub {
             Reflections reflect = new Reflections(servicePackage);
             Set<Class<?>> classes = reflect.getTypesAnnotatedWith(NucleoClass.class);
             LoadHandler.getMethods(classes.toArray()).forEach((m) -> {
-                int id = ready.size();
-                ready.add(0);
                 getEventHandler().registerMethod(m);
             });
         } catch (Exception e) {
@@ -98,8 +91,7 @@ public class Hub {
     public class Writer implements Runnable {
 
         private Hub hub;
-        private Stack<Object[]> queue = new Stack<>();
-        public CountDownLatch latch = new CountDownLatch(1);
+        private Queue<Object[]> queue = Queues.newArrayDeque();
 
         public Writer(Hub hub) {
             this.hub = hub;
@@ -113,12 +105,12 @@ public class Hub {
             while (true) {
                 try {
                     while (!queue.isEmpty()) {
-                        Object[] dataBlock = queue.pop();
+                        Object[] dataBlock = queue.poll();
                         String topic = (String) dataBlock[0];
                         NucleoData data = (NucleoData) dataBlock[1];
                         this.hub.mesh.geteManager().robin(topic, data);
                     }
-                    Thread.sleep(0, 100);
+                    Thread.sleep(0, 1);
                 } catch (Exception e) {
                     //e.printStackTrace();
                 }
@@ -146,9 +138,9 @@ public class Hub {
             return chains;
         }
 
-        public Set<String> verifyPrevious(Set<String> checkChains){
-            Set<String> previousChains = new HashSet<>();
-            Set<String> checkChainsTMP = new HashSet<>(checkChains);
+        public List<String> verifyPrevious(List<String> checkChains){
+            List<String> previousChains = Lists.newArrayList();
+            List<String> checkChainsTMP = Lists.newArrayList(checkChains);
             data.getSteps().stream().filter(s->s.getEnd()>0).forEach(s->previousChains.add(s.getStep()));
             System.out.println("------");
             System.out.println(previousChains);
@@ -205,8 +197,8 @@ public class Hub {
                     Object[] methodData = eventHandler.getChainToMethod().get(topic);
                     NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
                     if(methodData[2]!=null) {
-                        Set<String> missingChains;
-                        if((missingChains = verifyPrevious((Set<String>)methodData[2]))!=null){
+                        List<String> missingChains;
+                        if((missingChains = verifyPrevious((List<String>)methodData[2]))!=null){
                             timing.setEnd(System.currentTimeMillis());
                             data.getChainBreak().setBreakChain(true);
                             data.getChainBreak().getBreakReasons().add("Missing required chains "+missingChains+"!");
@@ -297,7 +289,7 @@ public class Hub {
     }
 
     public void handle(Hub hub, NucleoData data, String topic){
-        new Thread(new Executor(hub, data, topic)).start();
+        new Executor(hub, data, topic).run();
     }
 
     public EventHandler getEventHandler() {
@@ -308,17 +300,14 @@ public class Hub {
         this.eventHandler = eventHandler;
     }
 
-    public TreeMap<String, NucleoResponder> getResponders() {
+    public HashMap<String, NucleoResponder> getResponders() {
         return responders;
     }
 
-    public void setResponders(TreeMap<String, NucleoResponder> responders) {
+    public void setResponders(HashMap<String, NucleoResponder> responders) {
         this.responders = responders;
     }
 
-    public boolean isReady() {
-        return ready.contains(0);
-    }
 
     public String getBootstrap() {
         return bootstrap;
@@ -328,19 +317,11 @@ public class Hub {
         this.bootstrap = bootstrap;
     }
 
-    public ArrayList<Integer> getReady() {
-        return ready;
-    }
-
-    public void setReady(ArrayList<Integer> ready) {
-        this.ready = ready;
-    }
-
-    public TreeMap<String, Thread> getTimeouts() {
+    public HashMap<String, Thread> getTimeouts() {
         return timeouts;
     }
 
-    public void setTimeouts(TreeMap<String, Thread> timeouts) {
+    public void setTimeouts(HashMap<String, Thread> timeouts) {
         this.timeouts = timeouts;
     }
 

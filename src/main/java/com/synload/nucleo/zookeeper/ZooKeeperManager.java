@@ -186,10 +186,8 @@ public class ZooKeeperManager implements Runnable{
                     mesh.getHub().getResponders().put(nodeData.getRoot().toString(), new NucleoResponder(){
                         @Override
                         public void run(NucleoData data) {
-                            synchronized (nodePing) {
-                                if(nodePing.containsKey(parts[0])) {
-                                    nodePing.get(parts[0]).add(data.getExecution().getTotal());
-                                }
+                            if(nodePing.containsKey(parts[0])) {
+                                nodePing.get(parts[0]).add(data.getExecution().getTotal());
                             }
                         }
                     });
@@ -215,12 +213,8 @@ public class ZooKeeperManager implements Runnable{
                                     mesh.geteManager().sync(data);
                                 } else {
                                     mesh.geteManager().delete(node);
-                                    synchronized (nodes) {
-                                        nodes.remove(nodeStr);
-                                    }
-                                    synchronized (nodePing) {
-                                        nodePing.remove(node);
-                                    }
+                                    nodes.remove(nodeStr);
+                                    nodePing.remove(node);
                                 }
                             }
                         }, true);
