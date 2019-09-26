@@ -13,11 +13,14 @@ import io.netty.util.CharsetUtil;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.time.Clock;
+import java.time.Instant;
 
 public class ChannelServer implements Runnable {
     EManager em;
     NucleoMesh mesh;
     int port;
+
     public ChannelServer(int port, NucleoMesh mesh, EManager em){
         this.mesh = mesh;
         this.em = em;
@@ -25,11 +28,12 @@ public class ChannelServer implements Runnable {
     }
     public static void read(NucleoMesh mesh, byte[] inData){
         try {
-            NucleoTopicPush data = new ObjectMapper().readValue(inData, NucleoTopicPush.class);
-            if (data.getData() != null) {
-                mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
-            } else if (data.getInformation() != null) {
-                System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
+            NucleoTopicPush push = new ObjectMapper().readValue(inData, NucleoTopicPush.class);
+            push.getData().markTime("Read from Socket");
+            if (push.getData() != null) {
+                mesh.getHub().handle(mesh.getHub(), push.getData(), push.getTopic());
+            } else if (push.getInformation() != null) {
+                System.out.println(push.getInformation().getName() + "." + push.getInformation().getService() + " " + push.getInformation().getHost());
             }
         }catch (Exception e){
             System.out.println(new String(inData));

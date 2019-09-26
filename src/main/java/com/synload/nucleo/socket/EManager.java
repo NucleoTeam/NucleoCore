@@ -2,32 +2,29 @@ package com.synload.nucleo.socket;
 
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
-import com.synload.nucleo.zookeeper.ZooKeeperManager;
 import com.synload.nucleo.zookeeper.ServiceInformation;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 
 public class EManager {
     NucleoMesh mesh;
     int port;
-    TreeMap<String, ChannelClient> connections = new TreeMap<>();
-    TreeMap<String, List<ChannelClient>> clientConnections = new TreeMap<>();
+    TreeMap<String, EClient> connections = new TreeMap<>();
+    TreeMap<String, List<EClient>> clientConnections = new TreeMap<>();
     TreeMap<String, Thread> connectionThreads = new TreeMap<>();
     TreeMap<String, TopicRound> topics = new TreeMap<>();
+
     public EManager(NucleoMesh mesh, int port){
         this.mesh = mesh;
         this.port = port;
     }
     public void createServer(){
-        new Thread(new ChannelServer(this.port, this.mesh, this)).start();
+        new Thread(new EServer(this.port, this.mesh, this)).start();
     }
     public void sync(ServiceInformation node){
-        ChannelClient nodeClient = null;
+        EClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
             System.out.println(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
-            nodeClient = new ChannelClient( node, mesh);
+            nodeClient = new EClient( null, node, mesh);
             connections.put(node.getName(), nodeClient);
         }
         if(nodeClient!=null){
@@ -54,7 +51,7 @@ public class EManager {
         }
     }
     public void delete(String node){
-        ChannelClient client = null;
+        EClient client = null;
         synchronized(connections) {
             if (connections.containsKey(node)) {
                 client = connections.remove(node);
@@ -104,14 +101,15 @@ public class EManager {
     }
 
     public class TopicRound{
-        public List<ChannelClient> nodes = new ArrayList<>();
+        public List<EClient> nodes = new ArrayList<>();
         public int lastNode=0;
         public void send(String topic, NucleoData data){
-            List<ChannelClient> tmpNodes = new ArrayList<>(this.nodes);
+            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
             if(lastNode >= tmpNodes.size()){
                 lastNode=0;
             }
             if(tmpNodes.size()>0){
+                data.markTime("Robin Done");
                 tmpNodes.get(lastNode).add(topic, data);
                 lastNode++;
             }
@@ -135,11 +133,11 @@ public class EManager {
         this.port = port;
     }
 
-    public TreeMap<String, ChannelClient> getConnections() {
+    public TreeMap<String, EClient> getConnections() {
         return connections;
     }
 
-    public void setConnections(TreeMap<String, ChannelClient> connections) {
+    public void setConnections(TreeMap<String, EClient> connections) {
         this.connections = connections;
     }
 

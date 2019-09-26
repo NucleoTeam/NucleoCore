@@ -19,6 +19,10 @@ import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Queue;
 
 public class ChannelClient implements Runnable {
@@ -46,6 +50,7 @@ public class ChannelClient implements Runnable {
         }
         return null;
     }
+
     private synchronized void streams(){
         streams++;
     }
@@ -58,6 +63,7 @@ public class ChannelClient implements Runnable {
             while(true) {
                 while (queue.size() > 0) {
                     NucleoTopicPush push = pop();
+                    push.getData().markTime("Write to Socket");
                     if (push != null) {
                         try {
                             byte[] data = mapper.writeValueAsBytes(push);

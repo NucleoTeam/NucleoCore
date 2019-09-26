@@ -186,6 +186,9 @@ public class ZooKeeperManager implements Runnable{
                     mesh.getHub().getResponders().put(nodeData.getRoot().toString(), new NucleoResponder(){
                         @Override
                         public void run(NucleoData data) {
+                            /*try {
+                                System.out.println(om.writeValueAsString(data));
+                            }catch (Exception e){e.printStackTrace();}*/
                             if(nodePing.containsKey(parts[0])) {
                                 nodePing.get(parts[0]).add(data.getExecution().getTotal());
                             }

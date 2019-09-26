@@ -59,7 +59,6 @@ public class Hub {
 
     public void run() {
         writer = new Writer(this);
-        new Thread(writer).start();
     }
 
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
@@ -88,33 +87,19 @@ public class Hub {
         }
     }
 
-    public class Writer implements Runnable {
+    public class Writer {
 
         private Hub hub;
-        private Queue<Object[]> queue = Queues.newArrayDeque();
 
         public Writer(Hub hub) {
             this.hub = hub;
         }
 
         public synchronized void add(Object[] item){
-            queue.add(item);
-        }
-
-        public void run() {
-            while (true) {
-                try {
-                    while (!queue.isEmpty()) {
-                        Object[] dataBlock = queue.poll();
-                        String topic = (String) dataBlock[0];
-                        NucleoData data = (NucleoData) dataBlock[1];
-                        this.hub.mesh.geteManager().robin(topic, data);
-                    }
-                    Thread.sleep(0, 1);
-                } catch (Exception e) {
-                    //e.printStackTrace();
-                }
-            }
+            String topic = (String) item[0];
+            NucleoData data = (NucleoData) item[1];
+            data.markTime("Queue Done, sending to round robin");
+            this.hub.mesh.geteManager().robin(topic, data);
         }
     }
 
@@ -154,17 +139,20 @@ public class Hub {
         }
         public void run() {
             try {
+                data.markTime("Start Execution on "+uniqueName);
                 if (topic.startsWith("nucleo.client.")) {
                     if(data.getObjects().containsKey("_ping")){
                         Stack<String> hosts = (Stack<String>)data.getObjects().get("ping");
                         if(hosts!=null && !hosts.isEmpty()){
                             String host = hosts.pop();
                             //System.out.println("going to: nucleo.client." + host);
+                            data.markTime("Execution Complete");
                             writer.add(new Object[]{"nucleo.client." + host, data});
                             return;
                         }else{
                             esPusher.add(data);
                             data.getObjects().remove("_ping");
+                            data.markTime("Execution Complete");
                             writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                             //System.out.println("ping going home!");
                             return;
@@ -180,6 +168,7 @@ public class Hub {
                         }
                         data.getExecution().setEnd(System.currentTimeMillis());
                         esPusher.add(data);
+                        data.markTime("Execution Complete");
                         responder.run(data);
                         //System.out.println("response: " + data.markTime() + "ms");
                         if (data.getTrack() == 1) {
@@ -204,10 +193,12 @@ public class Hub {
                             data.getChainBreak().getBreakReasons().add("Missing required chains "+missingChains+"!");
                             data.getSteps().add(timing);
                             esPusher.add(data);
+                            data.markTime("Execution Complete");
                             writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                             return;
                         }
                     }
+                    data.markTime("Verified Chain Requirements");
                     Object obj;
                     if (methodData[0] instanceof Class) {
                         Class clazz = (Class) methodData[0];
@@ -222,6 +213,7 @@ public class Hub {
                             timing.setEnd(System.currentTimeMillis());
                             data.getSteps().add(timing);
                             esPusher.add(data);
+                            data.markTime("Execution Complete");
                             writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                             return;
                         }
@@ -231,6 +223,7 @@ public class Hub {
                                 timing.setEnd(System.currentTimeMillis());
                                 data.getSteps().add(timing);
                                 esPusher.add(data);
+                                data.markTime("Execution Complete");
                                 writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
                                 return;
                             } else {
@@ -252,6 +245,7 @@ public class Hub {
                                 return;
                             }
                         }
+                        data.markTime("Execution Complete");
                         writer.add(new Object[]{ newTopic, data});
                         }
                     };

@@ -17,6 +17,7 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.Stack;
+import java.util.concurrent.CountDownLatch;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -27,6 +28,7 @@ public class EClient implements Runnable {
     public Socket client;
     public int streams = 0;
     public Queue<NucleoTopicPush> queue = Queues.newArrayDeque();
+    private CountDownLatch countDownLatch = new CountDownLatch(1);
     public ObjectMapper mapper;
     public boolean reconnect = true;
 
@@ -34,6 +36,7 @@ public class EClient implements Runnable {
 
     public void add(String topic, NucleoData data){
         queue.add(new NucleoTopicPush(topic, data));
+        countDownLatch.countDown();
     }
     public EClient(Socket client, ServiceInformation node, NucleoMesh mesh){
         this.node = node;
@@ -136,7 +139,7 @@ public class EClient implements Runnable {
 
                         byte[] buffer;
                         while (reconnect && !Thread.currentThread().isInterrupted() && !client.isClosed()) {
-                            while (!client.isClosed() && is.available()>0) {
+                            while (!client.isClosed()) {
                                 // Get nucleodata
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
@@ -144,15 +147,14 @@ public class EClient implements Runnable {
 
                                 if(readFromSock(sizeRemaining, is, output)) {
                                     NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
+                                    data.getData().markTime("Read from Socket");
                                     if (data.getData() != null) {
                                         mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
                                     } else if (data.getInformation() != null) {
                                         System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
                                     }
                                 }
-
                             }
-                            Thread.sleep(0, 1);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -175,21 +177,23 @@ public class EClient implements Runnable {
                         clientLocal = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                         BufferedOutputStream gos = new BufferedOutputStream(clientLocal.getOutputStream());
                         while (!clientLocal.isClosed() && reconnect && !Thread.currentThread().isInterrupted()) {
-                            if (queue.size() > 15 && streams<10) {
+                            countDownLatch.await();
+                            countDownLatch = new CountDownLatch(1);
+                            /*if (queue.size() > 15 && streams<10) {
                                 streams();
                                 new Thread(this).start();
-                            }
-                            push = pop();
-                            if (push != null) {
+                            }*/
+
+                            while ((push = pop()) != null) {
                                 //if (push.getTopic().startsWith("nucleo.client")) {
                                     //System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
                                 //}
+                                push.getData().markTime("Write to Socket");
                                 byte[] data = mapper.writeValueAsBytes(push);
                                 gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
                                 gos.write(data);
                                 gos.flush();
                             }
-                            Thread.sleep(0, 1);
                         }
                     } catch (ConnectException c){
                         reconnect=false;

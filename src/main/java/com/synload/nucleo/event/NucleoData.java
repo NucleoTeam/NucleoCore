@@ -1,9 +1,6 @@
 package com.synload.nucleo.event;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeMap;
-import java.util.UUID;
+import java.util.*;
 
 public class NucleoData implements Cloneable  {
   private UUID root;
@@ -14,7 +11,8 @@ public class NucleoData implements Cloneable  {
   private NucleoStep execution = new NucleoStep();
   private int onChain;
   private int track = 1;
-  private long timeTrack;
+  private Stack<Object[]> timeExecutions = new Stack<>();
+  private long timeTrack = System.currentTimeMillis();
   private int retries = 0;
   private int version=0;
   private TreeMap<String, Object> objects;
@@ -28,6 +26,13 @@ public class NucleoData implements Cloneable  {
   public long markTime(){
     long total = System.currentTimeMillis() - timeTrack;
     timeTrack = System.currentTimeMillis();
+    timeExecutions.add(new Object[]{total});
+    return total;
+  }
+  public long markTime(String message){
+    long total = System.currentTimeMillis() - timeTrack;
+    timeTrack = System.currentTimeMillis();
+    timeExecutions.add(new Object[]{message, total});
     return total;
   }
   public TreeMap<String, Object> getObjects() {
@@ -135,5 +140,13 @@ public class NucleoData implements Cloneable  {
 
   public void setTimeTrack(long timeTrack) {
     this.timeTrack = timeTrack;
+  }
+
+  public Stack<Object[]> getTimeExecutions() {
+    return timeExecutions;
+  }
+
+  public void setTimeExecutions(Stack<Object[]> timeExecutions) {
+    this.timeExecutions = timeExecutions;
   }
 }
