@@ -179,16 +179,20 @@ public class NucleoMesh {
                 new String[]{"information.hits", "information"},
                 new TreeMap<String, Object>() {{
                     put("wow", "works?");
+                    put("time", System.currentTimeMillis());
                 }},
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
-                        //System.out.println("total: "+data.markTime()+"ms");
+                        try{
+                            System.out.println(new ObjectMapper().writeValueAsString(data));
+                        }catch (Exception e){}
+                        //System.out.println("total: "+(System.currentTimeMillis()-(long)data.getObjects().get("time"))+"ms");
                     }
                 }
             );
             try {
-                Thread.sleep(10000);
+                Thread.sleep(500);
             } catch (Exception e) {
 
             }

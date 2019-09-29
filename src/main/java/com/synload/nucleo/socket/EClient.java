@@ -13,11 +13,13 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.ConnectException;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -32,7 +34,7 @@ public class EClient implements Runnable {
     public ObjectMapper mapper;
     public boolean reconnect = true;
 
-    public static int readSize = 2048;
+    public static int readSize = 1024;
 
     public void add(String topic, NucleoData data){
         queue.add(new NucleoTopicPush(topic, data));
@@ -107,18 +109,21 @@ public class EClient implements Runnable {
     }
     public boolean readFromSock(int sizeRemaining, InputStream is, ByteArrayOutputStream output) throws IOException{
         try {
-            byte[] buffer = new byte[readSize];
+            byte[] buffer;
             output.reset();
             while (sizeRemaining > 0) {
                 if (sizeRemaining < readSize) {
                     buffer = new byte[sizeRemaining];
+                    sizeRemaining -= is.read(buffer, 0, sizeRemaining);
+                }else{
+                    buffer = new byte[readSize];
+                    sizeRemaining -= is.read(buffer, 0, readSize);
                 }
-                sizeRemaining -= is.read(buffer, 0, sizeRemaining);
                 output.write(buffer);
-
             }
             return true;
         }catch (Exception e){
+            e.printStackTrace();
             try {
                 client.close();
                 reconnect = false;
@@ -133,10 +138,9 @@ public class EClient implements Runnable {
         try {
             while (reconnect && !Thread.currentThread().isInterrupted()) {
                 if (this.direction) {
+                    ByteArrayOutputStream output = new ByteArrayOutputStream();
                     try {
                         BufferedInputStream is = new BufferedInputStream(client.getInputStream());
-                        ByteArrayOutputStream output = new ByteArrayOutputStream();
-
                         byte[] buffer;
                         while (reconnect && !Thread.currentThread().isInterrupted() && !client.isClosed()) {
                             while (!client.isClosed()) {
@@ -144,7 +148,6 @@ public class EClient implements Runnable {
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
-
                                 if(readFromSock(sizeRemaining, is, output)) {
                                     NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
                                     data.getData().markTime("Read from Socket");
@@ -158,6 +161,7 @@ public class EClient implements Runnable {
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
+                        System.out.println(new String(output.toByteArray()));
                     } finally {
                         client.close();
                         reconnect = false;
@@ -177,7 +181,7 @@ public class EClient implements Runnable {
                         clientLocal = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
                         BufferedOutputStream gos = new BufferedOutputStream(clientLocal.getOutputStream());
                         while (!clientLocal.isClosed() && reconnect && !Thread.currentThread().isInterrupted()) {
-                            countDownLatch.await();
+                            countDownLatch.await(25, TimeUnit.MICROSECONDS);
                             countDownLatch = new CountDownLatch(1);
                             /*if (queue.size() > 15 && streams<10) {
                                 streams();
@@ -185,14 +189,16 @@ public class EClient implements Runnable {
                             }*/
 
                             while ((push = pop()) != null) {
-                                //if (push.getTopic().startsWith("nucleo.client")) {
-                                    //System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
-                                //}
-                                push.getData().markTime("Write to Socket");
-                                byte[] data = mapper.writeValueAsBytes(push);
-                                gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
-                                gos.write(data);
-                                gos.flush();
+                                /*if (push.getTopic().startsWith("nucleo.client")) {
+                                    System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
+                                }*/
+                                synchronized (push) {
+                                    push.getData().markTime("Write to Socket");
+                                    byte[] data = mapper.writeValueAsBytes(push);
+                                    gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
+                                    gos.write(data);
+                                    gos.flush();
+                                }
                             }
                         }
                     } catch (ConnectException c){
@@ -201,7 +207,11 @@ public class EClient implements Runnable {
                         c.printStackTrace();
                     } catch (SocketException e) {
                         if(push!=null){
-                            this.getMesh().geteManager().robin(push.getTopic(), push.getData());
+                            this.add(push.getTopic(), push.getData());
+                        }
+                        if(clientLocal!=null){
+                            clientLocal.close();
+                            clientLocal=null;
                         }
                         e.printStackTrace();
                     } catch (Exception e) {

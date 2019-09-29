@@ -82,11 +82,6 @@ public class ChannelClient implements Runnable {
                         }
                     }
                 }
-                try {
-                    Thread.sleep(0, 1);
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
             }
         }
 
@@ -132,11 +127,6 @@ public class ChannelClient implements Runnable {
 
                 } finally {
                     group.shutdownGracefully().sync();
-                }
-                try {
-                    Thread.sleep(1, 500);
-                }catch (Exception e){
-                    e.printStackTrace();
                 }
             }
         } catch (Exception e) {

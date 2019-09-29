@@ -1,6 +1,10 @@
 package com.synload.nucleo.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.event.NucleoResponder;
@@ -9,9 +13,7 @@ import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
-
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ZooKeeperManager implements Runnable{
 
@@ -175,32 +177,95 @@ public class ZooKeeperManager implements Runnable{
             ObjectMapper om = new ObjectMapper();
             while(true) {
                 Set<String> nodesTMP = new HashSet<>(nodes);
-                for (String nodeStr : nodesTMP) {
-                    //System.out.println("Checking node "+nodeStr);
-                    String[] parts = nodeStr.split(",");
-                    TreeMap<String, Object> objects = new TreeMap<>();
-                    objects.put("_ping", new Stack(){{ add(parts[0]);}});
-                    NucleoData nodeData = mesh.getHub().constructNucleoData("", objects );
-                    nodeData.setTrack(0);
-                    mesh.getHub().getWriter().add(new Object[]{"nucleo.client." + parts[0], nodeData});
-                    mesh.getHub().getResponders().put(nodeData.getRoot().toString(), new NucleoResponder(){
-                        @Override
-                        public void run(NucleoData data) {
-                            /*try {
-                                System.out.println(om.writeValueAsString(data));
-                            }catch (Exception e){e.printStackTrace();}*/
-                            if(nodePing.containsKey(parts[0])) {
-                                nodePing.get(parts[0]).add(data.getExecution().getTotal());
+                for(int i=1;i<=((nodesTMP.size()>4)?4:nodesTMP.size());i++) {
+                    for (Set<String> nodeStrsTmp : Sets.combinations(nodesTMP, i)) {
+                        for (List<String> nodeStrs : Collections2.permutations(nodeStrsTmp)) {
+                            String firstNode = "";
+                            String finalNode = "";
+                            String tmpKey = "";
+                            List<String> nodePingList = Lists.newLinkedList();
+                            final List<String> nodePingListTmp = Lists.newLinkedList();
+                            for (String nodeStr : nodeStrs) {
+                                String[] parts = nodeStr.split(",");
+                                if (!tmpKey.equals("")) {
+                                    tmpKey += ",";
+                                }
+                                tmpKey += parts[0];
+                                nodePingListTmp.add(parts[0]);
+                                if (firstNode.equals("")) {
+                                    firstNode = parts[0];
+                                }else{
+                                    nodePingList.add(parts[0]);
+                                }
+                                finalNode = parts[0];
+                            }
+                            final String destinationNode = finalNode;
+                            final String key = tmpKey;
+                            TreeMap<String, Object> objects = new TreeMap<>();
+                            objects.put("_ping", nodePingList);
+                            NucleoData nodeData = mesh.getHub().constructNucleoData("", objects);
+                            nodeData.setTrack(0);
+                            mesh.getHub().getWriter().add(new Object[]{"nucleo.client." + firstNode, nodeData});
+                            mesh.getHub().getResponders().put(nodeData.getRoot().toString(), new NucleoResponder() {
+                                @Override
+                                public void run(NucleoData data) {
+                                    /*try {
+                                        System.out.println(om.writeValueAsString(data));
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }*/
+                                    synchronized (nodePing) {
+                                        if (!nodePing.containsKey(key)) {
+                                            nodePing.put(key, new NodeStatus(key, destinationNode, nodePingListTmp));
+                                        }
+                                        nodePing.get(key).add(data.getExecution().getTotal());
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+                synchronized (nodePing) {
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.add(Calendar.SECOND, -10);
+                    for (Map.Entry<String, NodeStatus> status : Maps.newTreeMap(nodePing).entrySet()) {
+                        if (calendar.getTime().compareTo(status.getValue().lastPing) > 0) {
+                            nodePing.remove(status.getKey());
+                            mesh.geteManager().getRoute().remove(status.getValue().connection);
+                        }
+                    }
+                }
+                if(showIndex>3){
+                    Map<String, Float> fastestRoute = Maps.newLinkedHashMap();
+                    synchronized (nodePing) {
+                        for (Map.Entry<String, NodeStatus> status : Maps.newTreeMap(nodePing).entrySet()) {
+                            if (status.getValue().pings.size() > 5) {
+                                List<Long> tmp = Lists.newArrayList(status.getValue().pings);
+                                float average = (float)tmp.stream().mapToLong(Long::longValue).sum() / (float)tmp.size();
+                                if (fastestRoute.containsKey(status.getValue().connection)) {
+                                    float currentAvg = fastestRoute.get(status.getValue().connection);
+                                    if (average < currentAvg || (average == currentAvg && mesh.geteManager().getRoute().get(status.getValue().connection).size()>status.getValue().route.size())) {
+                                        fastestRoute.put(status.getValue().connection, average);
+                                        mesh.geteManager().getRoute().put(status.getValue().connection, status.getValue().route);
+                                    }
+                                } else {
+                                    fastestRoute.put(status.getValue().connection, average);
+                                    mesh.geteManager().getRoute().put(status.getValue().connection, status.getValue().route);
+                                }
                             }
                         }
-                    });
-                }
-                if(showIndex>10){
+                    }
+                    /*try{
+                        System.out.println(om.writeValueAsString(mesh.geteManager().getRoute()));
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
                     try{
                         System.out.println(om.writeValueAsString(nodePing));
                     }catch (Exception e){
                         e.printStackTrace();
-                    }
+                    }*/
+
                     for (String nodeStr : nodesTMP) {
                         //System.out.println("Checking node "+nodeStr);
                         String[] parts = nodeStr.split(",");
@@ -208,16 +273,12 @@ public class ZooKeeperManager implements Runnable{
                             @Override
                             public void run(String service, String node, ServiceInformation data) {
                                 if (data != null) {
-                                    synchronized (nodePing) {
-                                        if(!nodePing.containsKey(node)) {
-                                            nodePing.put(node, new NodeStatus(node, data.getConnectString()));
-                                        }
-                                    }
+
                                     mesh.geteManager().sync(data);
                                 } else {
                                     mesh.geteManager().delete(node);
                                     nodes.remove(nodeStr);
-                                    nodePing.remove(node);
+
                                 }
                             }
                         }, true);

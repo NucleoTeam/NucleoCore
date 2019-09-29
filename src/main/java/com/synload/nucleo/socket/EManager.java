@@ -1,8 +1,11 @@
 package com.synload.nucleo.socket;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;
+
 import java.util.*;
 
 public class EManager {
@@ -12,6 +15,7 @@ public class EManager {
     TreeMap<String, List<EClient>> clientConnections = new TreeMap<>();
     TreeMap<String, Thread> connectionThreads = new TreeMap<>();
     TreeMap<String, TopicRound> topics = new TreeMap<>();
+    TreeMap<String, List<String>> route = new TreeMap<>();
 
     public EManager(NucleoMesh mesh, int port){
         this.mesh = mesh;
@@ -85,18 +89,46 @@ public class EManager {
         }
     }
     public void robin(String topic, NucleoData data){
-        if (topics.containsKey(topic)) {
-            topics.get(topic).send(topic, data);
-        }
+        //System.out.println(topic);
         if (topic.startsWith("nucleo.client.")) {
             String node = topic.substring(14);
             if (connections.containsKey(node)) {
-                connections.get(node).add(topic, data);
-            } else {
-                //System.out.println("[" + node + "] missing, ignoring broken chain");
+                connections.get(node).add("nucleo.client." + node, data);
+                return;
+            }else{
+                //mesh.getHub().handle(mesh.getHub(), data, topic);
+                //System.out.println("[" + topic + "] route not found");
             }
+            /*try{
+                System.out.println(new ObjectMapper().writeValueAsString(data));
+            }catch (Exception e){}*/
+            //System.out.println("[" + topic + "] failed to route on "+mesh.getUniqueName());
         } else {
-            //System.out.println("[" + topic + "] route not found");
+            if (topics.containsKey(topic)) {
+                topics.get(topic).send(topic, data);
+            }
+        }
+
+    }
+
+    public void route(String topic, EClient node, NucleoData data){
+        synchronized (route) {
+            List<String> routeToNode = route.get(node.node.name);
+            if (routeToNode != null && routeToNode.size() > 0) {
+                routeToNode = Lists.newLinkedList(routeToNode);
+                String firstNode = routeToNode.remove(0);
+                if (routeToNode.size() > 0) {
+                    synchronized (data) {
+                        data.getObjects().put("_route", routeToNode);
+                    }
+                    if (connections.containsKey(firstNode)) {
+                        connections.get(firstNode).add("nucleo.client." + firstNode, data);
+                        return;
+                    }
+                }
+            }
+            node.add(topic, data);
+            return;
         }
     }
 
@@ -104,13 +136,15 @@ public class EManager {
         public List<EClient> nodes = new ArrayList<>();
         public int lastNode=0;
         public void send(String topic, NucleoData data){
+            //System.out.println(topic);
             List<EClient> tmpNodes = new ArrayList<>(this.nodes);
             if(lastNode >= tmpNodes.size()){
                 lastNode=0;
             }
             if(tmpNodes.size()>0){
                 data.markTime("Robin Done");
-                tmpNodes.get(lastNode).add(topic, data);
+                route(topic, tmpNodes.get(lastNode), data);
+                //tmpNodes.get(lastNode).add(topic, data);
                 lastNode++;
             }
             // just drop any other data with no destination
@@ -147,5 +181,13 @@ public class EManager {
 
     public void setTopics(TreeMap<String, TopicRound> topics) {
         this.topics = topics;
+    }
+
+    public TreeMap<String, List<String>> getRoute() {
+        return route;
+    }
+
+    public void setRoute(TreeMap<String, List<String>> route) {
+        this.route = route;
     }
 }
