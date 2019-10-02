@@ -1,5 +1,5 @@
 group 'nucleocore-sock'
-version '1.04'
+version '1.04.1'
 
 apply plugin: 'java'
 apply plugin: 'maven'

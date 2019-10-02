@@ -1,5 +1,6 @@
 package com.synload.nucleo.socket;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
@@ -25,20 +26,30 @@ import java.util.zip.GZIPOutputStream;
 
 public class EClient implements Runnable {
     public ServiceInformation node;
+    @JsonIgnore
     public boolean direction;
+    @JsonIgnore
     public NucleoMesh mesh;
+    @JsonIgnore
     public Socket client;
+    @JsonIgnore
     public int streams = 0;
+    @JsonIgnore
     public Queue<NucleoTopicPush> queue = Queues.newArrayDeque();
+    @JsonIgnore
     private CountDownLatch countDownLatch = new CountDownLatch(1);
+    @JsonIgnore
     public ObjectMapper mapper;
-    public boolean reconnect = true;
 
+
+    public boolean reconnect = true;
     public static int readSize = 1024;
 
     public void add(String topic, NucleoData data){
-        queue.add(new NucleoTopicPush(topic, data));
-        countDownLatch.countDown();
+        synchronized (queue) {
+            queue.add(new NucleoTopicPush(topic, data));
+            countDownLatch.countDown();
+        }
     }
     public EClient(Socket client, ServiceInformation node, NucleoMesh mesh){
         this.node = node;
@@ -46,12 +57,6 @@ public class EClient implements Runnable {
         this.client = client;
         this.direction = ( client != null );
         this.mapper = new ObjectMapper();
-    }
-    public synchronized NucleoTopicPush pop(){
-        if(!queue.isEmpty()) {
-            return queue.poll();
-        }
-        return null;
     }
     private synchronized void streams(){
         streams++;
@@ -107,7 +112,8 @@ public class EClient implements Runnable {
         }
         return content.getBytes();
     }
-    public boolean readFromSock(int sizeRemaining, InputStream is, ByteArrayOutputStream output) throws IOException{
+    public ByteArrayOutputStream readFromSock(int sizeRemaining, InputStream is) throws IOException{
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
         try {
             byte[] buffer;
             output.reset();
@@ -121,7 +127,7 @@ public class EClient implements Runnable {
                 }
                 output.write(buffer);
             }
-            return true;
+            return output;
         }catch (Exception e){
             e.printStackTrace();
             try {
@@ -131,14 +137,13 @@ public class EClient implements Runnable {
                 ex.printStackTrace();
             }
         }
-        return false;
+        return output;
     }
     @Override
     public void run() {
         try {
             while (reconnect && !Thread.currentThread().isInterrupted()) {
                 if (this.direction) {
-                    ByteArrayOutputStream output = new ByteArrayOutputStream();
                     try {
                         BufferedInputStream is = new BufferedInputStream(client.getInputStream());
                         byte[] buffer;
@@ -148,20 +153,24 @@ public class EClient implements Runnable {
                                 buffer = new byte[4];
                                 is.read(buffer, 0, 4);
                                 int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
-                                if(readFromSock(sizeRemaining, is, output)) {
+                                ByteArrayOutputStream output = readFromSock(sizeRemaining, is);
+                                if(output.size()==sizeRemaining) {
                                     NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
+                                    //System.out.println("read: "+data.getData().getRoot().toString());
                                     data.getData().markTime("Read from Socket");
                                     if (data.getData() != null) {
                                         mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
                                     } else if (data.getInformation() != null) {
                                         System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
                                     }
+                                }else{
+                                    System.exit(-1);
                                 }
                             }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        System.out.println(new String(output.toByteArray()));
+                        //System.out.println(new String(output.toByteArray()));
                     } finally {
                         client.close();
                         reconnect = false;
@@ -174,32 +183,33 @@ public class EClient implements Runnable {
                     if(node.getConnectString()==null) {
                         return;
                     }
-                    Socket clientLocal = null;
                     String[] connectArr = node.getConnectString().split(":");
                     NucleoTopicPush push = null;
                     try {
-                        clientLocal = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
-                        BufferedOutputStream gos = new BufferedOutputStream(clientLocal.getOutputStream());
-                        while (!clientLocal.isClosed() && reconnect && !Thread.currentThread().isInterrupted()) {
-                            countDownLatch.await(25, TimeUnit.MICROSECONDS);
-                            countDownLatch = new CountDownLatch(1);
+                        client = new Socket(connectArr[0], Integer.valueOf(connectArr[1]));
+                        BufferedOutputStream gos = new BufferedOutputStream(client.getOutputStream());
+                        while (!client.isClosed() && reconnect && !Thread.currentThread().isInterrupted()) {
                             /*if (queue.size() > 15 && streams<10) {
                                 streams();
                                 new Thread(this).start();
                             }*/
-
-                            while ((push = pop()) != null) {
-                                /*if (push.getTopic().startsWith("nucleo.client")) {
-                                    System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
-                                }*/
-                                synchronized (push) {
-                                    push.getData().markTime("Write to Socket");
-                                    byte[] data = mapper.writeValueAsBytes(push);
-                                    gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
-                                    gos.write(data);
-                                    gos.flush();
+                            countDownLatch.await();
+                            synchronized (queue) {
+                                while (!queue.isEmpty()) {
+                                    push = queue.remove();
+                                    /*if (push.getTopic().startsWith("nucleo.client")) {
+                                        System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
+                                    }*/
+                                    synchronized (push) {
+                                        push.getData().markTime("Write to Socket");
+                                        byte[] data = mapper.writeValueAsBytes(push);
+                                        gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
+                                        gos.write(data);
+                                        gos.flush();
+                                    }
                                 }
                             }
+
                         }
                     } catch (ConnectException c){
                         reconnect=false;
@@ -207,19 +217,19 @@ public class EClient implements Runnable {
                         c.printStackTrace();
                     } catch (SocketException e) {
                         if(push!=null){
-                            this.add(push.getTopic(), push.getData());
+                            mesh.geteManager().robin(push.getTopic(), push.getData());
                         }
-                        if(clientLocal!=null){
-                            clientLocal.close();
-                            clientLocal=null;
+                        if(client!=null){
+                            client.close();
+                            client=null;
                         }
                         e.printStackTrace();
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
                         System.out.println(node.getConnectString() + " disconnected!");
-                        if(clientLocal!=null){
-                            clientLocal.close();
+                        if(client!=null){
+                            client.close();
                         }
                     }
                 }

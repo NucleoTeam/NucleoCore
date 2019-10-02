@@ -49,7 +49,7 @@ public class NucleoTimeout implements Runnable {
           }
         }
         data.setRetries(retries+1);
-        hub.getWriter().add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
+        hub.robin(data.getChainList().get(data.getOnChain())[data.getLink()], data);
       }
     } catch (Exception e) {
       //e.printStackTrace();

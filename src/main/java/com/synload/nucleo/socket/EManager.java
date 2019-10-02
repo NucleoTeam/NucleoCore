@@ -95,38 +95,47 @@ public class EManager {
             if (connections.containsKey(node)) {
                 connections.get(node).add("nucleo.client." + node, data);
                 return;
-            }else{
-                //mesh.getHub().handle(mesh.getHub(), data, topic);
-                //System.out.println("[" + topic + "] route not found");
+            }else if(node.equals(mesh.getUniqueName())){
+                mesh.getHub().handle(mesh.getHub(), data, topic);
+                return;
             }
             /*try{
                 System.out.println(new ObjectMapper().writeValueAsString(data));
             }catch (Exception e){}*/
             //System.out.println("[" + topic + "] failed to route on "+mesh.getUniqueName());
         } else {
+
             if (topics.containsKey(topic)) {
                 topics.get(topic).send(topic, data);
+                return;
             }
         }
-
+        try {
+            //System.out.println("["+topic+"] " + new ObjectMapper().writeValueAsString(connections));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        //System.out.println("[" + topic + "] route not found");
     }
 
     public void route(String topic, EClient node, NucleoData data){
         synchronized (route) {
-            List<String> routeToNode = route.get(node.node.name);
+            /*List<String> routeToNode = route.get(node.node.name);
             if (routeToNode != null && routeToNode.size() > 0) {
                 routeToNode = Lists.newLinkedList(routeToNode);
                 String firstNode = routeToNode.remove(0);
                 if (routeToNode.size() > 0) {
-                    synchronized (data) {
-                        data.getObjects().put("_route", routeToNode);
-                    }
                     if (connections.containsKey(firstNode)) {
+                        synchronized (data) {
+                            data.getObjects().put("_route", routeToNode);
+                        }
                         connections.get(firstNode).add("nucleo.client." + firstNode, data);
+                        data.markTime("Route sending to "+connections.get(firstNode).node.name);
                         return;
                     }
                 }
-            }
+            }*/
+            data.markTime("Route sending to "+node.node.name);
             node.add(topic, data);
             return;
         }
@@ -135,17 +144,55 @@ public class EManager {
     public class TopicRound{
         public List<EClient> nodes = new ArrayList<>();
         public int lastNode=0;
-        public void send(String topic, NucleoData data){
+        public synchronized void send(String topic, NucleoData data){
             //System.out.println(topic);
             List<EClient> tmpNodes = new ArrayList<>(this.nodes);
             if(lastNode >= tmpNodes.size()){
                 lastNode=0;
             }
             if(tmpNodes.size()>0){
-                data.markTime("Robin Done");
-                route(topic, tmpNodes.get(lastNode), data);
+                if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
+                    data.markTime("Robin Done");
+                    route(topic, tmpNodes.get(lastNode), data);
+                    lastNode++;
+                }else{
+                    if(tmpNodes.size()==1){
+                        System.out.println("No active route found!");
+                        return;
+                    }
+                    lastNode++;
+                    loop(topic, data, lastNode-1);
+                }
                 //tmpNodes.get(lastNode).add(topic, data);
-                lastNode++;
+
+            }
+            // just drop any other data with no destination
+        }
+        public void loop(String topic, NucleoData data, int start){
+            //System.out.println(topic);
+            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
+            if(lastNode >= tmpNodes.size()){
+                lastNode=0;
+            }
+            if(start==lastNode){
+                System.out.println("No nodes available");
+                return;
+            }
+            if(tmpNodes.size()>0){
+                if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
+                    data.markTime("Robin Done");
+                    route(topic, tmpNodes.get(lastNode), data);
+                    lastNode++;
+                }else{
+                    if(tmpNodes.size()==1){
+                        System.out.println("No active route found!");
+                        return;
+                    }
+                    lastNode++;
+                    loop(topic, data, start);
+                }
+                //tmpNodes.get(lastNode).add(topic, data);
+
             }
             // just drop any other data with no destination
         }

@@ -23,7 +23,6 @@ public class Hub {
     private String uniqueName;
     private ElasticSearchPusher esPusher;
     private NucleoMesh mesh;
-    private Writer writer;
 
 
     public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
@@ -58,8 +57,9 @@ public class Hub {
         return data;
     }
 
-    public void run() {
-        writer = new Writer(this);
+    public void robin(String topic, NucleoData data) {
+        data.markTime("Queue Done, sending to round robin");
+        mesh.geteManager().robin(topic, data);
     }
 
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
@@ -73,7 +73,7 @@ public class Hub {
         } else {
             data.setTrack(0);
         }
-        writer.add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
+        robin(data.getChainList().get(data.getOnChain())[data.getLink()], data);
     }
 
     public void register(String servicePackage) {
@@ -83,22 +83,6 @@ public class Hub {
             LoadHandler.getMethods(classes.toArray()).forEach((m) -> getEventHandler().registerMethod(m));
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    public class Writer {
-
-        private Hub hub;
-
-        public Writer(Hub hub) {
-            this.hub = hub;
-        }
-
-        public synchronized void add(Object[] item) {
-            String topic = (String) item[0];
-            NucleoData data = (NucleoData) item[1];
-            data.markTime("Queue Done, sending to round robin");
-            this.hub.mesh.geteManager().robin(topic, data);
         }
     }
 
@@ -149,13 +133,13 @@ public class Hub {
                             String host = hosts.pop();
                             //System.out.println("going to: nucleo.client." + host);
                             data.markTime("Execution Complete");
-                            writer.add(new Object[]{"nucleo.client." + host, data});
+                            robin("nucleo.client." + host, data);
                             return;
                         } else {
                             esPusher.add(data);
                             data.getObjects().remove("_ping");
                             data.markTime("Execution Complete");
-                            writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                            robin("nucleo.client." + data.getOrigin(), data);
                             //System.out.println("ping going home!");
                             return;
                         }
@@ -173,7 +157,7 @@ public class Hub {
                             }
                             //System.out.println("going to: nucleo.client." + host);
                             data.markTime("Sending to "+host);
-                            writer.add(new Object[]{"nucleo.client." + host, data});
+                            robin("nucleo.client." + host, data);
                             return;
                         }else{
                             data.getObjects().remove("_route");
@@ -219,7 +203,7 @@ public class Hub {
                             data.getSteps().add(timing);
                             esPusher.add(data);
                             data.markTime("Execution Complete");
-                            writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                            robin("nucleo.client." + data.getOrigin(), data);
                             return;
                         }
                     }
@@ -239,7 +223,7 @@ public class Hub {
                                 data.getSteps().add(timing);
                                 esPusher.add(data);
                                 data.markTime("Execution Complete");
-                                writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                                robin("nucleo.client." + data.getOrigin(), data);
                                 return;
                             }
                             boolean sameChain = false;
@@ -249,7 +233,7 @@ public class Hub {
                                     data.getSteps().add(timing);
                                     esPusher.add(data);
                                     data.markTime("Execution Complete");
-                                    writer.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
+                                    robin("nucleo.client." + data.getOrigin(), data);
                                     return;
                                 } else {
                                     data.setOnChain(data.getOnChain() + 1);
@@ -271,7 +255,7 @@ public class Hub {
                                 }
                             }
                             data.markTime("Execution Complete");
-                            writer.add(new Object[]{newTopic, data});
+                            robin(newTopic, data);
                         }
                     };
                     int len = method.getParameterTypes().length;
@@ -374,13 +358,5 @@ public class Hub {
 
     public void setMesh(NucleoMesh mesh) {
         this.mesh = mesh;
-    }
-
-    public Writer getWriter() {
-        return writer;
-    }
-
-    public void setWriter(Writer writer) {
-        this.writer = writer;
     }
 }

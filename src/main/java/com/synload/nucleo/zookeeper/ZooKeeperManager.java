@@ -13,9 +13,10 @@ import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+
 import java.util.*;
 
-public class ZooKeeperManager implements Runnable{
+public class ZooKeeperManager implements Runnable {
 
     private CuratorFramework zooClient;
     private Connection connection;
@@ -30,7 +31,7 @@ public class ZooKeeperManager implements Runnable{
             this.mesh = mesh;
             connection = new Connection();
             new Thread(this).start();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -72,9 +73,9 @@ public class ZooKeeperManager implements Runnable{
         try {
             System.out.println("Connecting to Zookeeper.");
             zooClient = connection.connect(this.connString);
-            System.out.println("UpSet service "+mesh.getServiceName()+" to zookeeper");
-            create("/" + meshName, ( _____, __ )->
-                create("/" + meshName + "/services", ( ___, ____ ) ->
+            System.out.println("UpSet service " + mesh.getServiceName() + " to zookeeper");
+            create("/" + meshName, (_____, __) ->
+                create("/" + meshName + "/services", (___, ____) ->
                     create("/" + meshName + "/services/" + mesh.getServiceName(), (client, event) -> {
                         System.out.println("=======================================================");
                         System.out.println("/" + meshName + "/services/" + mesh.getServiceName());
@@ -86,22 +87,23 @@ public class ZooKeeperManager implements Runnable{
                     })
                 )
             );
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-    public void delete(String path, BackgroundCallback callback){
-        try {
-            zooClient.delete().inBackground(callback).forPath(path);
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public void create(String path, BackgroundCallback callback){
+    public void delete(String path, BackgroundCallback callback) {
+        try {
+            zooClient.delete().inBackground(callback).forPath(path);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void create(String path, BackgroundCallback callback) {
         try {
             zooClient.create().withMode(CreateMode.PERSISTENT).inBackground(callback).forPath(path);
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -112,30 +114,32 @@ public class ZooKeeperManager implements Runnable{
 
     public void getServiceList(DataUpdate responder) {
         try {
-            zooClient.getChildren().watched().inBackground((CuratorFramework client, CuratorEvent event)->{
+            zooClient.getChildren().watched().inBackground((CuratorFramework client, CuratorEvent event) -> {
                 List<String> children = event.getChildren();
                 responder.run("/" + this.meshName + "/services", children);
             }).forPath("/" + this.meshName + "/services");
 
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    public void getServiceNodeList(String service, DataUpdate responder){
+
+    public void getServiceNodeList(String service, DataUpdate responder) {
         try {
-            zooClient.getChildren().watched().inBackground((CuratorFramework client, CuratorEvent event)->{
+            zooClient.getChildren().watched().inBackground((CuratorFramework client, CuratorEvent event) -> {
                 List<String> children = event.getChildren();
                 responder.run(service, children);
-            }).forPath("/" + this.meshName + "/services/"+service);
+            }).forPath("/" + this.meshName + "/services/" + service);
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    public void getServiceNodeInformation(String service, String node, DataUpdate responder, boolean initial){
+
+    public void getServiceNodeInformation(String service, String node, DataUpdate responder, boolean initial) {
         try {
-            zooClient.getData().watched().inBackground((CuratorFramework client, CuratorEvent event)->{
+            zooClient.getData().watched().inBackground((CuratorFramework client, CuratorEvent event) -> {
                 byte[] data = event.getData();
                 //System.out.println("=======================================================|||");
                 //System.out.println("/" + this.meshName + "/services/" + service + "/" + node);
@@ -151,14 +155,14 @@ public class ZooKeeperManager implements Runnable{
                 }
             }).forPath("/" + this.meshName + "/services/" + service + "/" + node);
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public void register(String path, byte[] data)  {
+    public void register(String path, byte[] data) {
         try {
-            zooClient.create().withMode(CreateMode.EPHEMERAL).inBackground((CuratorFramework client, CuratorEvent event)->{
+            zooClient.create().withMode(CreateMode.EPHEMERAL).inBackground((CuratorFramework client, CuratorEvent event) -> {
                 //System.out.println("=======================================================");
                 //System.out.println(path);
                 //System.out.println(KeeperException.Code.get(event.getResultCode()));
@@ -172,12 +176,12 @@ public class ZooKeeperManager implements Runnable{
     Set<String> nodes = new HashSet<>();
     TreeMap<String, NodeStatus> nodePing = new TreeMap<>();
     int showIndex = 0;
-    public class WatchNodeList implements Runnable{
-        public void run(){
+
+    public class WatchNodeList implements Runnable {
+        public void run() {
             ObjectMapper om = new ObjectMapper();
-            while(true) {
-                Set<String> nodesTMP = new HashSet<>(nodes);
-                for(int i=1;i<=((nodesTMP.size()>4)?4:nodesTMP.size());i++) {
+            while (true) {
+                /*for(int i=1;i<=((nodesTMP.size()>2)?2:nodesTMP.size());i++) {
                     for (Set<String> nodeStrsTmp : Sets.combinations(nodesTMP, i)) {
                         for (List<String> nodeStrs : Collections2.permutations(nodeStrsTmp)) {
                             String firstNode = "";
@@ -209,11 +213,11 @@ public class ZooKeeperManager implements Runnable{
                             mesh.getHub().getResponders().put(nodeData.getRoot().toString(), new NucleoResponder() {
                                 @Override
                                 public void run(NucleoData data) {
-                                    /*try {
+                                    try {
                                         System.out.println(om.writeValueAsString(data));
                                     } catch (Exception e) {
                                         e.printStackTrace();
-                                    }*/
+                                    }
                                     synchronized (nodePing) {
                                         if (!nodePing.containsKey(key)) {
                                             nodePing.put(key, new NodeStatus(key, destinationNode, nodePingListTmp));
@@ -224,6 +228,27 @@ public class ZooKeeperManager implements Runnable{
                             });
                         }
                     }
+                }*/
+                /*
+                for (String nodeStrs : nodesTMP) {
+                    TreeMap<String, Object> objects = new TreeMap<>();
+                    objects.put("_ping", null);
+                    NucleoData nodeData = mesh.getHub().constructNucleoData("", objects);
+                    nodeData.setTrack(0);
+                    mesh.getHub().getWriter().add(new Object[]{"nucleo.client." + nodeStrs, nodeData});
+                    mesh.getHub().getResponders().put(nodeData.getRoot().toString(), new NucleoResponder() {
+                        @Override
+                        public void run(NucleoData data) {
+                            synchronized (nodePing) {
+                                if (!nodePing.containsKey(nodeStrs)) {
+                                    nodePing.put(nodeStrs, new NodeStatus(nodeStrs, nodeStrs, new Stack<String>() {{
+                                        add(nodeStrs);
+                                    }}));
+                                }
+                                nodePing.get(nodeStrs).add(data.getExecution().getTotal());
+                            }
+                        }
+                    });
                 }
                 synchronized (nodePing) {
                     Calendar calendar = Calendar.getInstance();
@@ -234,17 +259,17 @@ public class ZooKeeperManager implements Runnable{
                             mesh.geteManager().getRoute().remove(status.getValue().connection);
                         }
                     }
-                }
-                if(showIndex>3){
-                    Map<String, Float> fastestRoute = Maps.newLinkedHashMap();
+                }*/
+                if (showIndex > 3) {
+                    /*Map<String, Float> fastestRoute = Maps.newLinkedHashMap();
                     synchronized (nodePing) {
                         for (Map.Entry<String, NodeStatus> status : Maps.newTreeMap(nodePing).entrySet()) {
                             if (status.getValue().pings.size() > 5) {
                                 List<Long> tmp = Lists.newArrayList(status.getValue().pings);
-                                float average = (float)tmp.stream().mapToLong(Long::longValue).sum() / (float)tmp.size();
+                                float average = (float) tmp.stream().mapToLong(Long::longValue).sum() / (float) tmp.size();
                                 if (fastestRoute.containsKey(status.getValue().connection)) {
                                     float currentAvg = fastestRoute.get(status.getValue().connection);
-                                    if (average < currentAvg || (average == currentAvg && mesh.geteManager().getRoute().get(status.getValue().connection).size()>status.getValue().route.size())) {
+                                    if (average < currentAvg || (average == currentAvg && mesh.geteManager().getRoute().get(status.getValue().connection).size() > status.getValue().route.size())) {
                                         fastestRoute.put(status.getValue().connection, average);
                                         mesh.geteManager().getRoute().put(status.getValue().connection, status.getValue().route);
                                     }
@@ -255,17 +280,17 @@ public class ZooKeeperManager implements Runnable{
                             }
                         }
                     }
-                    /*try{
+                    try {
                         System.out.println(om.writeValueAsString(mesh.geteManager().getRoute()));
-                    }catch (Exception e){
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    try{
+                    try {
                         System.out.println(om.writeValueAsString(nodePing));
-                    }catch (Exception e){
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }*/
-
+                    Set<String> nodesTMP = new HashSet<>(nodes);
                     for (String nodeStr : nodesTMP) {
                         //System.out.println("Checking node "+nodeStr);
                         String[] parts = nodeStr.split(",");
@@ -273,46 +298,45 @@ public class ZooKeeperManager implements Runnable{
                             @Override
                             public void run(String service, String node, ServiceInformation data) {
                                 if (data != null) {
-
                                     mesh.geteManager().sync(data);
                                 } else {
                                     mesh.geteManager().delete(node);
                                     nodes.remove(nodeStr);
-
                                 }
                             }
                         }, true);
                     }
-                    showIndex=0;
+                    showIndex = 0;
                 }
                 showIndex++;
                 try {
-                    Thread.sleep(1000);
-                }catch (Exception e){
+                    Thread.sleep(2000);
+                } catch (Exception e) {
 
                 }
             }
         }
     }
-    public class SyncList implements Runnable{
-        public void run(){
-            while(true) {
+
+    public class SyncList implements Runnable {
+        public void run() {
+            while (true) {
                 getServiceList(new DataUpdate() {
                     @Override
                     public void run(String path, List<String> registeredServices) {
-                        if(registeredServices!=null) {
+                        if (registeredServices != null) {
                             for (String service : registeredServices) {
                                 getServiceNodeList(service, new DataUpdate() {
                                     @Override
                                     public void run(String service, List<String> serviceNodes) {
                                         for (String node : serviceNodes) {
                                             boolean exists = false;
-                                            synchronized (nodes){
-                                                exists = nodes.contains(node+","+service);
+                                            synchronized (nodes) {
+                                                exists = nodes.contains(node + "," + service);
                                             }
-                                            if(!exists && !mesh.getUniqueName().equals(node)) {
-                                                synchronized (nodes){
-                                                    exists = nodes.add(node+","+service);
+                                            if (!exists && !mesh.getUniqueName().equals(node)) {
+                                                synchronized (nodes) {
+                                                    nodes.add(node + "," + service);
                                                 }
                                             }
                                         }
@@ -324,7 +348,7 @@ public class ZooKeeperManager implements Runnable{
                 });
                 try {
                     Thread.sleep(5000);
-                }catch (Exception e){
+                } catch (Exception e) {
 
                 }
             }

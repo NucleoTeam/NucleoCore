@@ -31,7 +31,7 @@ public class NucleoMesh {
         hub = new Hub(this, uniqueName, elasticServer, elasticPort);
         this.meshName = meshName;
         this.serviceName = serviceName;
-        int ePort = nextAvailable(8000);
+        int ePort = nextAvailable();
         System.out.println("Selected Port: "+ePort);
         this.eManager = new EManager(this, ePort);
         this.eManager.createServer();
@@ -57,19 +57,12 @@ public class NucleoMesh {
         );
     }
 
-    public void start() {
-        try {
-            getHub().run();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     public void register(String packageStr) {
         getHub().register(packageStr);
     }
 
-    public static int nextAvailable(int port) {
+    public static int nextAvailable() {
+        int port = (int)Math.round(Math.random()*1000)+8000;
         if (port < 8000 || port > 9000) {
             throw new IllegalArgumentException("Invalid start port: " + port);
         }
@@ -97,7 +90,7 @@ public class NucleoMesh {
             }
         }
 
-        return nextAvailable(port + 1);
+        return nextAvailable();
     }
 
     public void call(String chain, TreeMap<String, Object> objects, Method onFinishedMethod, Object onFinishedObject) {
@@ -172,7 +165,6 @@ public class NucleoMesh {
         Logger.getRootLogger().setLevel(Level.DEBUG);
         NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200);
         mesh.register("com.synload.nucleo.information");
-        mesh.start();
 
         while (true) {
             mesh.call(
@@ -184,15 +176,21 @@ public class NucleoMesh {
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
-                        try{
-                            System.out.println(new ObjectMapper().writeValueAsString(data));
-                        }catch (Exception e){}
-                        //System.out.println("total: "+(System.currentTimeMillis()-(long)data.getObjects().get("time"))+"ms");
+                        long totalTime = (System.currentTimeMillis()-(long)data.getObjects().get("time"));
+                        if(totalTime>50) {
+                            try {
+                                System.out.println("timeout for: "+new ObjectMapper().writeValueAsString(data));
+                            } catch (Exception e) {
+                            }
+                            //System.out.println("total: "+totalTime+"ms");
+                        }else{
+                            //System.out.println("total: "+totalTime+"ms");
+                        }
                     }
                 }
             );
             try {
-                Thread.sleep(500);
+                Thread.sleep(4000);
             } catch (Exception e) {
 
             }
