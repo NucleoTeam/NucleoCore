@@ -1,10 +1,7 @@
 package com.synload.nucleo.hub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
-import com.google.common.collect.Tables;
+import com.google.common.collect.*;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.elastic.ElasticSearchPusher;
 import com.synload.nucleo.event.*;
@@ -108,13 +105,10 @@ public class Hub {
             return chains;
         }
 
-        public List<String> verifyPrevious(List<String> checkChains) {
-            List<String> previousChains = Lists.newArrayList();
-            List<String> checkChainsTMP = Lists.newArrayList(checkChains);
+        public Set<String> verifyPrevious(Set<String> checkChains) {
+            Set<String> previousChains = Sets.newLinkedHashSet();
+            Set<String> checkChainsTMP = Sets.newLinkedHashSet();
             data.getSteps().stream().filter(s -> s.getEnd() > 0).forEach(s -> previousChains.add(s.getStep()));
-            System.out.println("------");
-            System.out.println(previousChains);
-            System.out.println(checkChainsTMP);
             if (previousChains.containsAll(checkChainsTMP)) {
                 return null;
             }
@@ -195,8 +189,8 @@ public class Hub {
                     Object[] methodData = eventHandler.getChainToMethod().get(topic);
                     NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
                     if (methodData[2] != null) {
-                        List<String> missingChains;
-                        if ((missingChains = verifyPrevious((List<String>) methodData[2])) != null) {
+                        Set<String> missingChains;
+                        if ((missingChains = verifyPrevious((Set<String>) methodData[2])) != null) {
                             timing.setEnd(System.currentTimeMillis());
                             data.getChainBreak().setBreakChain(true);
                             data.getChainBreak().getBreakReasons().add("Missing required chains " + missingChains + "!");
