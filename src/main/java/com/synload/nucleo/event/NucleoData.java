@@ -25,14 +25,14 @@ public class NucleoData implements Cloneable  {
 
   public long markTime(){
     long total = System.currentTimeMillis() - timeTrack;
-    timeTrack = System.currentTimeMillis();
-    timeExecutions.add(new Object[]{total});
+    //timeTrack = System.currentTimeMillis();
+    //timeExecutions.add(new Object[]{total});
     return total;
   }
   public long markTime(String message){
     long total = System.currentTimeMillis() - timeTrack;
-    timeTrack = System.currentTimeMillis();
-    timeExecutions.add(new Object[]{message, total});
+    //timeTrack = System.currentTimeMillis();
+    //timeExecutions.add(new Object[]{message, total});
     return total;
   }
   public TreeMap<String, Object> getObjects() {
