@@ -1,13 +1,9 @@
 package com.synload.nucleo.socket;
 
 import com.synload.nucleo.NucleoMesh;
-import com.synload.nucleo.event.NucleoData;
-import com.synload.nucleo.zookeeper.ServiceInformation;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Stack;
 
 public class EServer implements Runnable {
     ServerSocket server;

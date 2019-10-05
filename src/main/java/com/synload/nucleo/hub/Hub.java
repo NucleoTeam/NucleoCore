@@ -7,7 +7,6 @@ import com.synload.nucleo.elastic.ElasticSearchPusher;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
 import org.reflections.Reflections;
-
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -26,9 +25,7 @@ public class Hub {
         this.uniqueName = uniqueName;
         this.mesh = mesh;
         esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
-        new Thread(
-            esPusher
-        ).start();
+        new Thread(esPusher).start();
     }
 
     public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects) {

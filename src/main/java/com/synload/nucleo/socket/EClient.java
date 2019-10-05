@@ -2,42 +2,42 @@ package com.synload.nucleo.socket;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
-import com.synload.nucleo.hub.Hub;
 import com.synload.nucleo.zookeeper.ServiceInformation;
-import org.apache.logging.log4j.core.util.IOUtils;
-
 import java.io.*;
-import java.math.BigInteger;
 import java.net.ConnectException;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.Queue;
-import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class EClient implements Runnable {
+
     public ServiceInformation node;
+
     @JsonIgnore
     public boolean direction;
+
     @JsonIgnore
     public NucleoMesh mesh;
+
     @JsonIgnore
     public Socket client;
+
     @JsonIgnore
     public int streams = 0;
+
     @JsonIgnore
     public Queue<NucleoTopicPush> queue = Queues.newArrayDeque();
+
     @JsonIgnore
     private CountDownLatch countDownLatch = new CountDownLatch(1);
+
     @JsonIgnore
     public ObjectMapper mapper;
 

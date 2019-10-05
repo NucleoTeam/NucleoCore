@@ -43,18 +43,29 @@ public class NucleoMesh {
     }
 
     public void zookeeperConnected() throws IOException {
-        System.out.println("Registering this service to zookeeper");
-        manager.register(
-            "/" + meshName + "/services/" + serviceName + "/" + uniqueName,
-            new ObjectMapper().writeValueAsBytes(new ServiceInformation(
-                meshName,
-                serviceName,
-                this.uniqueName,
-                getHub().getEventHandler().getChainToMethod().keySet(),
-                InetAddress.getLocalHost().getHostAddress() + ":" + eManager.getPort(),
-                InetAddress.getLocalHost().getHostName()
-            ))
-        );
+        while(true) {
+            System.out.println("Registering this service to zookeeper");
+            try {
+                manager.register(
+                    "/" + meshName + "/services/" + serviceName + "/" + uniqueName,
+                    new ObjectMapper().writeValueAsBytes(new ServiceInformation(
+                        meshName,
+                        serviceName,
+                        this.uniqueName,
+                        getHub().getEventHandler().getChainToMethod().keySet(),
+                        InetAddress.getLocalHost().getHostAddress() + ":" + eManager.getPort(),
+                        InetAddress.getLocalHost().getHostName()
+                    ))
+                );
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+            try{
+                Thread.sleep(60000, 0);
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }
     }
 
     public void register(String packageStr) {

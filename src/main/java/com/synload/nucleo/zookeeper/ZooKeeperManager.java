@@ -1,13 +1,7 @@
 package com.synload.nucleo.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.synload.nucleo.NucleoMesh;
-import com.synload.nucleo.event.NucleoData;
-import com.synload.nucleo.event.NucleoResponder;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEvent;
@@ -80,10 +74,10 @@ public class ZooKeeperManager implements Runnable {
                         System.out.println("=======================================================");
                         System.out.println("/" + meshName + "/services/" + mesh.getServiceName());
                         System.out.println(KeeperException.Code.get(event.getResultCode()));
-                        mesh.zookeeperConnected();
                         System.out.println("Starting zookeeper sync");
                         new Thread(new SyncList()).start();
                         new Thread(new WatchNodeList()).start();
+                        mesh.zookeeperConnected();
                     })
                 )
             );

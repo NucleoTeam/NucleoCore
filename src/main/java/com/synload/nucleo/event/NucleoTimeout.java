@@ -1,8 +1,6 @@
 package com.synload.nucleo.event;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.hub.Hub;
-
 import java.util.TreeMap;
 
 public class NucleoTimeout implements Runnable {
