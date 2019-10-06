@@ -42,32 +42,6 @@ public class NucleoMesh {
         }
     }
 
-    public void zookeeperConnected() throws IOException {
-        while(true) {
-            System.out.println("Registering this service to zookeeper");
-            try {
-                manager.register(
-                    "/" + meshName + "/services/" + serviceName + "/" + uniqueName,
-                    new ObjectMapper().writeValueAsBytes(new ServiceInformation(
-                        meshName,
-                        serviceName,
-                        this.uniqueName,
-                        getHub().getEventHandler().getChainToMethod().keySet(),
-                        InetAddress.getLocalHost().getHostAddress() + ":" + eManager.getPort(),
-                        InetAddress.getLocalHost().getHostName()
-                    ))
-                );
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-            try{
-                Thread.sleep(60000, 0);
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        }
-    }
-
     public void register(String packageStr) {
         getHub().register(packageStr);
     }
@@ -168,6 +142,15 @@ public class NucleoMesh {
     public void seteManager(EManager eManager) {
         this.eManager = eManager;
     }
+
+    public ZooKeeperManager getManager() {
+        return manager;
+    }
+
+    public void setManager(ZooKeeperManager manager) {
+        this.manager = manager;
+    }
+
     static long[] avg = new long[20];
     static int k = 0;
     static int counter = 0;
@@ -195,7 +178,7 @@ public class NucleoMesh {
                             }
                             //System.out.println("total: "+totalTime+"ms");
                         }else{
-                            //System.out.println("total: "+totalTime+"ms");
+                            System.out.println("total: "+totalTime+"ms");
                         }
                     }
                 }

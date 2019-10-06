@@ -8,6 +8,7 @@ import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 
+import java.net.InetAddress;
 import java.util.*;
 
 public class ZooKeeperManager implements Runnable {
@@ -63,11 +64,35 @@ public class ZooKeeperManager implements Runnable {
         this.showIndex = showIndex;
     }
 
+    public void registerServiceWithZKeeper() {
+        System.out.println("Registering this service to zookeeper");
+        System.out.println("============Service Debug==========");
+        System.out.println("Unique Id: "+mesh.getUniqueName());
+        System.out.println("Service Name: "+ mesh.getServiceName());
+        try {
+            String address = InetAddress.getLocalHost().getHostAddress();
+            System.out.println("IP Address: "+ address);
+            System.out.println("Port: "+ mesh.geteManager().getPort());
+            String hostName = InetAddress.getLocalHost().getHostName();
+            register(
+                "/" + meshName + "/services/" + mesh.getServiceName() + "/" + mesh.getUniqueName(),
+                new ObjectMapper().writeValueAsBytes(new ServiceInformation(
+                    meshName,
+                    mesh.getServiceName(),
+                    mesh.getUniqueName(),
+                    mesh.getHub().getEventHandler().getChainToMethod().keySet(),
+                    address + ":" + mesh.geteManager().getPort(),
+                    hostName
+                ))
+            );
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
     public void run() {
         try {
             System.out.println("Connecting to Zookeeper.");
             zooClient = connection.connect(this.connString);
-            System.out.println("UpSet service " + mesh.getServiceName() + " to zookeeper");
             create("/" + meshName, (_____, __) ->
                 create("/" + meshName + "/services", (___, ____) ->
                     create("/" + meshName + "/services/" + mesh.getServiceName(), (client, event) -> {
@@ -75,9 +100,19 @@ public class ZooKeeperManager implements Runnable {
                         System.out.println("/" + meshName + "/services/" + mesh.getServiceName());
                         System.out.println(KeeperException.Code.get(event.getResultCode()));
                         System.out.println("Starting zookeeper sync");
+                        registerServiceWithZKeeper();
                         new Thread(new SyncList()).start();
                         new Thread(new WatchNodeList()).start();
-                        mesh.zookeeperConnected();
+                        new Thread(()->{
+                            while(true) {
+                                try{
+                                    Thread.sleep(60000, 0);
+                                }catch (Exception e){
+                                    e.printStackTrace();
+                                }
+                                registerServiceWithZKeeper();
+                            }
+                        });
                     })
                 )
             );
@@ -112,8 +147,6 @@ public class ZooKeeperManager implements Runnable {
                 List<String> children = event.getChildren();
                 responder.run("/" + this.meshName + "/services", children);
             }).forPath("/" + this.meshName + "/services");
-
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -156,10 +189,11 @@ public class ZooKeeperManager implements Runnable {
 
     public void register(String path, byte[] data) {
         try {
+
             zooClient.create().withMode(CreateMode.EPHEMERAL).inBackground((CuratorFramework client, CuratorEvent event) -> {
-                //System.out.println("=======================================================");
-                //System.out.println(path);
-                //System.out.println(KeeperException.Code.get(event.getResultCode()));
+                System.out.println("=======================================================");
+                System.out.println(path);
+                System.out.println(KeeperException.Code.get(event.getResultCode()));
             }).forPath(path, data);
 
         } catch (Exception e) {
