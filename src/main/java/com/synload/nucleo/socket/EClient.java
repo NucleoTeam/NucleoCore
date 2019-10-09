@@ -141,36 +141,38 @@ public class EClient implements Runnable {
     }
     @Override
     public void run() {
+        int tries = 0;
         try {
-            while (reconnect && !Thread.currentThread().isInterrupted()) {
+            while (reconnect && !Thread.currentThread().isInterrupted() && tries<30) {
+                ByteArrayOutputStream output=null;
                 if (this.direction) {
                     try {
                         BufferedInputStream is = new BufferedInputStream(client.getInputStream());
                         byte[] buffer;
-                        while (reconnect && !Thread.currentThread().isInterrupted() && !client.isClosed()) {
-                            while (!client.isClosed()) {
-                                // Get nucleodata
-                                buffer = new byte[4];
-                                is.read(buffer, 0, 4);
-                                int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
-                                ByteArrayOutputStream output = readFromSock(sizeRemaining, is);
-                                if(output.size()==sizeRemaining) {
-                                    NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
-                                    //System.out.println("read: "+data.getData().getRoot().toString());
-                                    data.getData().markTime("Read from Socket");
-                                    if (data.getData() != null) {
-                                        mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
-                                    } else if (data.getInformation() != null) {
-                                        System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
-                                    }
-                                }else{
-                                    System.exit(-1);
+                        while (!client.isClosed() && reconnect && !Thread.currentThread().isInterrupted()) {
+                            // Get nucleodata
+                            buffer = new byte[4];
+                            is.read(buffer, 0, 4);
+                            int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
+                            output = readFromSock(sizeRemaining, is);
+                            if(output.size()==sizeRemaining) {
+                                NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
+                                //System.out.println("read: "+data.getData().getRoot().toString());
+                                data.getData().markTime("Read from Socket");
+                                if (data.getData() != null) {
+                                    mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
+                                } else if (data.getInformation() != null) {
+                                    System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
                                 }
+                            }else{
+                                System.exit(-1);
                             }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        //System.out.println(new String(output.toByteArray()));
+                        if(output!=null) {
+                            System.out.println(new String(output.toByteArray()));
+                        }
                     } finally {
                         client.close();
                         reconnect = false;
@@ -193,7 +195,9 @@ public class EClient implements Runnable {
                                 streams();
                                 new Thread(this).start();
                             }*/
+
                             countDownLatch.await();
+                            countDownLatch = new CountDownLatch(1);
                             synchronized (queue) {
                                 while (!queue.isEmpty()) {
                                     push = queue.remove();
@@ -233,7 +237,14 @@ public class EClient implements Runnable {
                         }
                     }
                 }
+                tries++;
+                try{
+                    Thread.sleep(1000,0);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
             }
+            System.out.println("Retries expired");
         } catch (Exception e) {
             e.printStackTrace();
             node=null;

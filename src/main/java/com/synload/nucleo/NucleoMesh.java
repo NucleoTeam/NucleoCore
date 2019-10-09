@@ -184,7 +184,7 @@ public class NucleoMesh {
                 }
             );
             try {
-                Thread.sleep(4000);
+                Thread.sleep(20);
             } catch (Exception e) {
 
             }
