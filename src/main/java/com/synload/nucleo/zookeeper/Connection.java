@@ -11,7 +11,7 @@ public class Connection {
     // ...
 
     public CuratorFramework connect(String host) throws InterruptedException{
-        RetryPolicy retryPolicy = new ExponentialBackoffRetry(4000, 10);
+        RetryPolicy retryPolicy = new ExponentialBackoffRetry(30000, 100000);
         System.out.println("Connecting to zookeeper: "+host);
         zooClient = CuratorFrameworkFactory.newClient(host, retryPolicy);
         zooClient.start();
