@@ -216,6 +216,7 @@ public class ZooKeeperManager implements Runnable {
                             for (String instance : newTMPConnected) {
                                 if (instances.stream().filter(x->x.getPayload().getName().equals(instance)).count()==0){
                                     mesh.geteManager().delete(instance);
+                                    connectedList.remove(instance);
                                 }
                             }
                         } else {
