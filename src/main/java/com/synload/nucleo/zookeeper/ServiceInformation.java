@@ -1,11 +1,14 @@
 package com.synload.nucleo.zookeeper;
 
+import com.fasterxml.jackson.annotation.JsonRootName;
+
 import java.io.Serializable;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 
 
+@JsonRootName("details")
 public class ServiceInformation {
     public Set<String> events;
     public String name;

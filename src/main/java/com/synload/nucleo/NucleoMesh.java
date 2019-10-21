@@ -8,6 +8,7 @@ import com.synload.nucleo.socket.EManager;
 import com.synload.nucleo.zookeeper.DataUpdate;
 import com.synload.nucleo.zookeeper.ZooKeeperManager;
 import com.synload.nucleo.zookeeper.ServiceInformation;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import java.io.IOException;
@@ -26,7 +27,7 @@ public class NucleoMesh {
     private String serviceName;
     private EManager eManager;
 
-    public NucleoMesh(String meshName, String serviceName, String zookeeper, String elasticServer, int elasticPort) {
+    public NucleoMesh(String meshName, String serviceName, String zookeeper, String elasticServer, int elasticPort, String packageStr) {
         this.uniqueName = UUID.randomUUID().toString();
         hub = new Hub(this, uniqueName, elasticServer, elasticPort);
         this.meshName = meshName;
@@ -35,15 +36,12 @@ public class NucleoMesh {
         System.out.println("Selected Port: "+ePort);
         this.eManager = new EManager(this, ePort);
         this.eManager.createServer();
+        getHub().register(packageStr);
         try {
             manager = new ZooKeeperManager(zookeeper, this);
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public void register(String packageStr) {
-        getHub().register(packageStr);
     }
 
     public static int nextAvailable() {
@@ -157,10 +155,13 @@ public class NucleoMesh {
     public static void main(String[] args) {
         //createTopic();
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200);
-        mesh.register("com.synload.nucleo.information");
-
+        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
         while (true) {
+            /*try {
+                mesh.getManager().listInstances();
+            }catch (Exception e){
+                e.printStackTrace();
+            }*/
             mesh.call(
                 new String[]{"information.hits", "information"},
                 new TreeMap<String, Object>() {{
@@ -178,13 +179,17 @@ public class NucleoMesh {
                             }
                             //System.out.println("total: "+totalTime+"ms");
                         }else{
-                            System.out.println("total: "+totalTime+"ms");
+                            //System.out.println("total: "+totalTime+"ms");
+                            try {
+                                System.out.println("data: "+new ObjectMapper().writeValueAsString(data));
+                            } catch (Exception e) {
+                            }
                         }
                     }
                 }
             );
             try {
-                Thread.sleep(20);
+                Thread.sleep(4000);
             } catch (Exception e) {
 
             }
