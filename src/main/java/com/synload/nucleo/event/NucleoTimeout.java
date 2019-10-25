@@ -28,8 +28,9 @@ public class NucleoTimeout implements Runnable {
           data.getChainBreak().getBreakReasons().add("Timeout on latest topic call");
           data.getExecution().setEnd(System.currentTimeMillis());
           if (data.getTrack() == 1) {
+            data.setVersion(data.getVersion() + 1);
             hub.push(hub.constructNucleoData(new String[]{"_watch.timeout"}, new TreeMap<String, Object>() {{
-              put("root", data.getRoot());
+              put("root", data);
             }}), new NucleoResponder() {
               @Override
               public void run(NucleoData returnedData) {

@@ -155,7 +155,7 @@ public class NucleoMesh {
     public static void main(String[] args) {
         //createTopic();
         Logger.getRootLogger().setLevel(Level.DEBUG);
-        NucleoMesh mesh = new NucleoMesh("test", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
+        NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
         while (true) {
             /*try {
                 mesh.getManager().listInstances();
@@ -174,14 +174,14 @@ public class NucleoMesh {
                         long totalTime = (System.currentTimeMillis()-(long)data.getObjects().get("time"));
                         if(totalTime>50) {
                             try {
-                                System.out.println("timeout for: "+new ObjectMapper().writeValueAsString(data));
+                                //System.out.println("timeout for: "+new ObjectMapper().writeValueAsString(data));
                             } catch (Exception e) {
                             }
                             //System.out.println("total: "+totalTime+"ms");
                         }else{
                             //System.out.println("total: "+totalTime+"ms");
                             try {
-                                System.out.println("data: "+new ObjectMapper().writeValueAsString(data));
+                                //System.out.println("data: "+new ObjectMapper().writeValueAsString(data));
                             } catch (Exception e) {
                             }
                         }

@@ -24,8 +24,8 @@ public class Hub {
     public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
         this.uniqueName = uniqueName;
         this.mesh = mesh;
-        esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
-        new Thread(esPusher).start();
+        //esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
+        //new Thread(esPusher).start();
     }
 
     public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects) {
@@ -49,6 +49,19 @@ public class Hub {
             data.getChainList().add(chain.split("\\."));
         }
         return data;
+    }
+    public void log(String state, NucleoData data){
+        if (data.getTrack() == 1) {
+            data.setVersion(data.getVersion() + 1);
+            NucleoData dd = new NucleoData(data);
+            push(constructNucleoData(new String[]{"_watch."+state}, new TreeMap<String, Object>() {{
+                put("root", dd);
+            }}), new NucleoResponder() {
+                @Override
+                public void run(NucleoData returnedData) {
+                }
+            }, false);
+        }
     }
 
     public void robin(String topic, NucleoData data) {
@@ -114,6 +127,8 @@ public class Hub {
             return checkChainsTMP;
         }
 
+
+
         public void run() {
             try {
                 data.markTime("Start Execution on " + uniqueName);
@@ -127,7 +142,7 @@ public class Hub {
                             robin("nucleo.client." + host, data);
                             return;
                         } else {
-                            esPusher.add(data);
+                            //esPusher.add(data);
                             data.getObjects().remove("_ping");
                             data.markTime("Execution Complete");
                             robin("nucleo.client." + data.getOrigin(), data);
@@ -167,19 +182,11 @@ public class Hub {
                             timeouts.remove(data.getRoot().toString());
                         }
                         data.getExecution().setEnd(System.currentTimeMillis());
-                        esPusher.add(data);
+                        //esPusher.add(data);
                         data.markTime("Execution Complete");
+                        log("complete", data);
                         responder.run(data);
                         //System.out.println("response: " + data.markTime() + "ms");
-                        if (data.getTrack() == 1) {
-                            hub.push(hub.constructNucleoData(new String[]{"_watch.complete"}, new TreeMap<String, Object>() {{
-                                put("root", data.getRoot());
-                            }}), new NucleoResponder() {
-                                @Override
-                                public void run(NucleoData returnedData) {
-                                }
-                            }, false);
-                        }
                         return;
                     }
                 } else if (eventHandler.getChainToMethod().containsKey(topic)) {
@@ -192,8 +199,9 @@ public class Hub {
                             data.getChainBreak().setBreakChain(true);
                             data.getChainBreak().getBreakReasons().add("Missing required chains " + missingChains + "!");
                             data.getSteps().add(timing);
-                            esPusher.add(data);
+                            //esPusher.add(data);
                             data.markTime("Execution Complete");
+                            log("incomplete", data);
                             robin("nucleo.client." + data.getOrigin(), data);
                             return;
                         }
@@ -212,7 +220,7 @@ public class Hub {
                             if (data.getChainBreak().isBreakChain()) {
                                 timing.setEnd(System.currentTimeMillis());
                                 data.getSteps().add(timing);
-                                esPusher.add(data);
+                                //esPusher.add(data);
                                 data.markTime("Execution Complete");
                                 robin("nucleo.client." + data.getOrigin(), data);
                                 return;
@@ -222,7 +230,7 @@ public class Hub {
                                 if (data.getChainList().size() == data.getOnChain() + 1) {
                                     timing.setEnd(System.currentTimeMillis());
                                     data.getSteps().add(timing);
-                                    esPusher.add(data);
+                                    //esPusher.add(data);
                                     data.markTime("Execution Complete");
                                     robin("nucleo.client." + data.getOrigin(), data);
                                     return;
@@ -236,7 +244,7 @@ public class Hub {
                             }
                             timing.setEnd(System.currentTimeMillis());
                             data.getSteps().add(timing);
-                            esPusher.add(data);
+                            //esPusher.add(data);
                             String newTopic = getTopic(data);
                             if (sameChain) {
                                 if (eventHandler.getChainToMethod().containsKey(newTopic)) {
@@ -254,6 +262,7 @@ public class Hub {
                         if (method.getParameterTypes()[0] == NucleoData.class && len == 1) {
                             try {
                                 method.invoke(obj, data);
+                                log("incomplete", data);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -261,6 +270,7 @@ public class Hub {
                         } else if (method.getParameterTypes()[0] == NucleoData.class && len == 2 && method.getParameterTypes()[1] == NucleoResponder.class) {
                             try {
                                 method.invoke(obj, data, responder);
+                                log("incomplete", data);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }

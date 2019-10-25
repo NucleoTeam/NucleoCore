@@ -23,6 +23,23 @@ public class NucleoData implements Cloneable  {
     getExecution().setStart(System.currentTimeMillis());
   }
 
+  public NucleoData(NucleoData data) {
+    this.root = data.root;
+    this.chainList = new ArrayList<>(data.chainList);
+    this.origin = data.origin;
+    this.link = data.link;
+    this.steps = new ArrayList<>(data.steps);
+    this.execution = new NucleoStep(execution);
+    this.onChain = data.onChain;
+    this.track = data.track;
+    this.timeExecutions = (Stack<Object[]>)data.timeExecutions.clone();
+    this.timeTrack = data.timeTrack;
+    this.retries = data.retries;
+    this.version = data.version;
+    this.objects = new TreeMap<>(data.objects);
+    this.chainBreak = new NucleoChainStatus(data.chainBreak);
+  }
+
   public long markTime(){
     long total = System.currentTimeMillis() - timeTrack;
     //timeTrack = System.currentTimeMillis();
@@ -114,8 +131,12 @@ public class NucleoData implements Cloneable  {
   public void setVersion(int version) {
     this.version = version;
   }
-  public Object clone() throws  CloneNotSupportedException {
-    return super.clone();
+  public NucleoData clone()  {
+    try {
+      return (NucleoData) super.clone();
+    }catch (Exception e){
+      return null;
+    }
   }
 
   public int getTrack() {

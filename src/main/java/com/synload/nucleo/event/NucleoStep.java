@@ -13,6 +13,15 @@ public class NucleoStep {
     public static String hostName = null;
     public static String hostIP = "";
 
+    public NucleoStep(NucleoStep step) {
+        this.step = step.step;
+        this.ip = step.ip;
+        this.host = step.host;
+        this.start = step.start;
+        this.end = step.end;
+        this.total = step.total;
+    }
+
     public NucleoStep() {
         if (hostName == null) {
             try {
