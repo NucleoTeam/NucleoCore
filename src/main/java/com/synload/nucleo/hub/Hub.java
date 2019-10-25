@@ -53,9 +53,9 @@ public class Hub {
     public void log(String state, NucleoData data){
         if (data.getTrack() == 1) {
             data.setVersion(data.getVersion() + 1);
-            NucleoData dd = new NucleoData(data);
+            NucleoData copiedData = new NucleoData(data);
             push(constructNucleoData(new String[]{"_watch."+state}, new TreeMap<String, Object>() {{
-                put("root", dd);
+                put("root", copiedData);
             }}), new NucleoResponder() {
                 @Override
                 public void run(NucleoData returnedData) {

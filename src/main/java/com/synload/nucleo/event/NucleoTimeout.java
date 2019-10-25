@@ -29,13 +29,7 @@ public class NucleoTimeout implements Runnable {
           data.getExecution().setEnd(System.currentTimeMillis());
           if (data.getTrack() == 1) {
             data.setVersion(data.getVersion() + 1);
-            hub.push(hub.constructNucleoData(new String[]{"_watch.timeout"}, new TreeMap<String, Object>() {{
-              put("root", data);
-            }}), new NucleoResponder() {
-              @Override
-              public void run(NucleoData returnedData) {
-              }
-            }, false);
+            hub.log("timeout", data);
           }
           responder.run(data);
           return;
