@@ -1,5 +1,7 @@
 package com.synload.nucleo.event;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.lang.reflect.Method;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

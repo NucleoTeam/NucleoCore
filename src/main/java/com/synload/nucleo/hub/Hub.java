@@ -118,11 +118,12 @@ public class Hub {
         public Set<String> verifyPrevious(Set<String> checkChains) {
             Set<String> previousChains = Sets.newLinkedHashSet();
             Set<String> checkChainsTMP = Sets.newLinkedHashSet();
+            checkChainsTMP.addAll(checkChains);
             data.getSteps().stream().filter(s -> s.getEnd() > 0).forEach(s -> previousChains.add(s.getStep()));
             if (previousChains.containsAll(checkChainsTMP)) {
                 return null;
             }
-            data.getChainBreak().getBreakReasons();
+            //data.getChainBreak().getBreakReasons();
             checkChainsTMP.removeAll(previousChains);
             return checkChainsTMP;
         }
