@@ -5,7 +5,7 @@ import java.util.TreeMap;
 
 public class NucleoTimeout implements Runnable {
   private Hub hub;
-  private final static int maxRetries = 2;
+  private final static int maxRetries = 5;
   private final static long loopTimer = 500;
   private NucleoData data;
   public NucleoTimeout(Hub hub, NucleoData data) {
@@ -28,7 +28,6 @@ public class NucleoTimeout implements Runnable {
           data.getChainBreak().getBreakReasons().add("Timeout on latest topic call");
           data.getExecution().setEnd(System.currentTimeMillis());
           if (data.getTrack() == 1) {
-            data.setVersion(data.getVersion() + 1);
             hub.log("timeout", data);
           }
           responder.run(data);

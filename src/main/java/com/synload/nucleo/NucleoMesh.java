@@ -162,7 +162,7 @@ public class NucleoMesh {
             }catch (Exception e){
                 e.printStackTrace();
             }*/
-            /*mesh.call(
+            mesh.call(
                 new String[]{"information.hits", "information"},
                 new TreeMap<String, Object>() {{
                     put("wow", "works?");
@@ -187,7 +187,7 @@ public class NucleoMesh {
                         }
                     }
                 }
-            );*/
+            );
             try {
                 Thread.sleep(4000);
             } catch (Exception e) {
