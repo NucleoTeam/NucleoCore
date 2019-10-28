@@ -252,6 +252,7 @@ public class Hub {
                             if (sameChain) {
                                 if (eventHandler.getChainToMethod().containsKey(newTopic)) {
                                     topic = newTopic;
+                                    log("incomplete", data);
                                     Executor.this.run();
                                     return;
                                 }
