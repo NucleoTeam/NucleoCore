@@ -29,7 +29,7 @@ public class NucleoData implements Cloneable  {
     this.origin = data.origin;
     this.link = data.link;
     this.steps = new ArrayList<>(data.steps);
-    this.execution = new NucleoStep(execution);
+    this.execution = new NucleoStep(data.execution);
     this.onChain = data.onChain;
     this.track = data.track;
     this.timeExecutions = (Stack<Object[]>)data.timeExecutions.clone();
