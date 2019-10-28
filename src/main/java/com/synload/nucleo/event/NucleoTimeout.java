@@ -27,9 +27,7 @@ public class NucleoTimeout implements Runnable {
           data.getChainBreak().setBreakChain(true);
           data.getChainBreak().getBreakReasons().add("Timeout on latest topic call");
           data.getExecution().setEnd(System.currentTimeMillis());
-          if (data.getTrack() == 1) {
-            hub.log("timeout", data);
-          }
+          hub.log("timeout", data);
           responder.run(data);
           return;
         }
@@ -41,6 +39,7 @@ public class NucleoTimeout implements Runnable {
           }
         }
         data.setRetries(retries+1);
+        hub.log("incomplete", data);
         hub.robin(data.getChainList().get(data.getOnChain())[data.getLink()], data);
       }
     } catch (Exception e) {
