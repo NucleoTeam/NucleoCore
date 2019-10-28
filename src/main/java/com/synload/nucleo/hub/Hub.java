@@ -223,6 +223,7 @@ public class Hub {
                                 data.getSteps().add(timing);
                                 //esPusher.add(data);
                                 data.markTime("Execution Complete");
+                                log("incomplete", data);
                                 robin("nucleo.client." + data.getOrigin(), data);
                                 return;
                             }
@@ -233,6 +234,7 @@ public class Hub {
                                     data.getSteps().add(timing);
                                     //esPusher.add(data);
                                     data.markTime("Execution Complete");
+                                    log("incomplete", data);
                                     robin("nucleo.client." + data.getOrigin(), data);
                                     return;
                                 } else {
@@ -255,6 +257,7 @@ public class Hub {
                                 }
                             }
                             data.markTime("Execution Complete");
+                            log("incomplete", data);
                             robin(newTopic, data);
                         }
                     };
@@ -263,7 +266,6 @@ public class Hub {
                         if (method.getParameterTypes()[0] == NucleoData.class && len == 1) {
                             try {
                                 method.invoke(obj, data);
-                                log("incomplete", data);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -271,7 +273,6 @@ public class Hub {
                         } else if (method.getParameterTypes()[0] == NucleoData.class && len == 2 && method.getParameterTypes()[1] == NucleoResponder.class) {
                             try {
                                 method.invoke(obj, data, responder);
-                                log("incomplete", data);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
