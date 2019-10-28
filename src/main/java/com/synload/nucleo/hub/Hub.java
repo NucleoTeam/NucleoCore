@@ -76,6 +76,7 @@ public class Hub {
             synchronized (timeouts) {
                 timeouts.put(data.getRoot().toString(), timeout);
             }
+            log("incomplete", data);
         } else {
             data.setTrack(0);
         }
