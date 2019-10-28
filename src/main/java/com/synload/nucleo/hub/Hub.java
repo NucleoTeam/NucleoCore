@@ -202,7 +202,7 @@ public class Hub {
                             data.getSteps().add(timing);
                             //esPusher.add(data);
                             data.markTime("Execution Complete");
-                            log("incomplete", data);
+                            log("complete", data);
                             robin("nucleo.client." + data.getOrigin(), data);
                             return;
                         }
