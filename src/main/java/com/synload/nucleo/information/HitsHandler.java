@@ -9,11 +9,11 @@ public class HitsHandler {
   @NucleoEvent("information.hits")
   public NucleoData hitCount(NucleoData data){
     data.getObjects().put("test","run");
-    try {
-      Thread.sleep(100);
-    }catch (Exception e){
-      e.printStackTrace();
-    }
+    return data;
+  }
+  @NucleoEvent("information.test")
+  public NucleoData anotherTest(NucleoData data){
+    data.getObjects().put("papa","kek");
     return data;
   }
   /*

@@ -6,6 +6,9 @@ import com.google.common.collect.Queues;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
@@ -17,6 +20,9 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class EClient implements Runnable {
+
+    @JsonIgnore
+    protected static final Logger logger = LoggerFactory.getLogger(EClient.class);
 
     public ServiceInformation node;
 
@@ -162,7 +168,7 @@ public class EClient implements Runnable {
                                 if (data.getData() != null) {
                                     mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
                                 } else if (data.getInformation() != null) {
-                                    System.out.println(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
+                                    logger.info(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
                                 }
                             }else{
                                 System.exit(-1);
@@ -171,7 +177,7 @@ public class EClient implements Runnable {
                     } catch (Exception e) {
                         e.printStackTrace();
                         if(output!=null) {
-                            System.out.println(new String(output.toByteArray()));
+                            logger.info(new String(output.toByteArray()));
                         }
                     } finally {
                         client.close();
@@ -180,7 +186,7 @@ public class EClient implements Runnable {
                     }
                 } else { // Connecting to service
                     if(node!=null) {
-                        System.out.println("Starting new connection to " + node.getConnectString()+ " size:"+queue.size());
+                        logger.info("Starting new connection to " + node.getConnectString()+ " size:"+queue.size());
                     }
                     if(node.getConnectString()==null) {
                         return;
@@ -231,7 +237,7 @@ public class EClient implements Runnable {
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
-                        System.out.println(node.getConnectString() + " disconnected!");
+                        logger.info(node.getConnectString() + " disconnected!");
                         if(client!=null){
                             client.close();
                         }
@@ -244,7 +250,7 @@ public class EClient implements Runnable {
                     e.printStackTrace();
                 }
             }
-            System.out.println("Retries expired");
+            logger.info("Retries expired");
         } catch (Exception e) {
             e.printStackTrace();
             node=null;

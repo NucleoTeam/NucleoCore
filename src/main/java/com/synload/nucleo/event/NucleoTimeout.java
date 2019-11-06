@@ -15,7 +15,7 @@ public class NucleoTimeout implements Runnable {
   public void run() {
     try {
       //System.out.println("Starting timeout "+data.getChain()[data.getLink()]);
-      Thread.sleep(loopTimer);
+      Thread.sleep(loopTimer, 0);
       if (hub.getResponders().containsKey(data.getRoot().toString())) {
         synchronized (hub.getTimeouts()) {
           hub.getTimeouts().remove(data.getRoot().toString());
@@ -40,7 +40,7 @@ public class NucleoTimeout implements Runnable {
         }
         data.setRetries(retries+1);
         hub.log("incomplete", data);
-        hub.robin(data.getChainList().get(data.getOnChain())[data.getLink()], data);
+        hub.currentChain(data);
       }
     } catch (Exception e) {
       //e.printStackTrace();

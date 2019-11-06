@@ -1,15 +1,19 @@
 package com.synload.nucleo.event;
 
+import com.synload.nucleo.hub.Hub;
+import org.apache.log4j.LogManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 
 public class NucleoData implements Cloneable  {
   private UUID root;
-  private List<String[]> chainList = new ArrayList<>();
+  private List<NucleoChain> chainList = new ArrayList<>();
   private String origin;
-  private int link;
   private List<NucleoStep> steps = new ArrayList<>();
   private NucleoStep execution = new NucleoStep();
-  private int onChain;
+  private int onChain=0;
   private int track = 1;
   private Stack<Object[]> timeExecutions = new Stack<>();
   private long timeTrack = System.currentTimeMillis();
@@ -17,6 +21,7 @@ public class NucleoData implements Cloneable  {
   private int version=0;
   private TreeMap<String, Object> objects;
   private NucleoChainStatus chainBreak = new NucleoChainStatus();
+  protected static final Logger logger = LoggerFactory.getLogger(NucleoData.class);
 
   public NucleoData(){
     root = UUID.randomUUID();
@@ -25,10 +30,9 @@ public class NucleoData implements Cloneable  {
 
   public NucleoData(NucleoData data) {
     this.root = data.root;
-    this.chainList = new ArrayList<>(data.chainList);
+    data.chainList.stream().forEach(x->this.getChainList().add(new NucleoChain(x)));
     this.origin = data.origin;
-    this.link = data.link;
-    this.steps = new ArrayList<>(data.steps);
+    data.steps.stream().forEach(x->this.steps.add(new NucleoStep(x)));
     this.execution = new NucleoStep(data.execution);
     this.onChain = data.onChain;
     this.track = data.track;
@@ -41,31 +45,139 @@ public class NucleoData implements Cloneable  {
   }
 
   public long markTime(){
-    long total = System.currentTimeMillis() - timeTrack;
+    //long total = System.currentTimeMillis() - timeTrack;
     //timeTrack = System.currentTimeMillis();
     //timeExecutions.add(new Object[]{total});
-    return total;
+    return 0;
   }
   public long markTime(String message){
-    long total = System.currentTimeMillis() - timeTrack;
+    //long total = System.currentTimeMillis() - timeTrack;
     //timeTrack = System.currentTimeMillis();
     //timeExecutions.add(new Object[]{message, total});
-    return total;
+    return 0;
   }
+
+  public void buildChains(String chain){
+    if(chain==null || chain.length()==0)
+      return;
+    if(chain.contains("[")){
+      String[] parallels = chain.substring(1,chain.length()-1).split("/");
+      NucleoChain chainParallel = new NucleoChain();
+      logger.debug(this.getRoot().toString() + " - " + "Parallel chain");
+      for(String parallel : parallels){
+        NucleoChain parallelInner = new NucleoChain();
+        parallelInner.setChainString(parallel.split("\\."));
+        chainParallel.getParallelChains().add(parallelInner);
+      }
+      this.getChainList().add(chainParallel);
+    } else {
+      NucleoChain singleChain = new NucleoChain();
+      singleChain.setChainString(chain.split("\\."));
+      logger.debug(this.getRoot().toString() + " - " + "Single chain request");
+      this.getChainList().add(singleChain);
+    }
+  }
+  public void buildChains(String[] chains){
+    for(String chain : chains){
+      buildChains(chain);
+    }
+  }
+
+  public String depthChainString(NucleoChain chain){
+    chain = depthChain(chain);
+    if(chain!=null){
+      String chainStr = "";
+      for(int x=0;x<=chain.part;x++){
+        chainStr += ((chainStr.isEmpty())?"":".") + chain.getChainString()[x];
+      }
+      //logger.info(this.getRoot().toString() + " - " + "current chain " + chainStr);
+      return chainStr;
+    }
+    return null;
+  }
+  public NucleoChain depthChain(){
+    return depthChain(chainList.get(onChain));
+  }
+  public NucleoChain depthChain(NucleoChain chain){
+    if(chain.getChainString()!=null){
+      return chain;
+    } else if(chain.getParallelChains().size()>0 && chain.getParallelChains().size()>chain.getParallel()){
+      return depthChain(chain.getParallelChains().get(chain.getParallel()));
+    }
+    return null;
+  }
+
+  public int parallel(int direction){ // -1 or 0
+    if(this.getOnChain() + direction < 0)
+      return 0;
+    if(this.getChainList().get(this.getOnChain() + direction).isRecombined())
+      return 0;
+    return this.getChainList().get(this.getOnChain() + direction).getParallelChains().size();
+  }
+
+  public String currentChain(){
+    if(this.getChainList().size()==0 || this.getChainList().size()<=this.onChain)
+      return null;
+    NucleoChain chain = this.getChainList().get(this.onChain);
+    return depthChainString(chain);
+  }
+  public void setSteps(){
+    NucleoChain chain = depthChain();
+    if(chain.stepStart==-1) {
+      chain.setStepStart(steps.size());
+    }
+  }
+
+  public List<NucleoData> getNext(){
+    if(this.getChainList().size()==0 || this.getChainList().size()<=this.onChain)
+      return null;
+    NucleoChain chain = this.getChainList().get(this.onChain);
+    NucleoChain currentChain = depthChain(chain);
+    List<NucleoData> nextDatas = new ArrayList<>();
+    if(currentChain.getChainString()!=null){
+      if(currentChain.getChainString().length>currentChain.getPart()+1){
+        currentChain.setPart(currentChain.getPart()+1);
+        logger.debug(this.getRoot().toString() + " - " + "moving to next part in chain "+currentChain.getPart());
+        nextDatas.add(new NucleoData(this));
+        logger.debug(this.getRoot().toString() + " - " + "size " + nextDatas.size());
+        logger.debug(this.getRoot().toString() + " - " + this.currentChain());
+        return nextDatas;
+      } else {
+        currentChain.setComplete(true);
+        if(this.getChainList().size()>this.getOnChain()+1){
+          this.setOnChain(this.getOnChain()+1);
+          logger.debug(this.getRoot().toString() + " - " + this.currentChain());
+          logger.debug(this.getRoot().toString() + " - " + "moving to next chain " + this.getOnChain());
+          if(this.getChainList().get(this.getOnChain()).getChainString() != null){
+            logger.debug(this.getRoot().toString() + " - " + "single chain for next");
+            nextDatas.add(new NucleoData(this));
+            logger.debug(this.getRoot().toString() + " - " + "size " + nextDatas.size());
+            return nextDatas;
+          }else{
+            logger.debug(this.getRoot().toString() + " - " + "parallel chain for next");
+            int size = this.getChainList().get(this.getOnChain()).getParallelChains().size();
+            for(int i=0;i<size;i++){
+              logger.debug(this.getRoot().toString() + " - " + "parallel chain " + i);
+              NucleoData newData = new NucleoData(this);
+              newData.getChainList().get(this.getOnChain()).setParallel(i);
+              nextDatas.add(newData);
+            }
+            logger.debug(this.getRoot().toString() + " - " + "size " + nextDatas.size());
+            return nextDatas;
+          }
+        }
+      }
+    }
+    logger.debug(this.getRoot().toString() + " - " + "end of chain");
+    return null; // null means end of chainlist
+  }
+
   public TreeMap<String, Object> getObjects() {
     return objects;
   }
 
   public void setObjects(TreeMap<String, Object> objects) {
     this.objects = objects;
-  }
-
-  public int getLink() {
-    return link;
-  }
-
-  public void setLink(int link) {
-    this.link = link;
   }
 
   public String getOrigin() {
@@ -92,11 +204,11 @@ public class NucleoData implements Cloneable  {
     this.chainBreak = chainBreak;
   }
 
-  public List<String[]> getChainList() {
+  public List<NucleoChain> getChainList() {
     return chainList;
   }
 
-  public void setChainList(List<String[]> chainList) {
+  public void setChainList(List<NucleoChain> chainList) {
     this.chainList = chainList;
   }
 

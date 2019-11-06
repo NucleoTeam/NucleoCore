@@ -4,17 +4,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.event.NucleoData;
+import com.synload.nucleo.zookeeper.Connection;
 import com.synload.nucleo.zookeeper.ServiceInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class EManager {
+    protected static final Logger logger = LoggerFactory.getLogger(EManager.class);
     NucleoMesh mesh;
     int port;
-    TreeMap<String, EClient> connections = new TreeMap<>();
+    HashMap<String, EClient> connections = new HashMap<>();
     TreeMap<String, List<EClient>> clientConnections = new TreeMap<>();
     TreeMap<String, Thread> connectionThreads = new TreeMap<>();
-    TreeMap<String, TopicRound> topics = new TreeMap<>();
+    HashMap<String, TopicRound> topics = new HashMap<>();
+    HashMap<String, EClient> leaderTopics = new HashMap<>();
+    HashMap<String, String> leaders = new HashMap<>();
     TreeMap<String, List<String>> route = new TreeMap<>();
 
     public EManager(NucleoMesh mesh, int port){
@@ -24,14 +30,28 @@ public class EManager {
     public void createServer(){
         new Thread(new EServer(this.port, this.mesh, this)).start();
     }
+    public void leaderCheck(ServiceInformation node){
+        if (node.isLeader() &&
+            ( leaders.get(node.getService()) != null && !leaders.get(node.getService()).equals(node.getName()) )
+            || leaders.get(node.getService()) == null
+        ) {
+            leaders.put(node.getService(), node.getName());
+            if (connections.containsKey(node.getName())) {
+                EClient eClient = connections.get(node.getName());
+                for (String event : node.getEvents()) {
+                    leaderTopics.put(event, eClient);
+                }
+                logger.debug(node.getService() + " [ " + node.getName() + " ] : " + node.getConnectString() + " is the leader!");
+            }
+        }
+    }
     public void sync(ServiceInformation node){
         EClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
-            System.out.println(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
+            logger.debug(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
             nodeClient = new EClient( null, node, mesh);
             connections.put(node.getName(), nodeClient);
-        }
-        if(nodeClient!=null){
+
             try {
                 Thread thread = new Thread(nodeClient);
                 synchronized(connectionThreads) {
@@ -48,7 +68,7 @@ public class EManager {
                         topics.put(event, new TopicRound());
                     }
                     topics.get(event).nodes.add(nodeClient);
-                    //System.out.println("Added to [ " + event + " ], nodes available: " + topics.get(event).nodes.size());
+                    logger.debug("Added to [ " + event + " ] from " + node.getHost() + ", nodes available: " + topics.get(event).nodes.size());
                 }
             }
 
@@ -66,18 +86,18 @@ public class EManager {
                 }
             }
         }
-        //System.out.println("connectionThreads: "+connectionThreads.size());
-        //System.out.println("connections: "+connections.size());
+        //logger.debug("connectionThreads: "+connectionThreads.size());
+        //logger.debug("connections: "+connections.size());
         if(client!=null){
             client.setReconnect(false);
-            System.out.println(client.getNode().getService() + " : " + node+ " has left the mesh");
+            logger.debug(client.getNode().getService() + " : " + node+ " has left the mesh");
             for (String event : client.getNode().getEvents()) {
                 synchronized (topics) {
                     if (topics.containsKey(event)) {
                         topics.get(event).nodes.remove(client);
-                        //System.out.println("Removed from [ " + event + " ], nodes available: " + topics.get(event).nodes.size());
+                        logger.debug("Removed event [ " + event + " ] from " + client.getNode().getHost() + ", nodes available: " + topics.get(event).nodes.size());
                         if (topics.get(event).nodes.size() == 0) {
-                            //System.out.println("no nodes on [ " + event + " ], removing");
+                            logger.debug("no nodes on [ " + event + " ], removing");
                             topics.remove(event);
                         }
                     }
@@ -118,6 +138,12 @@ public class EManager {
         //System.out.println("[" + topic + "] route not found");
     }
 
+    public void leader(String topic, NucleoData data){
+        if(leaderTopics.containsKey(topic)){
+            EClient eClient = leaderTopics.get(topic);
+            route(topic, eClient, data);
+        }
+    }
     public void route(String topic, EClient node, NucleoData data){
         synchronized (route) {
             /*List<String> routeToNode = route.get(node.node.name);
@@ -175,7 +201,7 @@ public class EManager {
                 lastNode=0;
             }
             if(start==lastNode){
-                System.out.println("No nodes available");
+                logger.debug("No nodes available");
                 return;
             }
             if(tmpNodes.size()>0){
@@ -185,7 +211,7 @@ public class EManager {
                     lastNode++;
                 }else{
                     if(tmpNodes.size()==1){
-                        System.out.println("No active route found!");
+                        logger.debug("No active route found!");
                         return;
                     }
                     lastNode++;
@@ -214,19 +240,19 @@ public class EManager {
         this.port = port;
     }
 
-    public TreeMap<String, EClient> getConnections() {
+    public HashMap<String, EClient> getConnections() {
         return connections;
     }
 
-    public void setConnections(TreeMap<String, EClient> connections) {
+    public void setConnections(HashMap<String, EClient> connections) {
         this.connections = connections;
     }
 
-    public TreeMap<String, TopicRound> getTopics() {
+    public HashMap<String, TopicRound> getTopics() {
         return topics;
     }
 
-    public void setTopics(TreeMap<String, TopicRound> topics) {
+    public void setTopics(HashMap<String, TopicRound> topics) {
         this.topics = topics;
     }
 

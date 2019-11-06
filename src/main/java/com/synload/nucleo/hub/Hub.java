@@ -3,10 +3,12 @@ package com.synload.nucleo.hub;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.*;
 import com.synload.nucleo.NucleoMesh;
-import com.synload.nucleo.elastic.ElasticSearchPusher;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
 import org.reflections.Reflections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -17,8 +19,9 @@ public class Hub {
     private String bootstrap;
     public static ObjectMapper objectMapper = new ObjectMapper();
     private String uniqueName;
-    private ElasticSearchPusher esPusher;
     private NucleoMesh mesh;
+    private Map<String, List<NucleoData>> parallelParts = Maps.newLinkedHashMap();
+    protected static final Logger logger = LoggerFactory.getLogger(Hub.class);
 
 
     public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
@@ -29,25 +32,23 @@ public class Hub {
     }
 
     public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects) {
+        logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
         data.setOrigin(uniqueName);
-        data.setLink(0);
         data.setOnChain(0);
-        data.getChainList().add(chain.split("\\."));
+        data.buildChains(chain);
         return data;
     }
 
     public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects) {
+        logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
         data.setTimeTrack(System.currentTimeMillis());
         data.setOrigin(uniqueName);
-        data.setLink(0);
         data.setOnChain(0);
-        for (String chain : chains) {
-            data.getChainList().add(chain.split("\\."));
-        }
+        data.buildChains(chains);
         return data;
     }
     public void log(String state, NucleoData data){
@@ -63,7 +64,42 @@ public class Hub {
         }
     }
 
-    public void robin(String topic, NucleoData data) {
+    public void nextChain(NucleoData data){
+        int onChain = data.getOnChain();
+        List<NucleoData> datas = data.getNext();
+        if(datas!=null){
+            datas.stream().forEach(x->{
+                if(onChain<x.getOnChain() &&
+                    data.getChainList().get(onChain).getParallelChains().size()>0){
+                    logger.debug(x.getRoot().toString() + " - sending to leader to re-assemble");
+                    mesh.geteManager().leader(x.currentChain(), x);
+                }else{
+                    trafficRoute(x, data);
+                }
+            });
+        } else {
+            trafficRoute(null, data);
+        }
+    }
+    public void currentChain(NucleoData data){
+        trafficRoute(data, null);
+    }
+    public void trafficRoute(NucleoData data, NucleoData originalData){
+        if(data == null) {
+            logger.debug(originalData.getRoot().toString() + " - sending back to origin");
+            sendToMesh("nucleo.client." + originalData.getOrigin(), originalData);
+        } else {
+            String topic = data.currentChain();
+            logger.debug(data.getRoot().toString() + " - sending " +topic);
+            if (eventHandler.getChainToMethod().containsKey(topic)) {
+                handle(this, data, topic);
+            } else {
+                sendToMesh(topic, data);
+            }
+        }
+    }
+
+    public void sendToMesh(String topic, NucleoData data) {
         data.markTime("Queue Done, sending to round robin");
         mesh.geteManager().robin(topic, data);
     }
@@ -80,7 +116,7 @@ public class Hub {
         } else {
             data.setTrack(0);
         }
-        robin(data.getChainList().get(data.getOnChain())[data.getLink()], data);
+        trafficRoute(data, null);
     }
 
     public void register(String servicePackage) {
@@ -105,15 +141,6 @@ public class Hub {
             this.topic = topic;
         }
 
-        public String getTopic(NucleoData data) {
-            String chains = data.getChainList().get(data.getOnChain())[0];
-            for (int i = 1; i <= data.getLink(); i++) {
-                if(data.getChainList().get(data.getOnChain()).length>i) {
-                    chains += "." + data.getChainList().get(data.getOnChain())[i];
-                }
-            }
-            return chains;
-        }
 
         public Set<String> verifyPrevious(Set<String> checkChains) {
             Set<String> previousChains = Sets.newLinkedHashSet();
@@ -128,29 +155,89 @@ public class Hub {
             return checkChainsTMP;
         }
 
+        public boolean checkParallel(int para, int direction){
+            int previousChain = data.getOnChain()+direction;
+            NucleoChain chain = data.getChainList().get(previousChain);
+            if(!chain.getParallelChains().get(chain.getParallel()).isComplete()){
+                return false;
+            }
+            String root = data.getRoot().toString();
+            if(!hub.parallelParts.containsKey(root)){
+                hub.parallelParts.put(root, new ArrayList<>());
+            }
+            List<NucleoData> paraParts = hub.parallelParts.get(root);
+            paraParts.add(data);
 
+            if(paraParts.size()!=para) {
+                logger.debug(root + " waiting for all parts");
+                return true;
+            }
+
+            hub.parallelParts.remove(root);
+            NucleoData finalPart = null;
+            for(NucleoData part : paraParts){
+                NucleoChain chainPart = part.getChainList().get(part.getOnChain()+direction);
+                int parallel = chainPart.getParallel();
+                chainPart = chainPart.getParallelChains().get(parallel);
+                try {
+                    logger.debug(new ObjectMapper().writeValueAsString(chainPart));
+                }catch (Exception e){e.printStackTrace();}
+                if(finalPart!=null){
+                    logger.debug("combining "+chainPart.getChainString().toString());
+                    finalPart.getObjects().putAll(part.getObjects());
+                    int stepStart = chainPart.stepStart;
+                    chainPart.setStepStart(finalPart.getSteps().size());
+                    for(int i = stepStart; i < part.getSteps().size(); i++) {
+                        finalPart.getSteps().add(part.getSteps().get(i));
+                    }
+                    finalPart.getChainList().get(part.getOnChain()+direction).getParallelChains().set(parallel, chainPart);
+                    chainPart.setRecombined(true);
+                    try {
+                        logger.debug(new ObjectMapper().writeValueAsString(chainPart));
+                    }catch (Exception e){e.printStackTrace();}
+                }else{
+                    logger.debug("main part combining "+chainPart.getChainString().toString());
+                    chainPart.setRecombined(true);
+                    finalPart = part;
+                }
+            }
+            finalPart.getChainList().get(finalPart.getOnChain()+direction).setRecombined(true);
+            data = finalPart;
+            logger.debug(root + " all parts received, combining");
+            return false;
+        }
 
         public void run() {
             try {
                 data.markTime("Start Execution on " + uniqueName);
                 if (topic.startsWith("nucleo.client.")) {
+
+                    // check for parallel
+                    int para = data.parallel( 0);
+                    if(para>0 && checkParallel(para, 0)){
+                        return;
+                    }
+
+                    // handle ping requests for uptime
                     if (data.getObjects().containsKey("_ping")) {
                         Stack<String> hosts = (Stack<String>) data.getObjects().get("ping");
                         if (hosts != null && !hosts.isEmpty()) {
                             String host = hosts.pop();
                             //System.out.println("going to: nucleo.client." + host);
                             data.markTime("Execution Complete");
-                            robin("nucleo.client." + host, data);
+                            sendToMesh("nucleo.client." + host, data);
                             return;
                         } else {
                             //esPusher.add(data);
                             data.getObjects().remove("_ping");
                             data.markTime("Execution Complete");
-                            robin("nucleo.client." + data.getOrigin(), data);
+                            sendToMesh("nucleo.client." + data.getOrigin(), data);
                             //System.out.println("ping going home!");
                             return;
                         }
                     }
+
+                    // handle routing of request through this service
                     if (data.getObjects().containsKey("_route")) {
                         List<String> hosts = (List<String>) data.getObjects().get("_route");
                         if (hosts != null && !hosts.isEmpty()) { // route not complete
@@ -158,22 +245,22 @@ public class Hub {
                             if(host.equals(uniqueName)) {
                                 data.getObjects().remove("_route");
                                 data.markTime("Route Complete");
-                                topic = getTopic(data);
-                                run();
+                                currentChain(data);
                                 return;
                             }
                             //System.out.println("going to: nucleo.client." + host);
                             data.markTime("Sending to "+host);
-                            robin("nucleo.client." + host, data);
+                            sendToMesh("nucleo.client." + host, data);
                             return;
                         }else{
                             data.getObjects().remove("_route");
                             data.markTime("Route Complete");
-                            topic = getTopic(data);
-                            run();
+                            currentChain(data);
                             return;
                         }
                     }
+
+                    // Finish request and execute the final responder
                     NucleoResponder responder = responders.get(data.getRoot().toString());
                     if (responder != null) {
                         responders.remove(data.getRoot().toString());
@@ -191,6 +278,15 @@ public class Hub {
                         return;
                     }
                 } else if (eventHandler.getChainToMethod().containsKey(topic)) {
+
+                    int para = data.parallel(-1);
+                    if(para>0 && checkParallel(para, -1)){
+                        return;
+                    }
+
+                    data.setSteps();
+
+                    logger.debug(data.getRoot().toString() + " - processing " + topic);
                     Object[] methodData = eventHandler.getChainToMethod().get(topic);
                     NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
                     if (methodData[2] != null) {
@@ -203,7 +299,7 @@ public class Hub {
                             //esPusher.add(data);
                             data.markTime("Execution Complete");
                             log("complete", data);
-                            robin("nucleo.client." + data.getOrigin(), data);
+                            sendToMesh("nucleo.client." + data.getOrigin(), data);
                             return;
                         }
                     }
@@ -224,42 +320,17 @@ public class Hub {
                                 //esPusher.add(data);
                                 data.markTime("Execution Complete");
                                 log("incomplete", data);
-                                robin("nucleo.client." + data.getOrigin(), data);
+
+                                sendToMesh("nucleo.client." + data.getOrigin(), data);
                                 return;
                             }
-                            boolean sameChain = false;
-                            if (data.getLink() + 1 == data.getChainList().get(data.getOnChain()).length) {
-                                if (data.getChainList().size() == data.getOnChain() + 1) {
-                                    timing.setEnd(System.currentTimeMillis());
-                                    data.getSteps().add(timing);
-                                    //esPusher.add(data);
-                                    data.markTime("Execution Complete");
-                                    log("incomplete", data);
-                                    robin("nucleo.client." + data.getOrigin(), data);
-                                    return;
-                                } else {
-                                    data.setOnChain(data.getOnChain() + 1);
-                                    data.setLink(0);
-                                }
-                            } else {
-                                data.setLink(data.getLink() + 1);
-                                sameChain = true;
-                            }
+                            logger.debug(data.getRoot().toString() + " - processed " + topic);
                             timing.setEnd(System.currentTimeMillis());
                             data.getSteps().add(timing);
                             //esPusher.add(data);
-                            String newTopic = getTopic(data);
-                            if (sameChain) {
-                                if (eventHandler.getChainToMethod().containsKey(newTopic)) {
-                                    topic = newTopic;
-                                    log("incomplete", data);
-                                    Executor.this.run();
-                                    return;
-                                }
-                            }
                             data.markTime("Execution Complete");
                             log("incomplete", data);
-                            robin(newTopic, data);
+                            nextChain(data);
                         }
                     };
                     int len = method.getParameterTypes().length;
@@ -268,14 +339,16 @@ public class Hub {
                             try {
                                 method.invoke(obj, data);
                             } catch (Exception e) {
-                                e.printStackTrace();
+                                data.getChainBreak().setBreakChain(true);
+                                data.getChainBreak().getBreakReasons().add(e.getMessage());
                             }
                             responder.run(data);
                         } else if (method.getParameterTypes()[0] == NucleoData.class && len == 2 && method.getParameterTypes()[1] == NucleoResponder.class) {
                             try {
                                 method.invoke(obj, data, responder);
                             } catch (Exception e) {
-                                e.printStackTrace();
+                                data.getChainBreak().setBreakChain(true);
+                                data.getChainBreak().getBreakReasons().add(e.getMessage());
                             }
                         }
                     } else {
@@ -346,14 +419,6 @@ public class Hub {
 
     public void setUniqueName(String uniqueName) {
         this.uniqueName = uniqueName;
-    }
-
-    public ElasticSearchPusher getEsPusher() {
-        return esPusher;
-    }
-
-    public void setEsPusher(ElasticSearchPusher esPusher) {
-        this.esPusher = esPusher;
     }
 
     public NucleoMesh getMesh() {

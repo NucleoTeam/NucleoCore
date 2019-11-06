@@ -11,6 +11,7 @@ import java.util.TreeMap;
 @JsonRootName("details")
 public class ServiceInformation {
     public Set<String> events;
+    public boolean leader;
     public String name;
     public String connectString;
     public String host;
@@ -20,13 +21,14 @@ public class ServiceInformation {
     public ServiceInformation() {
     }
 
-    public ServiceInformation(String meshName, String service, String unique, Set<String> events,  String connectString, String host) {
+    public ServiceInformation(String meshName, String service, String name, Set<String> events,  String connectString, String host, boolean leader) {
         this.events = events;
-        this.name = unique;
-        this.meshName = meshName;
-        this.service = service;
+        this.leader = leader;
+        this.name = name;
         this.connectString = connectString;
         this.host = host;
+        this.meshName = meshName;
+        this.service = service;
     }
 
     public Set<String> getEvents() {
@@ -75,5 +77,13 @@ public class ServiceInformation {
 
     public void setService(String service) {
         this.service = service;
+    }
+
+    public boolean isLeader() {
+        return leader;
+    }
+
+    public void setLeader(boolean leader) {
+        this.leader = leader;
     }
 }
