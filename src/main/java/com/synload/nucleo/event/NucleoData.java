@@ -1,5 +1,6 @@
 package com.synload.nucleo.event;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.synload.nucleo.hub.Hub;
 import org.apache.log4j.LogManager;
 import org.slf4j.Logger;
@@ -133,6 +134,7 @@ public class NucleoData implements Cloneable  {
     }
   }
 
+  @JsonIgnore
   public List<NucleoData> getNext(){
     if(this.getChainList().size()==0 || this.getChainList().size()<=this.onChain)
       return null;
