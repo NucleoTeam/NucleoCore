@@ -101,7 +101,7 @@ public class Hub {
 
     public void sendToMesh(String topic, NucleoData data) {
         data.markTime("Queue Done, sending to round robin");
-        mesh.geteManager().robin(topic, data);
+        mesh.geteManager().robin(topic, new NucleoData(data));
     }
 
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
@@ -182,19 +182,27 @@ public class Hub {
                 try {
                     logger.debug(new ObjectMapper().writeValueAsString(chainPart));
                 }catch (Exception e){e.printStackTrace();}
-                if(finalPart!=null){
-                    logger.debug("combining "+chainPart.getChainString().toString());
-                    finalPart.getObjects().putAll(part.getObjects());
-                    int stepStart = chainPart.stepStart;
-                    chainPart.setStepStart(finalPart.getSteps().size());
-                    for(int i = stepStart; i < part.getSteps().size(); i++) {
-                        finalPart.getSteps().add(part.getSteps().get(i));
+                if(finalPart!=null) {
+                    if (finalPart!=part){
+                        logger.debug("combining " + chainPart.getChainString().toString());
+                        finalPart.getObjects().putAll(part.getObjects());
+                        int stepStart = chainPart.stepStart;
+                        if(stepStart!=-1) {
+                            chainPart.setStepStart(finalPart.getSteps().size());
+                            for (int i = stepStart; i < part.getSteps().size(); i++) {
+                                finalPart.getSteps().add(part.getSteps().get(i));
+                            }
+                        }
+                        finalPart.getChainList().get(part.getOnChain() + direction).getParallelChains().set(parallel, chainPart);
+                        chainPart.setRecombined(true);
+                        try {
+                            logger.debug(new ObjectMapper().writeValueAsString(chainPart));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }else{
+                        logger.info("HOW THE FUCK");
                     }
-                    finalPart.getChainList().get(part.getOnChain()+direction).getParallelChains().set(parallel, chainPart);
-                    chainPart.setRecombined(true);
-                    try {
-                        logger.debug(new ObjectMapper().writeValueAsString(chainPart));
-                    }catch (Exception e){e.printStackTrace();}
                 }else{
                     logger.debug("main part combining "+chainPart.getChainString().toString());
                     chainPart.setRecombined(true);

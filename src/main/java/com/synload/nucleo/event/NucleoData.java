@@ -25,6 +25,7 @@ public class NucleoData implements Cloneable  {
 
   public NucleoData(){
     root = UUID.randomUUID();
+
     getExecution().setStart(System.currentTimeMillis());
   }
 
@@ -107,12 +108,16 @@ public class NucleoData implements Cloneable  {
     return null;
   }
 
-  public int parallel(int direction){ // -1 or 0
-    if(this.getOnChain() + direction < 0)
-      return 0;
-    if(this.getChainList().get(this.getOnChain() + direction).isRecombined())
-      return 0;
-    return this.getChainList().get(this.getOnChain() + direction).getParallelChains().size();
+  public int parallel(int direction){
+    int total = 0;
+    for(int x = this.getOnChain() + direction;x>=0;x--) {
+      NucleoChain previousChain = this.getChainList().get(x);
+      if(previousChain.getParallelChains().size()==0){
+        return total;
+      }
+      total = (total==0)?previousChain.getParallelChains().size():total * previousChain.getParallelChains().size();
+    }
+    return total;
   }
 
   public String currentChain(){

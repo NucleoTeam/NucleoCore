@@ -32,7 +32,7 @@ public class NucleoMesh {
         this.serviceName = serviceName;
         logger.info("Starting nucleo client and joining mesh " + meshName + " with service name " + serviceName);
         int ePort = nextAvailable();
-        logger.info("Selected Port: "+ePort);
+        logger.info("Selected Port: " + ePort);
         this.eManager = new EManager(this, ePort);
         this.eManager.createServer();
         getHub().register(packageStr);
@@ -44,7 +44,7 @@ public class NucleoMesh {
     }
 
     public static int nextAvailable() {
-        int port = (int)Math.round(Math.random()*1000)+8000;
+        int port = (int) Math.round(Math.random() * 1000) + 8000;
         if (port < 8000 || port > 9000) {
             throw new IllegalArgumentException("Invalid start port: " + port);
         }
@@ -151,6 +151,7 @@ public class NucleoMesh {
     static long[] avg = new long[20];
     static int k = 0;
     static int counter = 0;
+
     public static void main(String[] args) {
         //createTopic();
 
@@ -165,17 +166,17 @@ public class NucleoMesh {
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
-                        long totalTime = (System.currentTimeMillis()-(long)data.getObjects().get("time"));
-                        if(totalTime>50) {
+                        long totalTime = (System.currentTimeMillis() - (long) data.getObjects().get("time"));
+                        if (totalTime > 50) {
                             try {
-                                logger.info("timeout for: "+new ObjectMapper().writeValueAsString(data));
+                                logger.info("timeout for: " + new ObjectMapper().writeValueAsString(data));
                             } catch (Exception e) {
                             }
-                            logger.debug("total: "+totalTime+"ms");
-                        }else{
-                            logger.info("total: "+totalTime+"ms");
+                            logger.debug("total: " + totalTime + "ms");
+                        } else {
+                            logger.info("total: " + totalTime + "ms");
                             try {
-                                logger.info("data: "+new ObjectMapper().writeValueAsString(data));
+                                logger.info("data: " + new ObjectMapper().writeValueAsString(data));
                             } catch (Exception e) {
                             }
                         }
