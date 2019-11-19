@@ -11,7 +11,7 @@ import java.io.Serializable;
 @NucleoClass
 public class InformationHandler {
   @NucleoEvent(chains={"information"})
-  public NucleoData hitCount(NucleoData data){
+  public NucleoData information(NucleoData data){
     if(data.getObjects().containsKey("stop")){
       data.getChainBreak().setBreakChain(true);
       return data;
@@ -24,14 +24,19 @@ public class InformationHandler {
     data.getObjects().put("POPPY", "CORN");
     r.run(data);
   }
-  @NucleoEvent("information.popcorn > popcornx.poppy")
-  public NucleoData poppy(NucleoData data){
-    data.getObjects().put("POPPY", "CORN");
+  @NucleoEvent(chains={"information.popcorn"})
+  public void infoPopcorn(NucleoData data, NucleoResponder r){
+    data.getObjects().put("information.popcorn", "set");
+    r.run(data);
+  }
+  @NucleoEvent("information.popcorn > popcorn.poppyx")
+  public NucleoData poppyx(NucleoData data){
+    data.getObjects().put("POP", "LOCK");
     return data;
   }
   @NucleoEvent("information.popcorn,information.test > popcorn.poppy")
-  public NucleoData test(NucleoData data){
-    data.getObjects().put("POPPY", "CORN");
+  public NucleoData poppy(NucleoData data){
+    data.getObjects().put("TOP", "TOP");
     return data;
   }
 }

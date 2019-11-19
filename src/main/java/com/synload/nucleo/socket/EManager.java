@@ -41,14 +41,14 @@ public class EManager {
                 for (String event : node.getEvents()) {
                     leaderTopics.put(event, eClient);
                 }
-                logger.debug(node.getService() + " [ " + node.getName() + " ] : " + node.getConnectString() + " is the leader!");
+                logger.info(node.getService() + " [ " + node.getName() + " ] : " + node.getConnectString() + " is the leader!");
             }
         }
     }
     public void sync(ServiceInformation node){
         EClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
-            logger.debug(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
+            logger.info(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
             nodeClient = new EClient( null, node, mesh);
             connections.put(node.getName(), nodeClient);
 
@@ -68,7 +68,7 @@ public class EManager {
                         topics.put(event, new TopicRound());
                     }
                     topics.get(event).nodes.add(nodeClient);
-                    logger.debug("Added to [ " + event + " ] from " + node.getHost() + ", nodes available: " + topics.get(event).nodes.size());
+                    logger.info("Added to [ " + event + " ] from " + node.getHost() + ", nodes available: " + topics.get(event).nodes.size());
                 }
             }
 
@@ -90,14 +90,14 @@ public class EManager {
         //logger.debug("connections: "+connections.size());
         if(client!=null){
             client.setReconnect(false);
-            logger.debug(client.getNode().getService() + " : " + node+ " has left the mesh");
+            logger.info(client.getNode().getService() + " : " + node+ " has left the mesh");
             for (String event : client.getNode().getEvents()) {
                 synchronized (topics) {
                     if (topics.containsKey(event)) {
                         topics.get(event).nodes.remove(client);
-                        logger.debug("Removed event [ " + event + " ] from " + client.getNode().getHost() + ", nodes available: " + topics.get(event).nodes.size());
+                        logger.info("Removed event [ " + event + " ] from " + client.getNode().getHost() + ", nodes available: " + topics.get(event).nodes.size());
                         if (topics.get(event).nodes.size() == 0) {
-                            logger.debug("no nodes on [ " + event + " ], removing");
+                            logger.info("no nodes on [ " + event + " ], removing");
                             topics.remove(event);
                         }
                     }

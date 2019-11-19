@@ -7,7 +7,7 @@ public class NucleoChain {
     public String[] chainString = null;
     public List<NucleoChain> parallelChains = new ArrayList<>();
     public int part = 0;
-    public int parallel = 0;
+    public int parallel = -1;
     public boolean recombined = false;
     public boolean complete = false;
     public int stepStart = -1;
@@ -82,4 +82,5 @@ public class NucleoChain {
     public void setStepStart(int stepStart) {
         this.stepStart = stepStart;
     }
+
 }

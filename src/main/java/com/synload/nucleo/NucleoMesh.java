@@ -158,7 +158,7 @@ public class NucleoMesh {
         NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
         while (true) {
             mesh.call(
-                new String[]{"information", "[popcorn/information.hits/information.test]", "information.test", "[popcorn/information.hits/information.test]"},
+                new String[]{"information", "[popcorn/information.hits/information.test/information.popcorn]", "information.test", "[popcorn.poppyx/information.hits/information.test]"},
                 new TreeMap<String, Object>() {{
                     put("wow", "works?");
                     put("time", System.currentTimeMillis());
@@ -168,17 +168,11 @@ public class NucleoMesh {
                     public void run(NucleoData data) {
                         long totalTime = (System.currentTimeMillis() - (long) data.getObjects().get("time"));
                         if (totalTime > 50) {
-                            try {
-                                logger.info("timeout for: " + new ObjectMapper().writeValueAsString(data));
-                            } catch (Exception e) {
-                            }
+                            logger.info("timeout for: " + data.getRoot());
                             logger.debug("total: " + totalTime + "ms");
                         } else {
                             logger.info("total: " + totalTime + "ms");
-                            try {
-                                logger.info("data: " + new ObjectMapper().writeValueAsString(data));
-                            } catch (Exception e) {
-                            }
+                            logger.info("data: " + data.getRoot());
                         }
                     }
                 }

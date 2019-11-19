@@ -1,5 +1,5 @@
 group 'nucleocore-sock'
-version '1.06.3'
+version '1.07.0'
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -25,13 +25,13 @@ dependencies {
 
 uploadArchives {
     repositories {
-       mavenDeployer {
-             repository(url: "http://nexus.synload.com/repository/releases/") {
+        mavenDeployer {
+            repository(url: "http://nexus.synload.com/repository/releases/") {
                 authentication(userName: "admin", password: "$System.env.PASSWORD")
-             }
-             pom.version = "${version}"
-             pom.artifactId = "nucleocore"
-             pom.groupId = "com.synload.nucleo"
-       }
+            }
+            pom.version = "${version}"
+            pom.artifactId = "nucleocore"
+            pom.groupId = "com.synload.nucleo"
+        }
     }
 }
