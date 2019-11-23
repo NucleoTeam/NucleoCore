@@ -48,16 +48,16 @@ public class NucleoData implements Cloneable {
     }
 
     public long markTime() {
-        long total = System.currentTimeMillis() - timeTrack;
-        timeTrack = System.currentTimeMillis();
-        timeExecutions.add(new Object[]{total});
+        //long total = System.currentTimeMillis() - timeTrack;
+        //timeTrack = System.currentTimeMillis();
+        //timeExecutions.add(new Object[]{total});
         return 0;
     }
 
     public long markTime(String message) {
-        long total = System.currentTimeMillis() - timeTrack;
-        timeTrack = System.currentTimeMillis();
-        timeExecutions.add(new Object[]{message, total});
+        //long total = System.currentTimeMillis() - timeTrack;
+        //timeTrack = System.currentTimeMillis();
+        //timeExecutions.add(new Object[]{message, total});
         return 0;
     }
 

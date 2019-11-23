@@ -148,10 +148,6 @@ public class NucleoMesh {
         this.manager = manager;
     }
 
-    static long[] avg = new long[20];
-    static int k = 0;
-    static int counter = 0;
-
     public static void main(String[] args) {
         //createTopic();
 
