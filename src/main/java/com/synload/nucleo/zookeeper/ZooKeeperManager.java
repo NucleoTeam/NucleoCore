@@ -18,6 +18,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -32,6 +33,7 @@ public class ZooKeeperManager implements Runnable {
     private static ServiceDiscovery<ServiceInformation> serviceDiscovery = null;
     private CuratorFramework client = null;
     private static LeaderSelector leader = null;
+    private CountDownLatch latch = null;
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperManager.class);
 
     public ZooKeeperManager(String zkConnectionString, NucleoMesh mesh) {
@@ -81,47 +83,88 @@ public class ZooKeeperManager implements Runnable {
                 .build();
             serviceDiscovery.start();
 
-            ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
-                .name(mesh.getServiceName())
-                .id(mesh.getUniqueName())
-                .payload(new ServiceInformation(
-                    mesh.getMeshName(),
-                    mesh.getServiceName(),
-                    mesh.getUniqueName(),
-                    mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                    host + ":" + mesh.geteManager().getPort(),
-                    hostName,
-                    false
-                ))
-                .port(mesh.geteManager().getPort()) // in a real application, you'd use a common port
-                .uriSpec(uriSpec)
-                .build();
+            logger.info("CONNECTED");
+            try {
+                if (latch != null)
+                    latch.countDown();
+                ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
+                    .name(mesh.getServiceName())
+                    .id(mesh.getUniqueName())
+                    .payload(new ServiceInformation(
+                        mesh.getMeshName(),
+                        mesh.getServiceName(),
+                        mesh.getUniqueName(),
+                        mesh.getHub().getEventHandler().getChainToMethod().keySet(),
+                        host + ":" + mesh.geteManager().getPort(),
+                        hostName,
+                        false
+                    ))
+                    .port(mesh.geteManager().getPort()) // in a real application, you'd use a common port
+                    .uriSpec(uriSpec)
+                    .build();
+                serviceDiscovery.registerService(thisInstance);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
-            serviceDiscovery.registerService(thisInstance);
-
-            Runtime.getRuntime().addShutdownHook(new Thread(()->{
-                try{
-                    if(leader.hasLeadership()){
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    if (leader.hasLeadership()) {
                         leader.requeue();
                     }
                     leader.close();
                     serviceDiscovery.close();
-                }catch (Exception e){
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }));
             String serviceName = mesh.getHub().getMesh().getServiceName();
-            logger.info(leaderPath+"/for/"+serviceName);
+
+            logger.info(leaderPath + "/for/" + serviceName);
             leader = new LeaderSelector(
                 client,
-                leaderPath+"/for/"+serviceName,
+                leaderPath + "/for/" + serviceName,
                 new LeaderSelectorListener() {
                     @Override
                     public void stateChanged(CuratorFramework client, ConnectionState newState) {
+                        switch (newState) {
+                            case LOST:
+                            case SUSPENDED:
+                                if (latch != null)
+                                    latch.countDown();
+                                break;
+                            case RECONNECTED:
+                                try {
+                                    if (latch != null)
+                                        latch.countDown();
+                                    ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
+                                        .id(mesh.getUniqueName())
+                                        .name(mesh.getServiceName())
+                                        .payload(new ServiceInformation(
+                                            mesh.getMeshName(),
+                                            mesh.getServiceName(),
+                                            mesh.getUniqueName(),
+                                            mesh.getHub().getEventHandler().getChainToMethod().keySet(),
+                                            host + ":" + mesh.geteManager().getPort(),
+                                            hostName,
+                                            false
+                                        ))
+                                        .port(mesh.geteManager().getPort())
+                                        .uriSpec(uriSpec)
+                                        .build();
+                                    serviceDiscovery.registerService(thisInstance);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                                break;
+                            case CONNECTED:
+
+                                break;
+                        }
                         try {
-                            logger.info(new ObjectMapper().writeValueAsString(newState));
-                            logger.info("STATE CHANGED");
-                        }catch (Exception e){
+                            logger.debug(new ObjectMapper().writeValueAsString(newState));
+                            logger.debug("STATE CHANGED");
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
@@ -129,8 +172,8 @@ public class ZooKeeperManager implements Runnable {
                     @Override
                     public void takeLeadership(CuratorFramework client) throws Exception {
                         try {
-                            logger.info("New leader for "+serviceName + ", " + mesh.getUniqueName()+" is the new leader");
-                        }catch (Exception e){
+                            logger.info("New leader for " + serviceName + ", " + mesh.getUniqueName() + " is the new leader");
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                         ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
@@ -149,12 +192,8 @@ public class ZooKeeperManager implements Runnable {
                             .uriSpec(uriSpec)
                             .build();
                         serviceDiscovery.updateService(thisInstance);
-                        while(true){
-                            try {
-                                Thread.sleep(4000);
-                            } catch (Exception e) {
-                            }
-                        }
+                        latch = new CountDownLatch(1);
+                        latch.await();
                     }
                 }
             );
@@ -192,7 +231,7 @@ public class ZooKeeperManager implements Runnable {
                             }
                             List<String> newTMPConnected = new ArrayList<String>(connectedList);
                             for (String instance : newTMPConnected) {
-                                if (instances.stream().filter(x->x.getPayload().getName().equals(instance)).count()==0){
+                                if (instances.stream().filter(x -> x.getPayload().getName().equals(instance)).count() == 0) {
                                     mesh.geteManager().delete(instance);
                                     connectedList.remove(instance);
                                 }

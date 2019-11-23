@@ -67,7 +67,7 @@ public class Hub {
         int onChain = data.getOnChain();
         if(data.getTrack()!=0)
             try {
-                logger.debug("before "+new ObjectMapper().writeValueAsString(data));
+                logger.debug("before: "+new ObjectMapper().writeValueAsString(data));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -79,20 +79,20 @@ public class Hub {
                 e.printStackTrace();
             }
         if (datas != null) {
-            logger.debug(data.getRoot().toString() + " : data parts " + datas.size());
+            logger.debug(data.getRoot().toString() + ": data parts " + datas.size());
             datas.stream().forEach(x -> {
                 if(x.currentChain()==null){
                     if (data.getTrack()==1) logger.debug(x.currentChainString() + " - sending to origin to re-assemble");
                     trafficRoute(null, x);
                 }else {
                     if (onChain != x.getOnChain() && onChain > -1 && data.getChainList().get(onChain).getParallelChains().size() > 0) {
-                        if (data.getTrack()==1) logger.debug(x.currentChainString() + " - sending to leader to re-assemble");
+                        if (data.getTrack()==1) logger.debug(x.currentChainString() + ": sending to leader to re-assemble");
                         mesh.geteManager().leader(x.currentChainString(), x);
                     } else {
                         if (x.getChainList().get(x.getOnChain()).getParallelChains().size() > 0) {
-                            logger.debug(x.currentChain() + " - routing to complete parallel");
+                            logger.debug(x.currentChain() + ": routing to complete parallel");
                         } else {
-                            logger.debug(x.currentChain() + " - routing to complete chain");
+                            logger.debug(x.currentChain() + ": routing to complete chain");
                         }
                         trafficRoute(x, data);
                     }
@@ -101,7 +101,7 @@ public class Hub {
         }
     }
 
-    public void currentChain(NucleoData data) {
+    public void trafficCurrentRoute(NucleoData data) {
         trafficRoute(data, null);
     }
 
@@ -150,8 +150,6 @@ public class Hub {
             e.printStackTrace();
         }
     }
-
-    public static int count = 0;
 
     public void handle(Hub hub, NucleoData data, String topic) {
         TrafficExecutor trafficExecutor = new TrafficExecutor(hub, data, topic);

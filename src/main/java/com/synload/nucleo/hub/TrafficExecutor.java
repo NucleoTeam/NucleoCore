@@ -70,7 +70,7 @@ public class TrafficExecutor {
                         if (host.equals(hub.getUniqueName())) {
                             data.getObjects().remove("_route");
                             data.markTime("Route Complete");
-                            hub.currentChain(data);
+                            hub.trafficCurrentRoute(data);
                             return;
                         }
                         //System.out.println("going to: nucleo.client." + host);
@@ -80,7 +80,7 @@ public class TrafficExecutor {
                     } else {
                         data.getObjects().remove("_route");
                         data.markTime("Route Complete");
-                        hub.currentChain(data);
+                        hub.trafficCurrentRoute(data);
                         return;
                     }
                 }
