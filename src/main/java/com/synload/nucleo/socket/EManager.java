@@ -161,7 +161,7 @@ public class EManager {
                     }
                 }
             }*/
-            data.markTime("Route sending to "+node.node.name);
+            //data.markTime("Route sending to "+node.node.name);
             node.add(topic, data);
             return;
         }
@@ -178,7 +178,7 @@ public class EManager {
             }
             if(tmpNodes.size()>0){
                 if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
-                    data.markTime("Robin Done");
+                    //data.markTime("Robin Done");
                     route(topic, tmpNodes.get(lastNode), data);
                     lastNode++;
                 }else{
@@ -206,7 +206,7 @@ public class EManager {
             }
             if(tmpNodes.size()>0){
                 if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
-                    data.markTime("Robin Done");
+                    //data.markTime("Robin Done");
                     route(topic, tmpNodes.get(lastNode), data);
                     lastNode++;
                 }else{

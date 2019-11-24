@@ -63,7 +63,7 @@ public class ChannelClient implements Runnable {
             while(true) {
                 while (queue.size() > 0) {
                     NucleoTopicPush push = pop();
-                    push.getData().markTime("Write to Socket");
+                    //push.getData().markTime("Write to Socket");
                     if (push != null) {
                         try {
                             byte[] data = mapper.writeValueAsBytes(push);

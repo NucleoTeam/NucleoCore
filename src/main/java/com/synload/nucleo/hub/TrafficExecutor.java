@@ -40,7 +40,7 @@ public class TrafficExecutor {
 
     public void handle() {
         try {
-            data.markTime("Start Execution on " + hub.getUniqueName());
+            //data.markTime("Start Execution on " + hub.getUniqueName());
             if (topic.startsWith("nucleo.client.")) {
                 // handle ping requests for uptime
                 logger.debug("ORIGIN RECEIVED");
@@ -49,13 +49,13 @@ public class TrafficExecutor {
                     if (hosts != null && !hosts.isEmpty()) {
                         String host = hosts.pop();
                         //System.out.println("going to: nucleo.client." + host);
-                        data.markTime("Execution Complete");
+                        //data.markTime("Execution Complete");
                         hub.sendToMesh("nucleo.client." + host, data);
                         return;
                     } else {
                         //esPusher.add(data);
                         data.getObjects().remove("_ping");
-                        data.markTime("Execution Complete");
+                        //data.markTime("Execution Complete");
                         hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
                         //System.out.println("ping going home!");
                         return;
@@ -69,17 +69,17 @@ public class TrafficExecutor {
                         String host = hosts.remove(0);
                         if (host.equals(hub.getUniqueName())) {
                             data.getObjects().remove("_route");
-                            data.markTime("Route Complete");
+                            //data.markTime("Route Complete");
                             hub.trafficCurrentRoute(data);
                             return;
                         }
                         //System.out.println("going to: nucleo.client." + host);
-                        data.markTime("Sending to " + host);
+                        //data.markTime("Sending to " + host);
                         hub.sendToMesh("nucleo.client." + host, data);
                         return;
                     } else {
                         data.getObjects().remove("_route");
-                        data.markTime("Route Complete");
+                        //data.markTime("Route Complete");
                         hub.trafficCurrentRoute(data);
                         return;
                     }
@@ -96,7 +96,7 @@ public class TrafficExecutor {
                     }
                     data.getExecution().setEnd(System.currentTimeMillis());
                     //esPusher.add(data);
-                    data.markTime("Execution Complete");
+                    //data.markTime("Execution Complete");
                     hub.log("complete", data);
                     responder.run(data);
                     //System.out.println("response: " + data.markTime() + "ms");
@@ -117,13 +117,13 @@ public class TrafficExecutor {
                         data.getChainBreak().getBreakReasons().add("Missing required chains " + missingChains + "!");
                         data.getSteps().add(timing);
                         //esPusher.add(data);
-                        data.markTime("Execution Complete");
+                        //data.markTime("Execution Complete");
                         hub.log("complete", data);
                         hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
                         return;
                     }
                 }
-                data.markTime("Verified Chain Requirements");
+                //data.markTime("Verified Chain Requirements");
                 Object obj;
                 if (methodData[0] instanceof Class) {
                     Class clazz = (Class) methodData[0];
@@ -138,7 +138,7 @@ public class TrafficExecutor {
                             timing.setEnd(System.currentTimeMillis());
                             data.getSteps().add(timing);
                             //esPusher.add(data);
-                            data.markTime("Execution Complete");
+                            //data.markTime("Execution Complete");
                             hub.log("incomplete", data);
 
                             hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
@@ -148,7 +148,7 @@ public class TrafficExecutor {
                         timing.setEnd(System.currentTimeMillis());
                         data.getSteps().add(timing);
                         //esPusher.add(data);
-                        data.markTime("Execution Complete");
+                        //data.markTime("Execution Complete");
                         hub.log("incomplete", data);
                         hub.nextChain(data);
                     }

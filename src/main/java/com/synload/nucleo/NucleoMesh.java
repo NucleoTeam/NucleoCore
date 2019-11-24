@@ -152,7 +152,7 @@ public class NucleoMesh {
         //createTopic();
 
         NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
-        while (true) {
+        /*while (true) {
             mesh.call(
                 new String[]{"information", "[popcorn/information.hits/information.test/information.popcorn]", "information.test", "[popcorn.poppyx/information.hits/information.test]"},
                 new TreeMap<String, Object>() {{
@@ -177,7 +177,7 @@ public class NucleoMesh {
                 Thread.sleep(4000);
             } catch (Exception e) {
             }
-        }
+        }*/
 
     }
 }

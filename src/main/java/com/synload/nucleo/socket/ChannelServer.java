@@ -29,7 +29,7 @@ public class ChannelServer implements Runnable {
     public static void read(NucleoMesh mesh, byte[] inData){
         try {
             NucleoTopicPush push = new ObjectMapper().readValue(inData, NucleoTopicPush.class);
-            push.getData().markTime("Read from Socket");
+            //push.getData().markTime("Read from Socket");
             if (push.getData() != null) {
                 mesh.getHub().handle(mesh.getHub(), push.getData(), push.getTopic());
             } else if (push.getInformation() != null) {
