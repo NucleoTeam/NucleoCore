@@ -73,12 +73,13 @@ public class Hub {
                 e.printStackTrace();
             }
         List<NucleoData> datas = trafficHandler.getNext(data);
-        if(data.getTrack()!=0)
+        if(data.getTrack()!=0) {
             try {
-                logger.debug("next: "+new ObjectMapper().writeValueAsString(datas));
+                logger.debug("next: " + new ObjectMapper().writeValueAsString(datas));
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
         if (datas != null) {
             logger.debug(data.getRoot().toString() + ": data parts " + datas.size());
             datas.stream().forEach(x -> {

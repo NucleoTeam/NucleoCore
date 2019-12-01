@@ -154,6 +154,7 @@ public class TrafficExecutor {
                     }
                 };
                 int len = method.getParameterTypes().length;
+                data.latestObjects();
                 if (len > 0) {
                     if (method.getParameterTypes()[0] == NucleoData.class && len == 1) {
                         try {
