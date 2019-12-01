@@ -68,7 +68,7 @@ public class NucleoObject {
         String objectKey = objectPath.poll();
         try {
             if(List.class.isInstance(obj)){
-                return get(objectPath, ((List)obj).get(Integer.valueOf(objectKey)));
+                return get(objectPath, ((List)obj).get(Integer.valueOf(objectKey).intValue()));
             }
             if(Map.class.isInstance(obj)){
                 if(!((Map)obj).containsKey(objectKey))
@@ -118,10 +118,10 @@ public class NucleoObject {
         try {
             if(List.class.isInstance(obj)){
                 if(save) {
-                    ((List) obj).set(Integer.valueOf(objectKey), objectToSave);
+                    ((List) obj).set(Integer.valueOf(objectKey).intValue(), objectToSave);
                     return true;
                 }else
-                    return set(objectPath, ((List)obj).get(Integer.valueOf(objectKey)), objectToSave);
+                    return set(objectPath, ((List)obj).get(Integer.valueOf(objectKey).intValue()), objectToSave);
             }
             if(Map.class.isInstance(obj)){
                 if(save) {
