@@ -1,6 +1,7 @@
 package com.synload.nucleo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.data.NucleoObject;
@@ -27,7 +28,11 @@ public class NucleoMesh {
     private String serviceName;
     private EManager eManager;
     protected static final Logger logger = LoggerFactory.getLogger(NucleoMesh.class);
-    private static ObjectMapper mapper = new ObjectMapper();
+    @JsonIgnore
+    private static ObjectMapper mapper = new ObjectMapper(){{
+        this.enableDefaultTyping();
+        this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }};
 
     public NucleoMesh(String meshName, String serviceName, String zookeeper, String elasticServer, int elasticPort, String packageStr) {
         this.uniqueName = UUID.randomUUID().toString();
@@ -196,9 +201,12 @@ public class NucleoMesh {
         NucleoObjectList list = data.getObjects().list("hello.list");
         if(list!=null)
             list.add("test");
+        list.delete(0);
+        if(list!=null)
+            list.add("works");
         try {
             //logger.info(new ObjectMapper().writeValueAsString(data.getDifferences()));
-            logger.info(mapper.writeValueAsString(data.getObjects()));
+            logger.info(mapper.writeValueAsString(data.latestObjects()));
 
         }catch (Exception e){
             e.printStackTrace();

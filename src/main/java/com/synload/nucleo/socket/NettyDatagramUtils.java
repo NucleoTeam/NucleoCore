@@ -1,5 +1,7 @@
 package com.synload.nucleo.socket;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -45,12 +47,17 @@ public class NettyDatagramUtils {
         }
     }
     public Map<String, Combiner> buffer = Maps.newHashMap();
-    public ObjectMapper mapper;
+
+    @JsonIgnore
+    private static ObjectMapper mapper = new ObjectMapper(){{
+        this.enableDefaultTyping();
+        this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }};
+
     protected static final Logger logger = LoggerFactory.getLogger(NettyDatagramUtils.class);
 
     public NettyDatagramUtils() {
-        this.mapper = new ObjectMapper();
-        this.mapper.enableDefaultTyping();
+
     }
 
     public void send(DatagramSocket socket, byte[] data, InetAddress address, int port) {

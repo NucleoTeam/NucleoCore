@@ -1,6 +1,7 @@
 package com.synload.nucleo.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -16,30 +17,34 @@ import java.util.*;
 
 public class NucleoObject {
     private List<NucleoChange> changes = Lists.newLinkedList();
-    private Map<String, Object> objects = Maps.newTreeMap();
+    private Map<String, Object> objects = Maps.newHashMap();
 
-    @JsonIgnore @DiffIgnore private ObjectMapper mapper = new ObjectMapper();
+    @JsonIgnore
+    private ObjectMapper mapper = new ObjectMapper(){{
+        this.enableDefaultTyping();
+        this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }};
+
     @JsonIgnore protected static final Logger logger = LoggerFactory.getLogger(NucleoObject.class);
 
 
     public NucleoObject() {
-        mapper.enableDefaultTyping();
+
     }
 
     public NucleoObject(NucleoObject old) {
-        mapper.enableDefaultTyping();
         changes = Lists.newLinkedList(old.changes);
     }
 
     public NucleoObject latestObjects() {
-        objects = Maps.newTreeMap();
+        objects = Maps.newHashMap();
         Lists.newLinkedList(this.changes).forEach(c->{
             if(c.getType()==NucleoChangeType.SET)
-                set(c.getObjectPath(), c.getObject(), true);
+                set(c.getObjectPath(), c.storedObject(), true);
             if(c.getType()==NucleoChangeType.DELETE)
                 delete(c.getObjectPath(), true);
             if(c.getType()==NucleoChangeType.ADD)
-                add(c.getObjectPath(), c.getObject(), true);
+                add(c.getObjectPath(), c.storedObject(), true);
         });
         return this;
     }
@@ -74,7 +79,7 @@ public class NucleoObject {
                 return get(objectPath, ((Map)obj).get(objectKey));
             }
             Object nextObj = PropertyUtils.getProperty(obj, objectKey);
-            logger.info(new ObjectMapper().writeValueAsString(nextObj));
+            //logger.info(new ObjectMapper().writeValueAsString(nextObj));
             return get(objectPath, nextObj);
         }catch (Exception e){
             e.printStackTrace();
@@ -153,19 +158,33 @@ public class NucleoObject {
         boolean delete = false;
         if(objectPath.isEmpty())
             return false;
-        String objectKey = objectPath.poll();
+        Object objectKey = objectPath.poll();
         if(objectPath.isEmpty())
             delete = true;
         try {
             if(List.class.isInstance(obj)){
                 if(delete) {
                     if(Integer.class.isInstance(objectKey)) {
-                        ((List) obj).remove(Integer.valueOf(objectKey));
+                        ((List) obj).remove(((Integer)objectKey).intValue());
+                        return true;
+                    }else if(int.class.isInstance(objectKey)) {
+                        ((List) obj).remove((int)objectKey);
+                        return true;
+                    }else if(String.class.isInstance(objectKey)) {
+                        ((List) obj).remove(Integer.valueOf((String)objectKey).intValue());
                         return true;
                     }else
                         return false;
-                }else
-                    return delete(objectPath, ((List)obj).get(Integer.valueOf(objectKey)));
+                }else {
+                    if (Integer.class.isInstance(objectKey)) {
+                        return delete(objectPath, ((List) obj).get(((Integer)objectKey).intValue()));
+                    } else if (int.class.isInstance(objectKey)) {
+                        return delete(objectPath, ((List) obj).get((int) objectKey));
+                    } else if (String.class.isInstance(objectKey)) {
+                        return delete(objectPath, ((List) obj).get(Integer.valueOf((String) objectKey).intValue()));
+                    } else
+                        return false;
+                }
             }
             if(Map.class.isInstance(obj)){
                 if(delete) {
@@ -180,10 +199,17 @@ public class NucleoObject {
                 }
             }
             if(delete){
-                new PropertyDescriptor(objectKey,obj.getClass()).getWriteMethod().invoke(obj);
-                return true;
-            }else
-                return delete(objectPath, new PropertyDescriptor(objectKey,obj.getClass()).getReadMethod().invoke(obj));
+                if(String.class.isInstance(objectKey)) {
+                    new PropertyDescriptor((String) objectKey, obj.getClass()).getWriteMethod().invoke(obj);
+                    return true;
+                }
+                return false;
+            }else {
+                if (String.class.isInstance(objectKey)) {
+                    return delete(objectPath, new PropertyDescriptor((String)objectKey, obj.getClass()).getReadMethod().invoke(obj));
+                } else
+                    return false;
+            }
         }catch (Exception e){
             e.printStackTrace();
         }

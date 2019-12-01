@@ -1,6 +1,7 @@
 package com.synload.nucleo.socket;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.synload.nucleo.NucleoMesh;
@@ -30,13 +31,14 @@ public class NettyClient {
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
     @JsonIgnore
-    public ObjectMapper mapper;
+    private static ObjectMapper mapper = new ObjectMapper(){{
+        this.enableDefaultTyping();
+        this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }};
 
     public NettyClient(ServiceInformation node, NucleoMesh mesh){
         this.node = node;
         this.mesh = mesh;
-        this.mapper = new ObjectMapper();
-        this.mapper.enableDefaultTyping();
         this.utils = new NettyDatagramUtils();
     }
 
