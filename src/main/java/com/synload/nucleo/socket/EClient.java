@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.synload.nucleo.NucleoMesh;
-import com.synload.nucleo.event.NucleoData;
+import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +63,7 @@ public class EClient implements Runnable {
         this.client = client;
         this.direction = ( client != null );
         this.mapper = new ObjectMapper();
+        this.mapper.enableDefaultTyping();
     }
     private synchronized void streams(){
         streams++;
@@ -162,7 +163,7 @@ public class EClient implements Runnable {
                             int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
                             output = readFromSock(sizeRemaining, is);
                             if(output.size()==sizeRemaining) {
-                                NucleoTopicPush data = mapper.readValue(decompress(output.toByteArray()), NucleoTopicPush.class);
+                                NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
                                 //System.out.println("read: "+data.getData().getRoot().toString());
                                 //data.getData().markTime("Read from Socket");
                                 if (data.getData() != null) {
@@ -212,7 +213,7 @@ public class EClient implements Runnable {
                                     }*/
                                     synchronized (push) {
                                         //push.getData().markTime("Write to Socket");
-                                        byte[] data = compress(mapper.writeValueAsBytes(push));
+                                        byte[] data = mapper.writeValueAsBytes(push);
                                         gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
                                         gos.write(data);
                                         gos.flush();

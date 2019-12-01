@@ -3,13 +3,14 @@ package com.synload.nucleo.hub;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.*;
 import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.data.NucleoObject;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
 import java.util.*;
 
 public class Hub {
@@ -31,7 +32,7 @@ public class Hub {
         //new Thread(esPusher).start();
     }
 
-    public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects) {
+    public NucleoData constructNucleoData(String chain, NucleoObject objects) {
         logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
@@ -40,7 +41,7 @@ public class Hub {
         return data;
     }
 
-    public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects) {
+    public NucleoData constructNucleoData(String[] chains, NucleoObject objects) {
         logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
@@ -53,8 +54,8 @@ public class Hub {
     public void log(String state, NucleoData data) {
         if (data.getTrack() == 1) {
             data.setVersion(data.getVersion() + 1);
-            push(constructNucleoData(new String[]{"_watch." + state}, new TreeMap<String, Object>() {{
-                put("root", new NucleoData(data));
+            push(constructNucleoData(new String[]{"_watch." + state}, new NucleoObject() {{
+                set("root", new NucleoData(data));
             }}), new NucleoResponder() {
                 @Override
                 public void run(NucleoData returnedData) {
@@ -152,8 +153,7 @@ public class Hub {
     }
 
     public void handle(Hub hub, NucleoData data, String topic) {
-        TrafficExecutor trafficExecutor = new TrafficExecutor(hub, data, topic);
-        new Thread(() -> trafficHandler.processParallel(data, trafficExecutor)).start();
+        new Thread(() -> trafficHandler.processParallel(data, new TrafficExecutor(hub, data, topic))).start();
     }
 
     public EventHandler getEventHandler() {

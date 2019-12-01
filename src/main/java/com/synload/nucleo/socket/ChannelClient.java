@@ -3,28 +3,20 @@ package com.synload.nucleo.socket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.synload.nucleo.NucleoMesh;
-import com.synload.nucleo.event.NucleoData;
+import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.util.CharsetUtil;
 
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.time.Clock;
-import java.time.Instant;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.Queue;
-
+/*
 public class ChannelClient implements Runnable {
     public ServiceInformation node;
     public boolean direction;
@@ -185,4 +177,4 @@ public class ChannelClient implements Runnable {
 
 
 }
-
+*/

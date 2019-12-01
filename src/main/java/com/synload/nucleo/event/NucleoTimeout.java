@@ -1,8 +1,7 @@
 package com.synload.nucleo.event;
 
+import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.hub.Hub;
-
-import java.util.TreeMap;
 
 public class NucleoTimeout implements Runnable {
     private Hub hub;

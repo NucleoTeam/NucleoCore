@@ -1,6 +1,6 @@
 package com.synload.nucleo.socket;
 
-import com.synload.nucleo.event.NucleoData;
+import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 
 public class NucleoTopicPush{

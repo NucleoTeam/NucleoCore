@@ -1,9 +1,13 @@
-package com.synload.nucleo.event;
+package com.synload.nucleo.data;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.synload.nucleo.hub.Hub;
-import org.apache.log4j.LogManager;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.synload.nucleo.event.NucleoChain;
+import com.synload.nucleo.event.NucleoChainStatus;
+import com.synload.nucleo.event.NucleoStep;
+import org.javers.core.Javers;
+import org.javers.core.JaversBuilder;
+import org.javers.core.diff.Diff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,12 +26,11 @@ public class NucleoData implements Cloneable {
     private long timeTrack = System.currentTimeMillis();
     private int retries = 0;
     private int version = 0;
-    private TreeMap<String, Object> objects;
+    private NucleoObject objects = new NucleoObject();
     private NucleoChainStatus chainBreak = new NucleoChainStatus();
 
     public NucleoData() {
         root = UUID.randomUUID();
-
         getExecution().setStart(System.currentTimeMillis());
     }
 
@@ -43,7 +46,7 @@ public class NucleoData implements Cloneable {
         this.timeTrack = data.timeTrack;
         this.retries = data.retries;
         this.version = data.version;
-        this.objects = new TreeMap<>(data.objects);
+        this.objects = new NucleoObject(data.getObjects());
         this.chainBreak = new NucleoChainStatus(data.chainBreak);
     }
 
@@ -124,7 +127,6 @@ public class NucleoData implements Cloneable {
         return chainList.get(onChain - 1);
     }
 
-
     public NucleoChain depthChain(NucleoChain chain) {
         if (chain.getChainString() != null) {
             return chain;
@@ -154,11 +156,15 @@ public class NucleoData implements Cloneable {
         }
     }
 
-    public TreeMap<String, Object> getObjects() {
+    public NucleoObject latestObjects() {
+        return objects.latestObjects();
+    }
+
+    public NucleoObject getObjects() {
         return objects;
     }
 
-    public void setObjects(TreeMap<String, Object> objects) {
+    public void setObjects(NucleoObject objects) {
         this.objects = objects;
     }
 
@@ -265,4 +271,6 @@ public class NucleoData implements Cloneable {
     public void setTimeExecutions(Stack<Object[]> timeExecutions) {
         this.timeExecutions = timeExecutions;
     }
+
+
 }

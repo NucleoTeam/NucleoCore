@@ -1,7 +1,10 @@
 package com.synload.nucleo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.synload.nucleo.event.NucleoData;
+import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.data.NucleoObject;
+import com.synload.nucleo.data.NucleoObjectList;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.hub.Hub;
 import com.synload.nucleo.socket.EManager;
@@ -24,6 +27,7 @@ public class NucleoMesh {
     private String serviceName;
     private EManager eManager;
     protected static final Logger logger = LoggerFactory.getLogger(NucleoMesh.class);
+    private static ObjectMapper mapper = new ObjectMapper();
 
     public NucleoMesh(String meshName, String serviceName, String zookeeper, String elasticServer, int elasticPort, String packageStr) {
         this.uniqueName = UUID.randomUUID().toString();
@@ -75,7 +79,7 @@ public class NucleoMesh {
         return nextAvailable();
     }
 
-    public void call(String chain, TreeMap<String, Object> objects, Method onFinishedMethod, Object onFinishedObject) {
+    public void call(String chain, NucleoObject objects, Method onFinishedMethod, Object onFinishedObject) {
         this.getHub().push(hub.constructNucleoData(chain, objects), new NucleoResponder() {
             @Override
             public void run(NucleoData returnedData) {
@@ -88,11 +92,11 @@ public class NucleoMesh {
         }, true);
     }
 
-    public void call(String chain, TreeMap<String, Object> objects, NucleoResponder nucleoResponder) {
+    public void call(String chain, NucleoObject objects, NucleoResponder nucleoResponder) {
         this.getHub().push(hub.constructNucleoData(chain, objects), nucleoResponder, true);
     }
 
-    public boolean call(String[] chains, TreeMap<String, Object> objects, NucleoResponder nucleoResponder) {
+    public boolean call(String[] chains, NucleoObject objects, NucleoResponder nucleoResponder) {
         if (chains.length == 0) {
             return false;
         }
@@ -148,21 +152,69 @@ public class NucleoMesh {
         this.manager = manager;
     }
 
+    public static class Test{
+        public Test(){
+
+        }
+        private String test;
+        private List list = new ArrayList();
+        private Test pass;
+
+        public String getTest() {
+            return test;
+        }
+
+        public void setTest(String test) {
+            this.test = test;
+        }
+
+        public Test getPass() {
+            return pass;
+        }
+
+        public void setPass(Test pass) {
+            this.pass = pass;
+        }
+
+        public List getList() {
+            return list;
+        }
+
+        public void setList(List list) {
+            this.list = list;
+        }
+    }
     public static void main(String[] args) {
+        mapper.enableDefaultTyping();
         //createTopic();
 
+        Test test = new Test();
+        test.setTest("poppy");
+        NucleoData data = new NucleoData();
+        data.latestObjects();
+        data.getObjects().set("hello", test);
+        NucleoObjectList list = data.getObjects().list("hello.list");
+        if(list!=null)
+            list.add("test");
+        try {
+            //logger.info(new ObjectMapper().writeValueAsString(data.getDifferences()));
+            logger.info(mapper.writeValueAsString(data.getObjects()));
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
         NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
-        /*while (true) {
+        while (true) {
             mesh.call(
                 new String[]{"information", "[popcorn/information.hits/information.test/information.popcorn]", "information.test", "[popcorn.poppyx/information.hits/information.test]"},
-                new TreeMap<String, Object>() {{
-                    put("wow", "works?");
-                    put("time", System.currentTimeMillis());
+                new NucleoObject() {{
+                    set("wow", "works?");
+                    set("time", System.currentTimeMillis());
                 }},
                 new NucleoResponder() {
                     @Override
                     public void run(NucleoData data) {
-                        long totalTime = (System.currentTimeMillis() - (long) data.getObjects().get("time"));
+                        long totalTime = (System.currentTimeMillis() - (long) data.latestObjects().get("time"));
                         if (totalTime > 50) {
                             logger.info("timeout for: " + data.getRoot());
                             logger.debug("total: " + totalTime + "ms");
@@ -174,10 +226,10 @@ public class NucleoMesh {
                 }
             );
             try {
-                Thread.sleep(4000);
+                Thread.sleep(30);
             } catch (Exception e) {
             }
-        }*/
+        }
 
     }
 }

@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.synload.nucleo.event.NucleoChain;
-import com.synload.nucleo.event.NucleoData;
-import com.synload.nucleo.event.NucleoResponder;
+import com.synload.nucleo.data.NucleoData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +109,19 @@ public class TrafficHandler {
                         int parallel = previousChainPart.getParallel();
                         previousChainPart = previousChainPart.getParallelChains().get(parallel);
                         if (finalPart != null) {
-                            finalPart.getObjects().putAll(part.getObjects());
+                            boolean saveChanges = false;
+                            for (int i = 0; i < part.getObjects().getChanges().size(); i++) {
+                                if (
+                                    finalPart.getObjects().getChanges().size() == 0 ||
+                                        (!saveChanges
+                                            && !finalPart.getObjects().getChanges().get(i).equals(part.getObjects().getChanges().get(i)))
+                                ) {
+                                    saveChanges = true;
+                                    if (saveChanges) {
+                                        finalPart.getObjects().getChanges().add(part.getObjects().getChanges().get(i));
+                                    }
+                                }
+                            }
                             int stepStart = previousChainPart.stepStart;
                             if (stepStart != -1) {
                                 previousChainPart.setStepStart(finalPart.getSteps().size());

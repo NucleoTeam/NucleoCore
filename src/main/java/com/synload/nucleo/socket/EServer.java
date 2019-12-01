@@ -13,6 +13,7 @@ public class EServer implements Runnable {
     ServerSocket server;
     EManager em;
     NucleoMesh mesh;
+
     public EServer(int port, NucleoMesh mesh, EManager em){
         this.mesh = mesh;
         this.em = em;
