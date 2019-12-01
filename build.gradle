@@ -1,5 +1,5 @@
 group 'nucleocore-sock'
-version '1.08.2'
+version '1.08.3'
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -16,7 +16,6 @@ dependencies {
     compile 'org.reflections:reflections:0.9.11'
     compile("org.apache.curator:curator-x-discovery:4.2.0")
     compile 'com.google.guava:guava:28.1-jre'
-    compile 'org.javers:javers-core:3.1.0'
     compile('org.apache.curator:curator-framework:4.2.0')
     compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.28'
     testCompile group: 'junit', name: 'junit', version: '4.13-beta-3'
