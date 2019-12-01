@@ -14,7 +14,7 @@ import java.util.*;
 
 public class NucleoObject {
     private List<NucleoChange> changes = Lists.newLinkedList();
-    private Map<String, Object> objects = Maps.newHashMap();
+    @JsonIgnore private Map<String, Object> objects = Maps.newHashMap();
 
     @JsonIgnore
     private ObjectMapper mapper = new ObjectMapper(){{

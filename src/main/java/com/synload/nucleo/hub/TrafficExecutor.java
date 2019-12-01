@@ -39,6 +39,7 @@ public class TrafficExecutor {
     }
 
     public void handle() {
+        data.latestObjects(); // build current state of objects
         try {
             //data.markTime("Start Execution on " + hub.getUniqueName());
             if (topic.startsWith("nucleo.client.")) {
@@ -154,7 +155,6 @@ public class TrafficExecutor {
                     }
                 };
                 int len = method.getParameterTypes().length;
-                data.latestObjects();
                 if (len > 0) {
                     if (method.getParameterTypes()[0] == NucleoData.class && len == 1) {
                         try {
