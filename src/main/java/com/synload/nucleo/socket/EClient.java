@@ -68,57 +68,7 @@ public class EClient implements Runnable {
     private synchronized void streams(){
         streams++;
     }
-    public byte[] compress(byte[] data) {
-        byte[] compressed = new byte[0];
-        GZIPOutputStream gzip = null;
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        try {
-            gzip = new GZIPOutputStream(bos);
-            gzip.write(data, 0, data.length);
-            gzip.finish();
-            compressed = bos.toByteArray();
-        }catch (IOException e){
-            e.printStackTrace();
-        }finally {
-            try {
-                if (bos != null)
-                    bos.close();
-                if (gzip != null)
-                    gzip.close();
-            }catch (Exception ex){
-                ex.printStackTrace();
-            }
-        }
-        return compressed;
-    }
 
-    public byte[] decompress(byte[] compressed) {
-        ByteArrayInputStream bais = new ByteArrayInputStream(compressed);
-        GZIPInputStream gz = null;
-        String content = "";
-        try {
-            gz = new GZIPInputStream(bais);
-            InputStreamReader reader = new InputStreamReader(gz);
-            BufferedReader in = new BufferedReader(reader);
-
-            String read;
-            while ((read = in.readLine()) != null) {
-                content += read;
-            }
-        }catch (Exception ex){
-            ex.printStackTrace();
-        }finally {
-            try {
-                if (bais != null)
-                    bais.close();
-                if (gz != null)
-                    gz.close();
-            }catch (Exception ex){
-                ex.printStackTrace();
-            }
-        }
-        return content.getBytes();
-    }
     public ByteArrayOutputStream readFromSock(int sizeRemaining, InputStream is) throws IOException{
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try {

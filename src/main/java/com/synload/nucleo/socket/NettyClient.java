@@ -12,9 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.Socket;
-import java.util.Queue;
-import java.util.concurrent.CountDownLatch;
 
 public class NettyClient {
     @JsonIgnore
@@ -26,9 +23,6 @@ public class NettyClient {
     public NucleoMesh mesh;
 
     private NettyDatagramUtils utils;
-
-    @JsonIgnore
-    private CountDownLatch countDownLatch = new CountDownLatch(1);
 
     @JsonIgnore
     private static ObjectMapper mapper = new ObjectMapper(){{
@@ -48,7 +42,7 @@ public class NettyClient {
             String[] connectionInfo = node.getConnectString().split(":");
             InetAddress address = InetAddress.getByName(connectionInfo[0]);
             try {
-                utils.send(socket, mapper.writeValueAsBytes(new NucleoTopicPush(topic, data)), address, Integer.valueOf(connectionInfo[1]));
+                utils.send(socket, new NucleoTopicPush(topic, data), address, Integer.valueOf(connectionInfo[1]));
             }catch (Exception e){
                 e.printStackTrace();
             }
@@ -81,11 +75,4 @@ public class NettyClient {
         this.utils = utils;
     }
 
-    public CountDownLatch getCountDownLatch() {
-        return countDownLatch;
-    }
-
-    public void setCountDownLatch(CountDownLatch countDownLatch) {
-        this.countDownLatch = countDownLatch;
-    }
 }

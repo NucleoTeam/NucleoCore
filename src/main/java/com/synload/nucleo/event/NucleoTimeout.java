@@ -3,6 +3,8 @@ package com.synload.nucleo.event;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.hub.Hub;
 
+import java.util.UUID;
+
 public class NucleoTimeout implements Runnable {
     private Hub hub;
     private final static int maxRetries = 4;
@@ -33,6 +35,9 @@ public class NucleoTimeout implements Runnable {
                     responder.run(data);
                     return;
                 }
+                NucleoResponder responder = hub.getResponders().remove(data.getRoot().toString());
+                data.setRoot(UUID.randomUUID()); // new request
+                hub.getResponders().put(data.getRoot().toString(), responder);
                 if (data.getTrack() == 1) {
                     Thread timeout = new Thread(new NucleoTimeout(hub, data));
                     timeout.start();

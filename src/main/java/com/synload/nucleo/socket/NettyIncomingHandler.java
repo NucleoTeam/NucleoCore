@@ -19,16 +19,10 @@ public class NettyIncomingHandler extends SimpleChannelInboundHandler<DatagramPa
 
     @Override
     protected void messageReceived(ChannelHandlerContext channelHandlerContext, DatagramPacket packet) throws Exception {
-        final InetAddress srcAddr = packet.sender().getAddress();
         final ByteBuf buf = packet.content();
         final int rcvPktLength = buf.readableBytes();
-
-
-
         final byte[] rcvPktBuf = new byte[rcvPktLength];
         buf.readBytes(rcvPktBuf);
-
-        //logger.info(new String(rcvPktBuf));
         getNettyServer().getNettyIncomingHandler().receivePacket(this.getNettyServer().getMesh().getHub(), rcvPktBuf);
 
     }
