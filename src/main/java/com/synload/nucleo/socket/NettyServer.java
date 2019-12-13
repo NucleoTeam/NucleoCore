@@ -2,11 +2,14 @@ package com.synload.nucleo.socket;
 
 import com.synload.nucleo.NucleoMesh;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.netty.util.ReferenceCountUtil;
 
 import java.net.InetAddress;
 
@@ -31,11 +34,13 @@ public class NettyServer implements Runnable {
             final Bootstrap b = new Bootstrap();
             b.group(group).channel(NioDatagramChannel.class)
                 .option(ChannelOption.SO_BROADCAST, true)
+                .option(ChannelOption.SO_KEEPALIVE, true)
+                .option(ChannelOption.SO_BACKLOG, 300)
                 .handler(new ChannelInitializer<NioDatagramChannel>() {
                     @Override
                     public void initChannel(final NioDatagramChannel ch) throws Exception {
-                        ChannelPipeline p = ch.pipeline();
-                        p.addLast(new NettyIncomingHandler(thisServer));
+                        ChannelPipeline pipeline = ch.pipeline();
+                        pipeline.addLast(new NettyIncomingHandler(thisServer));
                     }
                 });
 

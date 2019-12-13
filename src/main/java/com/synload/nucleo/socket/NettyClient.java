@@ -3,7 +3,6 @@ package com.synload.nucleo.socket;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Queues;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;

@@ -119,7 +119,7 @@ public class NettyDatagramUtils {
             int length = byteArrayInputStream.available();
             int left;
             int start = 0;
-            int size = 600;
+            int size = 1000;
             int part = 0;
             int total = (int) Math.ceil(length / size);
             byte[] buffer = new byte[size];
