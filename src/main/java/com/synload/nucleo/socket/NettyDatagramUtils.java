@@ -60,7 +60,7 @@ public class NettyDatagramUtils {
         this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }};
 
-    public byte[] compress(byte[] data) {
+    public static byte[] compress(byte[] data) {
         Deflater deflater = new Deflater();
         deflater.setLevel(Deflater.BEST_COMPRESSION);
         deflater.setInput(data);
@@ -81,7 +81,7 @@ public class NettyDatagramUtils {
         return array;
     }
 
-    public byte[] decompress(byte[] data) {
+    public static byte[] decompress(byte[] data) {
         Inflater inflater = new Inflater();
         inflater.setInput(data);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

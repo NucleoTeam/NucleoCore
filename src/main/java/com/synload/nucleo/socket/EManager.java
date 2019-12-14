@@ -12,11 +12,11 @@ public class EManager {
     protected static final Logger logger = LoggerFactory.getLogger(EManager.class);
     NucleoMesh mesh;
     int port;
-    HashMap<String, NettyClient> connections = new HashMap<>();
-    TreeMap<String, List<NettyClient>> clientConnections = new TreeMap<>();
+    HashMap<String, EClient> connections = new HashMap<>();
+    TreeMap<String, List<EClient>> clientConnections = new TreeMap<>();
     TreeMap<String, Thread> connectionThreads = new TreeMap<>();
     HashMap<String, TopicRound> topics = new HashMap<>();
-    HashMap<String, NettyClient> leaderTopics = new HashMap<>();
+    HashMap<String, EClient> leaderTopics = new HashMap<>();
     HashMap<String, String> leaders = new HashMap<>();
     TreeMap<String, List<String>> route = new TreeMap<>();
 
@@ -25,7 +25,7 @@ public class EManager {
         this.port = port;
     }
     public void createServer(){
-        new Thread(new NettyServer(this.port, this.mesh, this)).start();
+        new Thread(new EServer(this.port, this.mesh, this)).start();
     }
     public void leaderCheck(ServiceInformation node){
         if (node.isLeader() &&
@@ -34,7 +34,7 @@ public class EManager {
         ) {
             leaders.put(node.getService(), node.getName());
             if (connections.containsKey(node.getName())) {
-                NettyClient eClient = connections.get(node.getName());
+                EClient eClient = connections.get(node.getName());
                 for (String event : node.getEvents()) {
                     leaderTopics.put(event, eClient);
                 }
@@ -43,11 +43,20 @@ public class EManager {
         }
     }
     public void sync(ServiceInformation node){
-        NettyClient nodeClient = null;
+        EClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
             logger.info(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
-            nodeClient = new NettyClient(  node, mesh);
+            nodeClient = new EClient( null,  node, mesh);
             connections.put(node.getName(), nodeClient);
+            try {
+                Thread thread = new Thread(nodeClient);
+                synchronized(connectionThreads) {
+                    connectionThreads.put(node.getName(), thread);
+                }
+                thread.start();
+            } catch (Exception e) {
+
+            }
             for (String event : node.getEvents()) {
                 synchronized (topics) {
                     if (!topics.containsKey(event)) {
@@ -61,7 +70,7 @@ public class EManager {
         }
     }
     public void delete(String node){
-        NettyClient client = null;
+        EClient client = null;
         synchronized(connections) {
             if (connections.containsKey(node)) {
                 client = connections.remove(node);
@@ -88,9 +97,9 @@ public class EManager {
                     }
                 }
             }
-            /*client.getQueue().forEach((NucleoTopicPush p) -> {
+            client.getQueue().forEach((NucleoTopicPush p) -> {
                 this.robin(p.getTopic(), p.getData()); // preserve the queue for this client and send to other clients
-            });*/
+            });
         }
     }
     public void robin(String topic, NucleoData data){
@@ -125,11 +134,11 @@ public class EManager {
 
     public void leader(String topic, NucleoData data){
         if(leaderTopics.containsKey(topic)){
-            NettyClient eClient = leaderTopics.get(topic);
+            EClient eClient = leaderTopics.get(topic);
             route(topic, eClient, data);
         }
     }
-    public void route(String topic, NettyClient node, NucleoData data){
+    public void route(String topic, EClient node, NucleoData data){
         synchronized (route) {
             /*List<String> routeToNode = route.get(node.node.name);
             if (routeToNode != null && routeToNode.size() > 0) {
@@ -153,16 +162,16 @@ public class EManager {
     }
 
     public class TopicRound{
-        public List<NettyClient> nodes = new ArrayList<>();
+        public List<EClient> nodes = new ArrayList<>();
         public int lastNode=0;
         public synchronized void send(String topic, NucleoData data){
             //System.out.println(topic);
-            List<NettyClient> tmpNodes = new ArrayList<>(this.nodes);
+            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
             if(lastNode >= tmpNodes.size()){
                 lastNode=0;
             }
             if(tmpNodes.size()>0){
-                if(tmpNodes.get(lastNode)!=null) {
+                if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
                     //data.markTime("Robin Done");
                     route(topic, tmpNodes.get(lastNode), data);
                     lastNode++;
@@ -181,7 +190,7 @@ public class EManager {
         }
         public void loop(String topic, NucleoData data, int start){
             //System.out.println(topic);
-            List<NettyClient> tmpNodes = new ArrayList<>(this.nodes);
+            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
             if(lastNode >= tmpNodes.size()){
                 lastNode=0;
             }
@@ -190,7 +199,7 @@ public class EManager {
                 return;
             }
             if(tmpNodes.size()>0){
-                if(tmpNodes.get(lastNode)!=null) {
+                if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
                     //data.markTime("Robin Done");
                     route(topic, tmpNodes.get(lastNode), data);
                     lastNode++;
@@ -225,11 +234,11 @@ public class EManager {
         this.port = port;
     }
 
-    public HashMap<String, NettyClient> getConnections() {
+    public HashMap<String, EClient> getConnections() {
         return connections;
     }
 
-    public void setConnections(HashMap<String, NettyClient> connections) {
+    public void setConnections(HashMap<String, EClient> connections) {
         this.connections = connections;
     }
 
