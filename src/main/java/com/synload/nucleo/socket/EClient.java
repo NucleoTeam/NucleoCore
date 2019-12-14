@@ -113,7 +113,7 @@ public class EClient implements Runnable {
                             int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
                             output = readFromSock(sizeRemaining, is);
                             if(output.size()==sizeRemaining) {
-                                NucleoTopicPush data = mapper.readValue(NettyDatagramUtils.decompress(output.toByteArray()), NucleoTopicPush.class);
+                                NucleoTopicPush data = mapper.readValue(output.toByteArray(), NucleoTopicPush.class);
                                 //System.out.println("read: "+data.getData().getRoot().toString());
                                 //data.getData().markTime("Read from Socket");
                                 if (data.getData() != null) {
@@ -163,7 +163,7 @@ public class EClient implements Runnable {
                                     }*/
                                     synchronized (push) {
                                         //push.getData().markTime("Write to Socket");
-                                        byte[] data = NettyDatagramUtils.compress(mapper.writeValueAsBytes(push));
+                                        byte[] data = mapper.writeValueAsBytes(push);
                                         gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
                                         gos.write(data);
                                         gos.flush();

@@ -1,5 +1,5 @@
 group 'nucleocore-sock'
-version '1.09.3'
+version '1.09.4'
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -22,7 +22,6 @@ dependencies {
     compile group: 'commons-beanutils', name: 'commons-beanutils', version: '1.9.4'
     compile group: 'io.netty', name: 'netty-all', version: '4.1.43.Final'
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.9'
-
 }
 
 uploadArchives {
