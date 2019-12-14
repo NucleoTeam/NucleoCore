@@ -97,9 +97,9 @@ public class EManager {
                     }
                 }
             }
-            client.getQueue().forEach((NucleoTopicPush p) -> {
+            /*client.getQueue().forEach((NucleoTopicPush p) -> {
                 this.robin(p.getTopic(), p.getData()); // preserve the queue for this client and send to other clients
-            });
+            });*/
         }
     }
     public void robin(String topic, NucleoData data){
