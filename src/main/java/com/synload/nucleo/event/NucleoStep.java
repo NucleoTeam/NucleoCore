@@ -7,17 +7,38 @@ public class NucleoStep {
     private String step="";
     private String ip;
     private String host;
+    private String node;
     private long start;
     private long end;
     private long total;
+    public static String hostName = null;
+    public static String hostIP = "";
+    public static String nodeName = "";
+
+    public NucleoStep(NucleoStep step) {
+        this.step = step.step;
+        this.ip = step.ip;
+        this.host = step.host;
+        this.start = step.start;
+        this.end = step.end;
+        this.total = step.total;
+        this.node = step.node;
+    }
 
     public NucleoStep() {
-        try {
-            this.host = InetAddress.getLocalHost().getHostName();
-            this.ip = InetAddress.getLocalHost().getHostAddress();
-        }catch (UnknownHostException e){
-            e.printStackTrace();
+        if (hostName == null) {
+            try {
+                InetAddress inet = InetAddress.getLocalHost();
+                hostName = inet.getHostName();
+                hostIP = inet.getHostAddress();
+                nodeName = System.getenv("NODE_NAME");
+            }catch(UnknownHostException e){
+                e.printStackTrace();
+            }
         }
+        this.host = hostName;
+        this.ip = hostIP;
+        this.node = nodeName;
     }
 
     public NucleoStep(String step, long start) {
@@ -73,5 +94,13 @@ public class NucleoStep {
 
     public void setHost(String host) {
         this.host = host;
+    }
+
+    public String getNode() {
+        return node;
+    }
+
+    public void setNode(String node) {
+        this.node = node;
     }
 }

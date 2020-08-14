@@ -8,6 +8,14 @@ public class NucleoChainStatus {
   private boolean breakChain = false;
   private Set<String> breakReasons = new HashSet<>();
 
+  public NucleoChainStatus(NucleoChainStatus status) {
+    this.breakChain = status.breakChain;
+    this.breakReasons = new HashSet<>(status.breakReasons);
+  }
+
+  public NucleoChainStatus() {
+  }
+
   public boolean isBreakChain() {
     return breakChain;
   }

@@ -1,11 +1,17 @@
 package com.synload.nucleo.event;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.synload.nucleo.loader.LoadHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Method;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class EventHandler {
+    protected static final Logger logger = LoggerFactory.getLogger(EventHandler.class);
 
     private TreeMap<String, Object[]> chainToMethod = new TreeMap<>();
 

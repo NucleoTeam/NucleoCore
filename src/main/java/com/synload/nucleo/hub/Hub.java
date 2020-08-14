@@ -1,79 +1,131 @@
 package com.synload.nucleo.hub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.synload.nucleo.consumer.ConsumerHandler;
-import com.synload.nucleo.elastic.ElasticSearchPusher;
+import com.google.common.collect.*;
+import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.data.NucleoObject;
 import com.synload.nucleo.event.*;
 import com.synload.nucleo.loader.LoadHandler;
-import com.synload.nucleo.producer.ProducerHandler;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.reflections.Reflections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
-import java.time.Duration;
 import java.util.*;
 
 public class Hub {
-    private ProducerHandler producer;
-    private Queue<Object[]> queue = new LinkedList<>();
     private EventHandler eventHandler = new EventHandler();
-    private TreeMap<String, NucleoResponder> responders = new TreeMap();
-    private TreeMap<String, Thread> timeouts = new TreeMap<>();
+    private HashMap<String, NucleoResponder> responders = Maps.newHashMap();
+    private HashMap<String, Thread> timeouts = Maps.newHashMap();
     private String bootstrap;
     public static ObjectMapper objectMapper = new ObjectMapper();
-    private ArrayList<Integer> ready = new ArrayList<>();
-    private String groupName;
-    private String clientName;
-    private ElasticSearchPusher esPusher;
+    private String uniqueName;
+    private NucleoMesh mesh;
+    private TrafficHandler trafficHandler = new TrafficHandler();
+    protected static final Logger logger = LoggerFactory.getLogger(Hub.class);
 
-    public Hub(String clientName, String bootstrap, String groupName, String elasticServer, int elasticPort) {
-        this.bootstrap = bootstrap;
-        this.groupName = groupName;
-        this.clientName = clientName;
-        producer = new ProducerHandler(this.bootstrap);
-        esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
-        int id = ready.size();
-        ready.add(0);
-        new Thread(
-          esPusher
-        ).start();
-        new Thread(
-            new Listener(
-                this,
-                new String[]{
-                    "nucleo.client." + clientName
-                },
-                this.bootstrap,
-                id
-            )
-        ).start();
+
+    public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
+        this.uniqueName = uniqueName;
+        this.mesh = mesh;
+        //esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
+        //new Thread(esPusher).start();
     }
 
-    public NucleoData constructNucleoData(String chain, TreeMap<String, Object> objects){
+    public NucleoData constructNucleoData(String chain, NucleoObject objects) {
+        logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
-        data.setOrigin(clientName);
-        data.setLink(0);
-        data.setOnChain(0);
-        data.getChainList().add(chain.split("\\."));
+        data.setOrigin(uniqueName);
+        data.buildChains(chain);
         return data;
     }
 
-    public NucleoData constructNucleoData(String[] chains, TreeMap<String, Object> objects){
+    public NucleoData constructNucleoData(String[] chains, NucleoObject objects) {
+        logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
-        data.setOrigin(clientName);
-        data.setLink(0);
-        data.setOnChain(0);
-        for(String chain : chains) {
-            data.getChainList().add(chain.split("\\."));
+        data.setTimeTrack(System.currentTimeMillis());
+        data.setOrigin(uniqueName);
+        data.buildChains(chains);
+        return data;
+    }
+
+    public void log(String state, NucleoData data) {
+        if (data.getTrack() == 1) {
+            data.setVersion(data.getVersion() + 1);
+            push(constructNucleoData(new String[]{"_watch." + state}, new NucleoObject() {{
+                set("root", new NucleoData(data));
+            }}), new NucleoResponder() {
+                @Override
+                public void run(NucleoData returnedData) {
+                }
+            }, false);
         }
-        return data;
     }
 
-    public void run() {
-        new Thread(new Writer(this)).start();
+    public void nextChain(NucleoData data) {
+        int onChain = data.getOnChain();
+        if(data.getTrack()!=0)
+            try {
+                logger.debug("before: "+new ObjectMapper().writeValueAsString(data));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        List<NucleoData> datas = trafficHandler.getNext(data);
+        if(data.getTrack()!=0) {
+            try {
+                logger.debug("next: " + new ObjectMapper().writeValueAsString(datas));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        if (datas != null) {
+            logger.debug(data.getRoot().toString() + ": data parts " + datas.size());
+            datas.stream().forEach(x -> {
+                if(x.currentChain()==null){
+                    if (data.getTrack()==1) logger.debug(x.currentChainString() + " - sending to origin to re-assemble");
+                    trafficRoute(null, x);
+                }else {
+                    if (onChain != x.getOnChain() && onChain > -1 && data.getChainList().get(onChain).getParallelChains().size() > 0) {
+                        if (data.getTrack()==1) logger.debug(x.currentChainString() + ": sending to leader to re-assemble");
+                        mesh.geteManager().leader(x.currentChainString(), x);
+                    } else {
+                        if (x.getChainList().get(x.getOnChain()).getParallelChains().size() > 0) {
+                            logger.debug(x.currentChain() + ": routing to complete parallel");
+                        } else {
+                            logger.debug(x.currentChain() + ": routing to complete chain");
+                        }
+                        trafficRoute(x, data);
+                    }
+                }
+            });
+        }
+    }
+
+    public void trafficCurrentRoute(NucleoData data) {
+        trafficRoute(data, null);
+    }
+
+    public void trafficRoute(NucleoData data, NucleoData originalData) {
+        if (data == null) {
+            logger.debug(originalData.getRoot().toString() + " - sending back to origin");
+            sendToMesh("nucleo.client." + originalData.getOrigin(), originalData);
+        } else {
+            String topic = data.currentChainString();
+            if (eventHandler.getChainToMethod().containsKey(topic)) {
+                logger.debug(data.getRoot().toString() + " - executing locally " + topic);
+                handle(this, data, topic);
+            } else {
+                logger.debug(data.getRoot().toString() + " - sending " + topic);
+                sendToMesh(topic, data);
+            }
+        }
+    }
+
+    public void sendToMesh(String topic, NucleoData data) {
+        //data.markTime("Queue Done, sending to round robin");
+        mesh.geteManager().robin(topic, new NucleoData(data));
     }
 
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
@@ -81,275 +133,28 @@ public class Hub {
         if (allowTracking) {
             Thread timeout = new Thread(new NucleoTimeout(this, data));
             timeout.start();
-            timeouts.put(data.getRoot().toString(), timeout);
-        }else{
+            synchronized (timeouts) {
+                timeouts.put(data.getRoot().toString(), timeout);
+            }
+            log("incomplete", data);
+        } else {
             data.setTrack(0);
         }
-        queue.add(new Object[]{data.getChainList().get(data.getOnChain())[data.getLink()], data});
+        nextChain(data);
     }
 
     public void register(String servicePackage) {
         try {
             Reflections reflect = new Reflections(servicePackage);
             Set<Class<?>> classes = reflect.getTypesAnnotatedWith(NucleoClass.class);
-            System.out.println(new ObjectMapper().writeValueAsString(classes));
-            LoadHandler.getMethods(classes.toArray()).forEach((m) -> {
-                int id = ready.size();
-                ready.add(0);
-                new Thread(new Listener(this, getEventHandler().registerMethod(m), this.bootstrap, id)).start();
-            });
+            LoadHandler.getMethods(classes.toArray()).forEach((m) -> getEventHandler().registerMethod(m));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public class Writer implements Runnable {
-
-        private Hub hub;
-
-        public Writer(Hub hub) {
-            this.hub = hub;
-
-        }
-
-        public void run() {
-
-            while (true) {
-                try {
-                    while (this.hub.queue.size() > 0) {
-                        Object[] dataBlock = this.hub.queue.remove();
-                        String topic = (String) dataBlock[0];
-                        NucleoData data = (NucleoData) dataBlock[1];
-                        ProducerRecord record = new ProducerRecord(
-                            topic,
-                            UUID.randomUUID().toString(),
-                            objectMapper.writeValueAsString(data)
-                        );
-                        producer.getProducer().send(record);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                try{
-                    Thread.sleep(1);
-                } catch (Exception e){ }
-            }
-        }
-    }
-
-    public class Executor implements Runnable {
-        public Hub hub;
-        public NucleoData data;
-        public String topic;
-
-        public Executor(Hub hub, NucleoData data, String topic) {
-            this.hub = hub;
-            this.data = data;
-            this.topic = topic;
-        }
-
-        public String getTopic(NucleoData data) {
-            String chains = data.getChainList().get(data.getOnChain())[0];
-            for (int i = 1; i <= data.getLink(); i++) {
-                chains += "." + data.getChainList().get(data.getOnChain())[i];
-            }
-            return chains;
-        }
-
-        public Set<String> verifyPrevious(Set<String> checkChains){
-            Set<String> previousChains = new HashSet<>();
-            Set<String> checkChainsTMP = new HashSet<>(checkChains);
-            data.getSteps().stream().filter(s->s.getEnd()>0).forEach(s->previousChains.add(s.getStep()));
-            System.out.println("------");
-            System.out.println(previousChains);
-            System.out.println(checkChainsTMP);
-            if(previousChains.containsAll(checkChainsTMP)){
-                return null;
-            }
-            data.getChainBreak().getBreakReasons();
-            checkChainsTMP.removeAll(previousChains);
-            return checkChainsTMP;
-        }
-        public void run() {
-            exec();
-        }
-        public void exec() {
-            try {
-                if (topic.startsWith("nucleo.client.")) {
-                    NucleoResponder responder = responders.get(data.getRoot().toString());
-                    if (responder != null) {
-                        responders.remove(data.getRoot().toString());
-                        Thread timeout = timeouts.get(data.getRoot().toString());
-                        if (timeout != null) {
-                            timeout.interrupt();
-                            timeouts.remove(data.getRoot().toString());
-                        }
-                        data.getExecution().setEnd(System.currentTimeMillis());
-                        esPusher.add(data);
-                        responder.run(data);
-                        if (data.getTrack() == 1) {
-                            hub.push(hub.constructNucleoData(new String[]{"_watch.complete"}, new TreeMap<String, Object>() {{
-                                put("root", data.getRoot());
-                            }}), new NucleoResponder() {
-                                @Override
-                                public void run(NucleoData returnedData) {
-                                }
-                            }, false);
-                        }
-                        return;
-                    }
-                } else if (eventHandler.getChainToMethod().containsKey(topic)) {
-                    Object[] methodData = eventHandler.getChainToMethod().get(topic);
-                    NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
-                    if(methodData[2]!=null) {
-                        Set<String> missingChains;
-                        if((missingChains = verifyPrevious((Set<String>)methodData[2]))!=null){
-                            timing.setEnd(System.currentTimeMillis());
-                            data.getChainBreak().setBreakChain(true);
-                            data.getChainBreak().getBreakReasons().add("Missing required chains "+missingChains+"!");
-                            data.getSteps().add(timing);
-                            esPusher.add(data);
-                            queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-                            return;
-                        }
-                    }
-                    Object obj;
-                    if (methodData[0] instanceof Class) {
-                        Class clazz = (Class) methodData[0];
-                        obj = clazz.getDeclaredConstructor().newInstance();
-                    } else {
-                        obj = methodData[0];
-                    }
-                    Method method = (Method) methodData[1];
-                    NucleoResponder responder = new NucleoResponder(){
-                        public void run(NucleoData data){
-                            if (data.getChainBreak().isBreakChain()) {
-                                timing.setEnd(System.currentTimeMillis());
-                                data.getSteps().add(timing);
-                                esPusher.add(data);
-                                queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-                                return;
-                            }
-                            boolean sameChain = false;
-                            if (data.getLink() + 1 == data.getChainList().get(data.getOnChain()).length) {
-                                if (data.getChainList().size() == data.getOnChain() + 1) {
-                                    timing.setEnd(System.currentTimeMillis());
-                                    data.getSteps().add(timing);
-                                    esPusher.add(data);
-                                    queue.add(new Object[]{"nucleo.client." + data.getOrigin(), data});
-                                    return;
-                                } else {
-                                    data.setOnChain(data.getOnChain() + 1);
-                                    data.setLink(0);
-                                }
-                            } else {
-                                data.setLink(data.getLink() + 1);
-                                sameChain = true;
-                            }
-                            timing.setEnd(System.currentTimeMillis());
-                            data.getSteps().add(timing);
-                            esPusher.add(data);
-                            String newTopic = getTopic(data);
-                            if(sameChain){
-                                if(eventHandler.getChainToMethod().containsKey(newTopic)){
-                                    topic=newTopic;
-                                    exec();
-                                    return;
-                                }
-                            }
-                            queue.add(new Object[]{ newTopic, data});
-                        }
-                    };
-                    int len = method.getParameterTypes().length;
-                    if(len>0){
-                        if(method.getParameterTypes()[0]==NucleoData.class && len==1){
-                            try{
-                                method.invoke(obj, data);
-                            }catch (Exception e){
-                                e.printStackTrace();
-                            }
-                            responder.run(data);
-                        }else if(method.getParameterTypes()[0]==NucleoData.class && len==2 && method.getParameterTypes()[1]==NucleoResponder.class){
-                            try{
-                                method.invoke(obj, data, responder);
-                            }catch (Exception e){
-                                e.printStackTrace();
-                            }
-                        }
-                    }else{
-                        try{
-                            method.invoke(obj);
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
-                        responder.run(data);
-                    }
-                } else {
-                    System.out.println("Topic or responder not found: " + topic);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public class Listener implements Runnable {
-        private ConsumerHandler consumer;
-        private String[] topics;
-        private Hub hub;
-        private int id;
-
-        public Listener(Hub hub, String[] topics, String bootstrap, int id) {
-            this.hub = hub;
-            this.id = id;
-            this.topics = topics;
-            consumer = new ConsumerHandler(bootstrap, groupName);
-            consumer.getConsumer().unsubscribe();
-            consumer.subscribe(topics);
-        }
-
-        public void run() {
-            consumer.getConsumer().commitAsync();
-            ObjectMapper objectMapper = new ObjectMapper();
-            ready.set(id, 1);
-            while (true) {
-                try {
-                    ConsumerRecords<Integer, String> consumerRecords = consumer.getConsumer().poll(Duration.ofMillis(500));
-                    if (consumerRecords != null) {
-                        consumerRecords.forEach(record -> {
-                            try {
-                                NucleoData data = objectMapper.readValue(record.value(), NucleoData.class);
-                                new Thread(new Executor(hub, data, record.topic())).start();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        });
-                        consumer.getConsumer().commitAsync();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                try{
-                    Thread.sleep(1);
-                } catch (Exception e){ }
-            }
-        }
-    }
-
-    public ProducerHandler getProducer() {
-        return producer;
-    }
-
-    public void setProducer(ProducerHandler producer) {
-        this.producer = producer;
-    }
-
-    public Queue<Object[]> getQueue() {
-        return queue;
-    }
-
-    public void setQueue(Queue<Object[]> queue) {
-        this.queue = queue;
+    public void handle(Hub hub, NucleoData data, String topic) {
+        new Thread(() -> trafficHandler.processParallel(data, new TrafficExecutor(hub, data, topic))).start();
     }
 
     public EventHandler getEventHandler() {
@@ -360,17 +165,14 @@ public class Hub {
         this.eventHandler = eventHandler;
     }
 
-    public TreeMap<String, NucleoResponder> getResponders() {
+    public HashMap<String, NucleoResponder> getResponders() {
         return responders;
     }
 
-    public void setResponders(TreeMap<String, NucleoResponder> responders) {
+    public void setResponders(HashMap<String, NucleoResponder> responders) {
         this.responders = responders;
     }
 
-    public boolean isReady() {
-        return ready.contains(0);
-    }
 
     public String getBootstrap() {
         return bootstrap;
@@ -380,35 +182,43 @@ public class Hub {
         this.bootstrap = bootstrap;
     }
 
-    public ArrayList<Integer> getReady() {
-        return ready;
-    }
-
-    public void setReady(ArrayList<Integer> ready) {
-        this.ready = ready;
-    }
-
-    public String getGroupName() {
-        return groupName;
-    }
-
-    public void setGroupName(String groupName) {
-        this.groupName = groupName;
-    }
-
-    public String getClientName() {
-        return clientName;
-    }
-
-    public void setClientName(String clientName) {
-        this.clientName = clientName;
-    }
-
-    public TreeMap<String, Thread> getTimeouts() {
+    public HashMap<String, Thread> getTimeouts() {
         return timeouts;
     }
 
-    public void setTimeouts(TreeMap<String, Thread> timeouts) {
+    public void setTimeouts(HashMap<String, Thread> timeouts) {
         this.timeouts = timeouts;
+    }
+
+    public static ObjectMapper getObjectMapper() {
+        return objectMapper;
+    }
+
+    public static void setObjectMapper(ObjectMapper objectMapper) {
+        Hub.objectMapper = objectMapper;
+    }
+
+    public String getUniqueName() {
+        return uniqueName;
+    }
+
+    public void setUniqueName(String uniqueName) {
+        this.uniqueName = uniqueName;
+    }
+
+    public NucleoMesh getMesh() {
+        return mesh;
+    }
+
+    public void setMesh(NucleoMesh mesh) {
+        this.mesh = mesh;
+    }
+
+    public TrafficHandler getTrafficHandler() {
+        return trafficHandler;
+    }
+
+    public void setTrafficHandler(TrafficHandler trafficHandler) {
+        this.trafficHandler = trafficHandler;
     }
 }
