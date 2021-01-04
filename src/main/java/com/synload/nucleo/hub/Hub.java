@@ -89,7 +89,7 @@ public class Hub {
                 }else {
                     if (onChain != x.getOnChain() && onChain > -1 && data.getChainList().get(onChain).getParallelChains().size() > 0) {
                         if (data.getTrack()==1) logger.debug(x.currentChainString() + ": sending to leader to re-assemble");
-                        mesh.geteManager().leader(x.currentChainString(), x);
+                        mesh.getInterlinkManager().leader(x.currentChainString(), x);
                     } else {
                         if (x.getChainList().get(x.getOnChain()).getParallelChains().size() > 0) {
                             logger.debug(x.currentChain() + ": routing to complete parallel");
@@ -125,7 +125,7 @@ public class Hub {
 
     public void sendToMesh(String topic, NucleoData data) {
         //data.markTime("Queue Done, sending to round robin");
-        mesh.geteManager().robin(topic, new NucleoData(data));
+        mesh.getInterlinkManager().route(topic, new NucleoData(data));
     }
 
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {

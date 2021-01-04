@@ -8,7 +8,7 @@ import com.synload.nucleo.data.NucleoObject;
 import com.synload.nucleo.data.NucleoObjectList;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.hub.Hub;
-import com.synload.nucleo.socket.EManager;
+import com.synload.nucleo.interlink.InterlinkManager;
 import com.synload.nucleo.zookeeper.ZooKeeperManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +26,7 @@ public class NucleoMesh {
     private ZooKeeperManager manager;
     private String meshName;
     private String serviceName;
-    private EManager eManager;
+    private InterlinkManager interlinkManager;
     protected static final Logger logger = LoggerFactory.getLogger(NucleoMesh.class);
     @JsonIgnore
     private static ObjectMapper mapper = new ObjectMapper(){{
@@ -42,8 +42,8 @@ public class NucleoMesh {
         logger.info("Starting nucleo client and joining mesh " + meshName + " with service name " + serviceName);
         int ePort = nextAvailable();
         logger.info("Selected Port: " + ePort);
-        this.eManager = new EManager(this, ePort);
-        this.eManager.createServer();
+        this.interlinkManager = new InterlinkManager(this, ePort);
+        this.interlinkManager.createServer();
         getHub().register(packageStr);
         try {
             manager = new ZooKeeperManager(zookeeper, this);
@@ -141,12 +141,12 @@ public class NucleoMesh {
         this.serviceName = serviceName;
     }
 
-    public EManager geteManager() {
-        return eManager;
+    public InterlinkManager getInterlinkManager() {
+        return interlinkManager;
     }
 
-    public void seteManager(EManager eManager) {
-        this.eManager = eManager;
+    public void setInterlinkManager(InterlinkManager interlinkManager) {
+        this.interlinkManager = interlinkManager;
     }
 
     public ZooKeeperManager getManager() {

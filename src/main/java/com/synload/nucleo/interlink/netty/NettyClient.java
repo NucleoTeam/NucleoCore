@@ -1,14 +1,14 @@
-package com.synload.nucleo.socket;
+package com.synload.nucleo.interlink.netty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.interlink.InterlinkMessage;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
@@ -41,7 +41,7 @@ public class NettyClient {
             String[] connectionInfo = node.getConnectString().split(":");
             InetAddress address = InetAddress.getByName(connectionInfo[0]);
             try {
-                utils.send(socket, new NucleoTopicPush(topic, data), address, Integer.valueOf(connectionInfo[1]));
+                utils.send(socket, new InterlinkMessage(topic, data), address, Integer.valueOf(connectionInfo[1]));
             }catch (Exception e){
                 e.printStackTrace();
             }

@@ -227,14 +227,6 @@ public class NucleoData implements Cloneable {
         this.version = version;
     }
 
-    public NucleoData clone() {
-        try {
-            return (NucleoData) super.clone();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     public int getTrack() {
         return track;
     }

@@ -5,17 +5,12 @@ import com.google.common.collect.Maps;
 import com.synload.nucleo.NucleoMesh;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.api.BackgroundCallback;
-import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.x.discovery.*;
 import org.apache.curator.x.discovery.details.JsonInstanceSerializer;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +61,7 @@ public class ZooKeeperManager implements Runnable {
             logger.info("Unique Id: " + mesh.getUniqueName());
             logger.info("Service Name: " + mesh.getServiceName());
             logger.info("IP Address: " + host);
-            logger.info("Port: " + mesh.geteManager().getPort());
+            logger.info("Port: " + mesh.getInterlinkManager().getPort());
             logger.info("HostName: " + hostName);
 
             client = CuratorFrameworkFactory.newClient(this.connString, new ExponentialBackoffRetry(1000, 5));
@@ -95,11 +90,11 @@ public class ZooKeeperManager implements Runnable {
                         mesh.getServiceName(),
                         mesh.getUniqueName(),
                         mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                        host + ":" + mesh.geteManager().getPort(),
+                        host + ":" + mesh.getInterlinkManager().getPort(),
                         hostName,
                         false
                     ))
-                    .port(mesh.geteManager().getPort()) // in a real application, you'd use a common port
+                    .port(mesh.getInterlinkManager().getPort()) // in a real application, you'd use a common port
                     .uriSpec(uriSpec)
                     .build();
                 serviceDiscovery.registerService(thisInstance);
@@ -145,11 +140,11 @@ public class ZooKeeperManager implements Runnable {
                                             mesh.getServiceName(),
                                             mesh.getUniqueName(),
                                             mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                                            host + ":" + mesh.geteManager().getPort(),
+                                            host + ":" + mesh.getInterlinkManager().getPort(),
                                             hostName,
                                             false
                                         ))
-                                        .port(mesh.geteManager().getPort())
+                                        .port(mesh.getInterlinkManager().getPort())
                                         .uriSpec(uriSpec)
                                         .build();
                                     serviceDiscovery.registerService(thisInstance);
@@ -184,11 +179,11 @@ public class ZooKeeperManager implements Runnable {
                                 mesh.getServiceName(),
                                 mesh.getUniqueName(),
                                 mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                                host + ":" + mesh.geteManager().getPort(),
+                                host + ":" + mesh.getInterlinkManager().getPort(),
                                 hostName,
                                 true
                             ))
-                            .port(mesh.geteManager().getPort())
+                            .port(mesh.getInterlinkManager().getPort())
                             .uriSpec(uriSpec)
                             .build();
                         serviceDiscovery.updateService(thisInstance);
@@ -220,26 +215,26 @@ public class ZooKeeperManager implements Runnable {
                         if (connected.containsKey(serviceName)) {
                             List<String> connectedList = connected.get(serviceName);
                             for (ServiceInstance<ServiceInformation> instance : instances) {
-                                mesh.geteManager().leaderCheck(instance.getPayload());
+                                mesh.getInterlinkManager().leaderCheck(instance.getPayload());
                                 if (connectedList.contains(instance.getPayload().getName())) {
                                     // disregard
                                 }
                                 if (!connectedList.contains(instance)) {
-                                    mesh.geteManager().sync(instance.getPayload());
+                                    mesh.getInterlinkManager().sync(instance.getPayload());
                                     connectedList.add(instance.getPayload().getName());
                                 }
                             }
                             List<String> newTMPConnected = new ArrayList<String>(connectedList);
                             for (String instance : newTMPConnected) {
                                 if (instances.stream().filter(x -> x.getPayload().getName().equals(instance)).count() == 0) {
-                                    mesh.geteManager().delete(instance);
+                                    mesh.getInterlinkManager().delete(instance);
                                     connectedList.remove(instance);
                                 }
                             }
                         } else {
                             List<String> instancesString = new ArrayList<>();
                             for (ServiceInstance<ServiceInformation> instance : instances) {
-                                mesh.geteManager().sync(instance.getPayload());
+                                mesh.getInterlinkManager().sync(instance.getPayload());
                                 instancesString.add(instance.getPayload().getName());
                             }
                             connected.put(serviceName, instancesString);

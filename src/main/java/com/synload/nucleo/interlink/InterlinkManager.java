@@ -1,31 +1,38 @@
-package com.synload.nucleo.socket;
+package com.synload.nucleo.interlink;
 
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.interlink.socket.SocketServer;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
-public class EManager {
-    protected static final Logger logger = LoggerFactory.getLogger(EManager.class);
+public class InterlinkManager {
+    protected static final Logger logger = LoggerFactory.getLogger(InterlinkManager.class);
     NucleoMesh mesh;
     int port;
-    HashMap<String, EClient> connections = new HashMap<>();
-    TreeMap<String, List<EClient>> clientConnections = new TreeMap<>();
+    HashMap<String, InterlinkClient> connections = new HashMap<>();
     TreeMap<String, Thread> connectionThreads = new TreeMap<>();
-    HashMap<String, TopicRound> topics = new HashMap<>();
-    HashMap<String, EClient> leaderTopics = new HashMap<>();
+    HashMap<String, InterlinkTopic.RoundRobin> topics = new HashMap<>();
+    HashMap<String, InterlinkClient> leaderTopics = new HashMap<>();
     HashMap<String, String> leaders = new HashMap<>();
     TreeMap<String, List<String>> route = new TreeMap<>();
+    Class serverClass;
+    Class clientClass;
 
-    public EManager(NucleoMesh mesh, int port){
+    public InterlinkManager(NucleoMesh mesh, int port, Class serverClass, Class clientClass){
         this.mesh = mesh;
         this.port = port;
+        this.serverClass = serverClass;
+        this.clientClass = clientClass;
     }
-    public void createServer(){
-        new Thread(new EServer(this.port, this.mesh, this)).start();
+    public void createServer() {
+        new Thread(new SocketServer(this.port, this.mesh, this)).start();
+        serverClass.getDeclaredConstructor()
+        mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
     }
     public void leaderCheck(ServiceInformation node){
         if (node.isLeader() &&
@@ -34,19 +41,34 @@ public class EManager {
         ) {
             leaders.put(node.getService(), node.getName());
             if (connections.containsKey(node.getName())) {
-                EClient eClient = connections.get(node.getName());
+                InterlinkClient socketClient = connections.get(node.getName());
                 for (String event : node.getEvents()) {
-                    leaderTopics.put(event, eClient);
+                    leaderTopics.put(event, socketClient);
                 }
                 logger.info(node.getService() + " [ " + node.getName() + " ] : " + node.getConnectString() + " is the leader!");
             }
         }
     }
-    public void sync(ServiceInformation node){
-        EClient nodeClient = null;
+    public void sync(ServiceInformation node) {
+        InterlinkClient nodeClient = null;
         if (!connections.containsKey(node.getName())) {
             logger.info(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
-            nodeClient = new EClient( null,  node, mesh);
+
+            try {
+                nodeClient = (InterlinkClient)clientClass.getDeclaredConstructor(ServiceInformation.class, InterlinkHandler.class).newInstance(node, (InterlinkHandler)(topic, data)->{
+                    route(topic, data); // if sending fails use route again
+                });
+            }catch (NoSuchMethodException e){
+                logger.error("Interlink client class constructor not defined.");
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            }
+
             connections.put(node.getName(), nodeClient);
             try {
                 Thread thread = new Thread(nodeClient);
@@ -60,9 +82,9 @@ public class EManager {
             for (String event : node.getEvents()) {
                 synchronized (topics) {
                     if (!topics.containsKey(event)) {
-                        topics.put(event, new TopicRound());
+                        topics.put(event, new InterlinkTopic.RoundRobin(this)); // use round robin
                     }
-                    topics.get(event).nodes.add(nodeClient);
+                    topics.get(event).add(nodeClient);
                     logger.info("Added to [ " + event + " ] from " + node.getHost() + ", nodes available: " + topics.get(event).nodes.size());
                 }
             }
@@ -70,7 +92,7 @@ public class EManager {
         }
     }
     public void delete(String node){
-        EClient client = null;
+        InterlinkClient client = null;
         synchronized(connections) {
             if (connections.containsKey(node)) {
                 client = connections.remove(node);
@@ -84,12 +106,12 @@ public class EManager {
         //logger.debug("connectionThreads: "+connectionThreads.size());
         //logger.debug("connections: "+connections.size());
         if(client!=null){
-            logger.info(client.getNode().getService() + " : " + node+ " has left the mesh");
-            for (String event : client.getNode().getEvents()) {
+            logger.info(client.getServiceInformation().getService() + " : " + node+ " has left the mesh");
+            for (String event : client.getServiceInformation().getEvents()) {
                 synchronized (topics) {
                     if (topics.containsKey(event)) {
                         topics.get(event).nodes.remove(client);
-                        logger.info("Removed event [ " + event + " ] from " + client.getNode().getHost() + ", nodes available: " + topics.get(event).nodes.size());
+                        logger.info("Removed event [ " + event + " ] from " + client.getServiceInformation().getHost() + ", nodes available: " + topics.get(event).nodes.size());
                         if (topics.get(event).nodes.size() == 0) {
                             logger.info("no nodes on [ " + event + " ], removing");
                             topics.remove(event);
@@ -102,7 +124,7 @@ public class EManager {
             });*/
         }
     }
-    public void robin(String topic, NucleoData data){
+    public void route(String topic, NucleoData data){
         //System.out.println(topic);
         if (topic.startsWith("nucleo.client.")) {
             String node = topic.substring(14);
@@ -134,11 +156,11 @@ public class EManager {
 
     public void leader(String topic, NucleoData data){
         if(leaderTopics.containsKey(topic)){
-            EClient eClient = leaderTopics.get(topic);
-            route(topic, eClient, data);
+            InterlinkClient leaderWriteConnection = leaderTopics.get(topic);
+            route(topic, leaderWriteConnection, data);
         }
     }
-    public void route(String topic, EClient node, NucleoData data){
+    public void route(String topic, InterlinkClient node, NucleoData data) {
         synchronized (route) {
             /*List<String> routeToNode = route.get(node.node.name);
             if (routeToNode != null && routeToNode.size() > 0) {
@@ -161,63 +183,6 @@ public class EManager {
         }
     }
 
-    public class TopicRound{
-        public List<EClient> nodes = new ArrayList<>();
-        public int lastNode=0;
-        public synchronized void send(String topic, NucleoData data){
-            //System.out.println(topic);
-            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
-            if(lastNode >= tmpNodes.size()){
-                lastNode=0;
-            }
-            if(tmpNodes.size()>0){
-                if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
-                    //data.markTime("Robin Done");
-                    route(topic, tmpNodes.get(lastNode), data);
-                    lastNode++;
-                }else{
-                    if(tmpNodes.size()==1){
-                        System.out.println("No active route found!");
-                        return;
-                    }
-                    lastNode++;
-                    loop(topic, data, lastNode-1);
-                }
-                //tmpNodes.get(lastNode).add(topic, data);
-
-            }
-            // just drop any other data with no destination
-        }
-        public void loop(String topic, NucleoData data, int start){
-            //System.out.println(topic);
-            List<EClient> tmpNodes = new ArrayList<>(this.nodes);
-            if(lastNode >= tmpNodes.size()){
-                lastNode=0;
-            }
-            if(start==lastNode){
-                logger.debug("No nodes available");
-                return;
-            }
-            if(tmpNodes.size()>0){
-                if(tmpNodes.get(lastNode).getClient()!=null && tmpNodes.get(lastNode).getClient().isConnected()) {
-                    //data.markTime("Robin Done");
-                    route(topic, tmpNodes.get(lastNode), data);
-                    lastNode++;
-                }else{
-                    if(tmpNodes.size()==1){
-                        logger.debug("No active route found!");
-                        return;
-                    }
-                    lastNode++;
-                    loop(topic, data, start);
-                }
-                //tmpNodes.get(lastNode).add(topic, data);
-
-            }
-            // just drop any other data with no destination
-        }
-    }
-
     public NucleoMesh getMesh() {
         return mesh;
     }
@@ -234,19 +199,19 @@ public class EManager {
         this.port = port;
     }
 
-    public HashMap<String, EClient> getConnections() {
+    public HashMap<String, InterlinkClient> getConnections() {
         return connections;
     }
 
-    public void setConnections(HashMap<String, EClient> connections) {
+    public void setConnections(HashMap<String, InterlinkClient> connections) {
         this.connections = connections;
     }
 
-    public HashMap<String, TopicRound> getTopics() {
+    public HashMap<String, InterlinkTopic.RoundRobin> getTopics() {
         return topics;
     }
 
-    public void setTopics(HashMap<String, TopicRound> topics) {
+    public void setTopics(HashMap<String, InterlinkTopic.RoundRobin> topics) {
         this.topics = topics;
     }
 

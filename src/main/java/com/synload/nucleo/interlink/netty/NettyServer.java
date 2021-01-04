@@ -1,30 +1,33 @@
-package com.synload.nucleo.socket;
+package com.synload.nucleo.interlink.netty;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.interlink.InterlinkHandler;
+import com.synload.nucleo.interlink.InterlinkManager;
+import com.synload.nucleo.interlink.socket.SocketServerHandler;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
-import io.netty.util.ReferenceCountUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 
 public class NettyServer implements Runnable {
+    @JsonIgnore
+    protected static final Logger logger = LoggerFactory.getLogger(NettyServer.class);
 
     private int port;
-    private EManager em;
-    private NucleoMesh mesh;
     private NettyDatagramUtils nettyIncomingHandler;
+    private InterlinkHandler interlinkHandler;
 
-    public NettyServer(int port, NucleoMesh mesh, EManager em) {
+    public NettyServer(int port, InterlinkHandler interlinkHandler) {
         this.port = port;
-        this.mesh = mesh;
-        this.em = em;
         this.nettyIncomingHandler = new NettyDatagramUtils();
+        this.interlinkHandler = interlinkHandler;
     }
 
     public void run() {
@@ -64,27 +67,15 @@ public class NettyServer implements Runnable {
         this.port = port;
     }
 
-    public EManager getEm() {
-        return em;
-    }
-
-    public void setEm(EManager em) {
-        this.em = em;
-    }
-
-    public NucleoMesh getMesh() {
-        return mesh;
-    }
-
-    public void setMesh(NucleoMesh mesh) {
-        this.mesh = mesh;
-    }
-
     public NettyDatagramUtils getNettyIncomingHandler() {
         return nettyIncomingHandler;
     }
 
     public void setNettyIncomingHandler(NettyDatagramUtils nettyIncomingHandler) {
         this.nettyIncomingHandler = nettyIncomingHandler;
+    }
+
+    public InterlinkHandler getInterlinkHandler() {
+        return interlinkHandler;
     }
 }

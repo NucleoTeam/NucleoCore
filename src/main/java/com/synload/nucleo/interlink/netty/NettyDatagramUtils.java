@@ -1,11 +1,11 @@
-package com.synload.nucleo.socket;
+package com.synload.nucleo.interlink.netty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.synload.nucleo.hub.Hub;
+import com.synload.nucleo.interlink.InterlinkMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,9 +111,9 @@ public class NettyDatagramUtils {
 
     int x = 0;
 
-    public void send(DatagramSocket socket, NucleoTopicPush nucleoTopicPush, InetAddress address, int port) {
+    public void send(DatagramSocket socket, InterlinkMessage interlinkMessage, InetAddress address, int port) {
         try {
-            byte[] compressed = mapper.writeValueAsBytes(nucleoTopicPush);
+            byte[] compressed = mapper.writeValueAsBytes(interlinkMessage);
             //logger.info((x++) + ": sent size: " + compressed.length);
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(compressed);
             int length = byteArrayInputStream.available();
@@ -149,8 +149,8 @@ public class NettyDatagramUtils {
     public void allReceived(Hub hub, byte[] bytes) {
         //logger.info((x) + ": received size: " + bytes.length);
         try {
-            NucleoTopicPush nucleoTopicPush = mapper.readValue(bytes, NucleoTopicPush.class);
-            hub.handle(hub, nucleoTopicPush.getData(), nucleoTopicPush.getTopic());
+            InterlinkMessage interlinkMessage = mapper.readValue(bytes, InterlinkMessage.class);
+            hub.handle(hub, interlinkMessage.getData(), interlinkMessage.getTopic());
         } catch (Exception e) {
             e.printStackTrace();
         }

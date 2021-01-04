@@ -1,4 +1,4 @@
-package com.synload.nucleo.socket;
+package com.synload.nucleo.interlink.netty;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

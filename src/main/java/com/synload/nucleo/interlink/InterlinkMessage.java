@@ -1,18 +1,18 @@
-package com.synload.nucleo.socket;
+package com.synload.nucleo.interlink;
 
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 
-public class NucleoTopicPush{
-  public NucleoTopicPush(){}
+public class InterlinkMessage {
+  public InterlinkMessage(){}
   public NucleoData data = null;
   public ServiceInformation information = null;
   public String topic = null;
-  public NucleoTopicPush(String topic, NucleoData data){
+  public InterlinkMessage(String topic, NucleoData data){
     this.topic = topic;
     this.data = data;
   }
-  public NucleoTopicPush(String topic, ServiceInformation information){
+  public InterlinkMessage(String topic, ServiceInformation information){
     this.topic = topic;
     this.information = information;
   }

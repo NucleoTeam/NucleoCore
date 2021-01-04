@@ -1,5 +1,6 @@
 package com.synload.nucleo.socket;
 
+import com.synload.nucleo.interlink.InterlinkManager;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -7,11 +8,11 @@ import static org.junit.Assert.*;
 import java.util.HashSet;
 import java.util.Set;
 
-public class EManagerEntryTest {
+public class InterlinkManagerEntryTest {
 
   @Test
   public void shouldCreateNewEManagerAndVerifyEmpty(){
-    EManager em = new EManager(null, 2090);
+    InterlinkManager em = new InterlinkManager(null, 2090);
 
 
 
@@ -21,7 +22,7 @@ public class EManagerEntryTest {
   @Test
   public void shouldCreateNewEntryIntoClientList(){
 
-    EManager em = new EManager(null, 2090);
+    InterlinkManager em = new InterlinkManager(null, 2090);
 
     ServiceInformation si = new ServiceInformation();
     si.setHost("test");
@@ -36,7 +37,7 @@ public class EManagerEntryTest {
 
   @Test
   public void shouldCreateEventsAndDeleteWhenNodeLeaves(){
-    EManager em = new EManager(null, 2090);
+    InterlinkManager em = new InterlinkManager(null, 2090);
 
     ServiceInformation si = new ServiceInformation();
     si.setHost("test");
