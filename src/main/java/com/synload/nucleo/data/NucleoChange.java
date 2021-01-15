@@ -4,13 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.Objects;
+import java.io.*;
+import java.util.Map;
 
-public class NucleoChange{
+public class NucleoChange implements Serializable {
     private NucleoChangeType type;
-    private String clazz = null;
     private byte[] object = null;
     private String objectPath;
+    private int parallelStep;
+    NucleoChangePriority priority = NucleoChangePriority.NONE; // add weight for order merging of data
 
     @JsonIgnore
     private ObjectMapper mapper = new ObjectMapper(){{
@@ -21,17 +23,41 @@ public class NucleoChange{
     public NucleoChange() {
     }
 
-    public NucleoChange(NucleoChangeType type, String objectPath, Object object) {
+    public NucleoChange(NucleoChangeType type, String objectPath, Object object, int parallelStep, NucleoChangePriority priority) {
         this.type = type;
         this.objectPath = objectPath;
+        this.parallelStep = parallelStep;
+        this.priority = priority;
         try {
-            if(object!=null) {
-                this.object = mapper.writeValueAsBytes(object);
-                this.clazz = object.getClass().getName();
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = null;
+            try {
+                objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+                objectOutputStream.writeObject(object);
+                objectOutputStream.flush();
+                this.object = byteArrayOutputStream.toByteArray();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (byteArrayOutputStream != null)
+                        byteArrayOutputStream.close();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+                try {
+                    if (objectOutputStream != null)
+                        objectOutputStream.close();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
             }
         }catch (Exception e){
             e.printStackTrace();
         }
+    }
+    public NucleoChange(NucleoChangeType type, String objectPath, Object object, int parallelStep) {
+        this(type, objectPath, object, parallelStep, NucleoChangePriority.NONE);
     }
 
     public NucleoChangeType getType() {
@@ -46,7 +72,31 @@ public class NucleoChange{
         if(this.object==null)
             return null;
         try {
-            return mapper.readValue(this.object, Class.forName(this.clazz));
+            Object o = null;
+            ByteArrayInputStream bis = new ByteArrayInputStream(this.object);
+            if(bis!=null) {
+                ObjectInput in = null;
+                try {
+                    in = new ObjectInputStream(bis);
+                    o = in.readObject();
+                } catch (IOException | ClassNotFoundException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (in != null) {
+                            in.close();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        bis.close();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            return o;
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -71,19 +121,27 @@ public class NucleoChange{
         return false;
     }
 
-    public String getClazz() {
-        return clazz;
-    }
-
-    public void setClazz(String clazz) {
-        this.clazz = clazz;
-    }
-
     public byte[] getObject() {
         return object;
     }
 
     public void setObject(byte[] object) {
         this.object = object;
+    }
+
+    public int getParallelStep() {
+        return parallelStep;
+    }
+
+    public void setParallelStep(int parallelStep) {
+        this.parallelStep = parallelStep;
+    }
+
+    public NucleoChangePriority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(NucleoChangePriority priority) {
+        this.priority = priority;
     }
 }

@@ -2,11 +2,9 @@ package com.synload.nucleo.interlink.socket;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.interlink.InterlinkClient;
 import com.synload.nucleo.interlink.InterlinkHandler;
-import com.synload.nucleo.interlink.InterlinkManager;
 import com.synload.nucleo.interlink.InterlinkMessage;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.slf4j.Logger;
@@ -21,10 +19,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public class SocketClient implements InterlinkClient  {
+public class SocketWriteClient implements InterlinkClient  {
 
     @JsonIgnore
-    protected static final Logger logger = LoggerFactory.getLogger(SocketClient.class);
+    protected static final Logger logger = LoggerFactory.getLogger(SocketWriteClient.class);
 
     public ServiceInformation serviceInformation;
 
@@ -49,7 +47,7 @@ public class SocketClient implements InterlinkClient  {
     public void add(String topic, NucleoData data){
         queue.add(new InterlinkMessage(topic, data));
     }
-    public SocketClient(ServiceInformation serviceInformation, InterlinkHandler interlinkHandler){
+    public SocketWriteClient(ServiceInformation serviceInformation, InterlinkHandler interlinkHandler){
         this.serviceInformation = serviceInformation;
         this.interlinkHandler = interlinkHandler;
         this.mapper = new ObjectMapper();
@@ -82,10 +80,35 @@ public class SocketClient implements InterlinkClient  {
                                 System.out.println("[ " + push.getTopic() + " ] " + push.getData().getRoot() + " -> " + node.getConnectString());
                             }*/
                             //push.getData().markTime("Write to Socket");
-                            byte[] data = mapper.writeValueAsBytes(push);
-                            gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
-                            gos.write(data);
-                            gos.flush();
+                            byte[] data = new byte[0];
+                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                            ObjectOutputStream objectOutputStream = null;
+                            try {
+                                objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+                                objectOutputStream.writeObject(push);
+                                objectOutputStream.flush();
+                                data = byteArrayOutputStream.toByteArray();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            } finally {
+                                try {
+                                    if (byteArrayOutputStream != null)
+                                        byteArrayOutputStream.close();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                                try {
+                                    if (objectOutputStream != null)
+                                        objectOutputStream.close();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            if (data.length > 0){
+                                gos.write(ByteBuffer.allocate(4).putInt(data.length).array());
+                                gos.write(data);
+                                gos.flush();
+                            }
                         }
                     }
                 } catch (ConnectException c){
@@ -128,6 +151,15 @@ public class SocketClient implements InterlinkClient  {
         return serviceInformation;
     }
 
+    @Override
+    public void close() {
+        try {
+            client.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void setServiceInformation(ServiceInformation serviceInformation) {
         this.serviceInformation = serviceInformation;
     }
@@ -149,6 +181,8 @@ public class SocketClient implements InterlinkClient  {
 
     public boolean isConnected(){
         if(client==null)
+            return false;
+        if(client.isClosed())
             return false;
         return client.isConnected();
     }

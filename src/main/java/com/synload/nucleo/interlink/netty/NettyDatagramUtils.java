@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.synload.nucleo.hub.Hub;
+import com.synload.nucleo.interlink.InterlinkHandler;
 import com.synload.nucleo.interlink.InterlinkMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,8 +106,9 @@ public class NettyDatagramUtils {
 
     protected static final Logger logger = LoggerFactory.getLogger(NettyDatagramUtils.class);
 
-    public NettyDatagramUtils() {
-
+    private InterlinkHandler interlinkHandler;
+    public NettyDatagramUtils(InterlinkHandler interlinkHandler) {
+        this.interlinkHandler = interlinkHandler;
     }
 
     int x = 0;
@@ -146,17 +148,18 @@ public class NettyDatagramUtils {
         }
     }
 
-    public void allReceived(Hub hub, byte[] bytes) {
+    public void allReceived(byte[] bytes) {
         //logger.info((x) + ": received size: " + bytes.length);
         try {
             InterlinkMessage interlinkMessage = mapper.readValue(bytes, InterlinkMessage.class);
-            hub.handle(hub, interlinkMessage.getData(), interlinkMessage.getTopic());
+            logger.info("Message for topic " + interlinkMessage.getTopic());
+            interlinkHandler.handleMessage(interlinkMessage.getTopic(), interlinkMessage.getData());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public void receivePacket(Hub hub, byte[] datagramPartBytes) {
+    public void receivePacket(byte[] datagramPartBytes) {
         //logger.info("size: "+datagramPartBytes.length);
         try {
             NettyDatagramPart nettyDatagramPart = mapper.readValue(decompress(datagramPartBytes), NettyDatagramPart.class);
@@ -169,7 +172,7 @@ public class NettyDatagramUtils {
             combiner.combine(nettyDatagramPart);
             if (combiner.getParts() == nettyDatagramPart.getTotal()) {
                 //logger.info(new String(combiner.getArray()));
-                allReceived(hub, combiner.getArray());
+                allReceived(combiner.getArray());
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,9 +1,10 @@
 package com.synload.nucleo.event;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NucleoChain {
+public class NucleoChain implements Serializable {
     public String[] chainString = null;
     public List<NucleoChain> parallelChains = new ArrayList<>();
     public int part = 0;

@@ -20,6 +20,8 @@ public class InterlinkManager {
     HashMap<String, InterlinkClient> leaderTopics = new HashMap<>();
     HashMap<String, String> leaders = new HashMap<>();
     TreeMap<String, List<String>> route = new TreeMap<>();
+    InterlinkServer interlinkServer;
+    Thread serverThread;
     Class serverClass;
     Class clientClass;
 
@@ -30,9 +32,22 @@ public class InterlinkManager {
         this.clientClass = clientClass;
     }
     public void createServer() {
-        new Thread(new SocketServer(this.port, this.mesh, this)).start();
-        serverClass.getDeclaredConstructor()
-        mesh.getHub().handle(mesh.getHub(), data.getData(), data.getTopic());
+        try {
+            interlinkServer = (InterlinkServer)serverClass.getDeclaredConstructor(int.class, InterlinkHandler.class).newInstance(this.port, (InterlinkHandler)(topic, data)->{
+                mesh.getHub().handle(mesh.getHub(), data, topic);
+            });
+            serverThread = new Thread(interlinkServer);
+            serverThread.start();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            logger.error("Interlink client class constructor not defined.");
+            e.printStackTrace();
+        }
     }
     public void leaderCheck(ServiceInformation node){
         if (node.isLeader() &&
@@ -181,6 +196,12 @@ public class InterlinkManager {
             node.add(topic, data);
             return;
         }
+    }
+
+    public void close(){
+        this.getConnections().forEach((String key, InterlinkClient action)->action.close());
+        interlinkServer.close();
+        serverThread.interrupt();
     }
 
     public NucleoMesh getMesh() {

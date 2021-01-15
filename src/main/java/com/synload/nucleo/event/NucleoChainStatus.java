@@ -1,10 +1,11 @@
 package com.synload.nucleo.event;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 
-public class NucleoChainStatus {
+public class NucleoChainStatus implements Serializable {
   private boolean breakChain = false;
   private Set<String> breakReasons = new HashSet<>();
 

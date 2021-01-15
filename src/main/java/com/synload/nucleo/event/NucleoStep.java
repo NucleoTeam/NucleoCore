@@ -1,9 +1,10 @@
 package com.synload.nucleo.event;
 
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-public class NucleoStep {
+public class NucleoStep implements Serializable {
     private String step="";
     private String ip;
     private String host;

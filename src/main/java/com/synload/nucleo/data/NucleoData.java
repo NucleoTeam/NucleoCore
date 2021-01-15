@@ -1,14 +1,17 @@
 package com.synload.nucleo.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Lists;
 import com.synload.nucleo.event.NucleoChain;
 import com.synload.nucleo.event.NucleoChainStatus;
 import com.synload.nucleo.event.NucleoStep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.*;
 
-public class NucleoData implements Cloneable {
+public class NucleoData implements Cloneable, Serializable {
     protected static final Logger logger = LoggerFactory.getLogger(NucleoData.class);
     private UUID root;
     private List<NucleoChain> chainList = new ArrayList<>();
@@ -37,7 +40,11 @@ public class NucleoData implements Cloneable {
         this.execution = new NucleoStep(data.execution);
         this.onChain = data.onChain;
         this.track = data.track;
-        this.timeExecutions = (Stack<Object[]>) data.timeExecutions.clone();
+        if(data.timeExecutions!=null) {
+            this.timeExecutions = (Stack<Object[]>) data.timeExecutions.clone();
+        }else{
+            timeExecutions = new Stack<>();
+        }
         this.timeTrack = data.timeTrack;
         this.retries = data.retries;
         this.version = data.version;
@@ -72,7 +79,7 @@ public class NucleoData implements Cloneable {
         if (chain.startsWith("[")) {
             String[] parallels = chain.substring(1, chain.length() - 1).split("/");
             NucleoChain chainParallel = new NucleoChain();
-            logger.debug(this.getRoot().toString() + " - " + "Parallel chain");
+            //logger.debug(this.getRoot().toString() + " - " + "Parallel chain");
             for (String parallel : parallels) {
                 NucleoChain parallelInner = new NucleoChain();
                 parallelInner.setChainString(parallel.split("\\."));
@@ -82,11 +89,24 @@ public class NucleoData implements Cloneable {
         } else {
             NucleoChain singleChain = new NucleoChain();
             singleChain.setChainString(chain.split("\\."));
-            logger.debug(this.getRoot().toString() + " - " + "Single chain request");
+            //logger.debug(this.getRoot().toString() + " - " + "Single chain request");
             return singleChain;
         }
     }
 
+    public boolean previousParallelStep(){
+        if(this.previousParentChain()!=null){
+            return !this.previousParentChain().parallelChains.isEmpty();
+        }
+        return false;
+    }
+
+    public boolean onParallelStep(){
+        if(this.currentParentChain()!=null){
+            return !this.currentParentChain().parallelChains.isEmpty();
+        }
+        return false;
+    }
 
     public String depthChainString(NucleoChain chain) {
         if (chain != null) {
@@ -149,10 +169,6 @@ public class NucleoData implements Cloneable {
         if (chain.stepStart == -1) {
             chain.setStepStart(steps.size());
         }
-    }
-
-    public NucleoObject latestObjects() {
-        return objects.latestObjects();
     }
 
     public NucleoObject getObjects() {

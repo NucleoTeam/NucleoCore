@@ -21,6 +21,7 @@ public class Hub {
     public static ObjectMapper objectMapper = new ObjectMapper();
     private String uniqueName;
     private NucleoMesh mesh;
+    private boolean offline = true;
     private TrafficHandler trafficHandler = new TrafficHandler();
     protected static final Logger logger = LoggerFactory.getLogger(Hub.class);
 
@@ -28,6 +29,7 @@ public class Hub {
     public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
         this.uniqueName = uniqueName;
         this.mesh = mesh;
+        this.offline = false;
         //esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
         //new Thread(esPusher).start();
     }
@@ -55,7 +57,7 @@ public class Hub {
         if (data.getTrack() == 1) {
             data.setVersion(data.getVersion() + 1);
             push(constructNucleoData(new String[]{"_watch." + state}, new NucleoObject() {{
-                set("root", new NucleoData(data));
+                createOrUpdate("root", new NucleoData(data));
             }}), new NucleoResponder() {
                 @Override
                 public void run(NucleoData returnedData) {
@@ -75,7 +77,7 @@ public class Hub {
         List<NucleoData> datas = trafficHandler.getNext(data);
         if(data.getTrack()!=0) {
             try {
-                logger.debug("next: " + new ObjectMapper().writeValueAsString(datas));
+                //logger.debug("next: " + new ObjectMapper().writeValueAsString(datas));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -113,13 +115,13 @@ public class Hub {
             sendToMesh("nucleo.client." + originalData.getOrigin(), originalData);
         } else {
             String topic = data.currentChainString();
-            if (eventHandler.getChainToMethod().containsKey(topic)) {
-                logger.debug(data.getRoot().toString() + " - executing locally " + topic);
-                handle(this, data, topic);
-            } else {
+            //if (eventHandler.getChainToMethod().containsKey(topic)) {
+            //    logger.debug(data.getRoot().toString() + " - executing locally " + topic);
+            //    handle(this, data, topic);
+            //} else {
                 logger.debug(data.getRoot().toString() + " - sending " + topic);
                 sendToMesh(topic, data);
-            }
+            //}
         }
     }
 
@@ -129,13 +131,15 @@ public class Hub {
     }
 
     public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
+        if(offline) {
+            logger.error("Attempting to use a closed hub!");
+            return;
+        }
         responders.put(data.getRoot().toString(), responder);
         if (allowTracking) {
             Thread timeout = new Thread(new NucleoTimeout(this, data));
             timeout.start();
-            synchronized (timeouts) {
-                timeouts.put(data.getRoot().toString(), timeout);
-            }
+            timeouts.put(data.getRoot().toString(), timeout);
             log("incomplete", data);
         } else {
             data.setTrack(0);
@@ -155,6 +159,10 @@ public class Hub {
 
     public void handle(Hub hub, NucleoData data, String topic) {
         new Thread(() -> trafficHandler.processParallel(data, new TrafficExecutor(hub, data, topic))).start();
+    }
+
+    public void close(){
+        offline = true;
     }
 
     public EventHandler getEventHandler() {

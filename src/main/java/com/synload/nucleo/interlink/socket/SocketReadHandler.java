@@ -8,17 +8,14 @@ import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 
-public class SocketServerHandler implements Runnable{
+public class SocketReadHandler implements Runnable{
 
     @JsonIgnore
-    protected static final Logger logger = LoggerFactory.getLogger(SocketServerHandler.class);
+    protected static final Logger logger = LoggerFactory.getLogger(SocketReadHandler.class);
 
     @JsonIgnore
     public ObjectMapper mapper;
@@ -35,7 +32,7 @@ public class SocketServerHandler implements Runnable{
 
 
 
-    SocketServerHandler(Socket client, ServiceInformation node, InterlinkServer interlinkServer) {
+    SocketReadHandler(Socket client, ServiceInformation node, InterlinkServer interlinkServer) {
         this.node = node;
         this.interlinkServer = interlinkServer;
         this.client = client;
@@ -58,13 +55,37 @@ public class SocketServerHandler implements Runnable{
                         int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
                         output = readFromSock(sizeRemaining, is);
                         if (output.size() == sizeRemaining) {
-                            InterlinkMessage data = mapper.readValue(output.toByteArray(), InterlinkMessage.class);
+                            ByteArrayInputStream bis = new ByteArrayInputStream(output.toByteArray());
+                            ObjectInput in = null;
+                            InterlinkMessage data = null;
+                            try {
+                                in = new ObjectInputStream(bis);
+                                data = (InterlinkMessage) in.readObject();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            } finally {
+                                try {
+                                    if (in != null) {
+                                        in.close();
+                                    }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                                try{
+                                    bis.close();
+                                }catch (Exception e){
+                                    e.printStackTrace();
+                                }
+                            }
                             //System.out.println("read: "+data.getData().getRoot().toString());
                             //data.getData().markTime("Read from Socket");
-                            if (data.getData() != null) {
+                            if (data != null && data.getData() != null) {
+                                logger.debug(data.getData().getRoot().toString() + ": data received for topic "+ data.getTopic());
                                 interlinkServer.getInterlinkHandler().handleMessage(data.getTopic(), data.getData());
-                            } else if (data.getInformation() != null) {
+                            } else if (data != null && data.getInformation() != null) {
                                 logger.info(data.getInformation().getName() + "." + data.getInformation().getService() + " " + data.getInformation().getHost());
+                            }else{
+                                logger.info("Data failed to retrieve");
                             }
                         } else {
                             System.exit(-1);

@@ -7,33 +7,33 @@ import com.synload.nucleo.event.NucleoResponder;
 
 @NucleoClass
 public class InformationHandler {
-  @NucleoEvent(chains={"information"})
+  @NucleoEvent("information")
   public NucleoData information(NucleoData data){
-    if(data.latestObjects().exists("stop")){
+    if(data.getObjects().exists("stop")){
       data.getChainBreak().setBreakChain(true);
       return data;
     }
-    data.latestObjects().set("taco", "bell");
+    data.getObjects().createOrUpdate("taco", "bell");
     return data;
   }
-  @NucleoEvent(chains={"popcorn"})
+  @NucleoEvent("popcorn")
   public void popcorn(NucleoData data, NucleoResponder r){
-    data.latestObjects().set("POPPY", "CORN");
+    data.getObjects().createOrUpdate("POPPY", "CORN");
     r.run(data);
   }
   @NucleoEvent(chains={"information.popcorn"})
   public void infoPopcorn(NucleoData data, NucleoResponder r){
-    data.latestObjects().set("information-popcorn", "set");
+    data.getObjects().createOrUpdate("information-popcorn", "set");
     r.run(data);
   }
   @NucleoEvent("information.popcorn > popcorn.poppyx")
   public NucleoData poppyx(NucleoData data){
-    data.latestObjects().set("POP", "LOCK");
+    data.getObjects().createOrUpdate("POP", "LOCK");
     return data;
   }
   @NucleoEvent("information.popcorn,information.test > popcorn.poppy")
   public NucleoData poppy(NucleoData data){
-    data.latestObjects().set("TOP", "TOP");
+    data.getObjects().createOrUpdate("TOP", "TOP");
     return data;
   }
 }

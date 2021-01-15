@@ -9,4 +9,5 @@ public interface InterlinkClient extends Runnable{
     void add(String topic, NucleoData data);
     boolean isConnected();
     ServiceInformation getServiceInformation();
+    void close();
 }

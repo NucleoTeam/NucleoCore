@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class TrafficHandler {
     protected static final Logger logger = LoggerFactory.getLogger(TrafficHandler.class);
@@ -69,7 +70,7 @@ public class TrafficHandler {
         return render(data, data.currentParentChain());
     }
 
-    public synchronized void addPart(NucleoData data) {
+    public void addPart(NucleoData data) {
         String root = data.getRoot().toString();
         if (!this.parallelParts.containsKey(root))
             this.parallelParts.put(root, Lists.newLinkedList());
@@ -82,7 +83,12 @@ public class TrafficHandler {
     }
 
     public boolean allPartsReceived(NucleoData data, NucleoChain asyncChain) {
-        return this.parallelParts.get(data.getRoot().toString()).size() == asyncChain.getParallelChains().size();
+        UUID root = data.getRoot();
+        if(this.parallelParts.containsKey(root.toString())){
+            List<NucleoData> nucleoData = this.parallelParts.get(root.toString());
+            return nucleoData.size() == asyncChain.getParallelChains().size();
+        }
+        return false;
     }
 
     public void processParallel(NucleoData data, TrafficExecutor responder) {
@@ -103,43 +109,45 @@ public class TrafficHandler {
                     // all parts received
                     if (data.getTrack() == 1) logger.debug(root + ": all parts received");
                     List<NucleoData> paraParts = parallelParts.remove(root);
-                    NucleoData finalPart = null;
-                    for (NucleoData part : paraParts) {
-                        NucleoChain previousChainPart = part.previousParentChain();
-                        int parallel = previousChainPart.getParallel();
-                        previousChainPart = previousChainPart.getParallelChains().get(parallel);
-                        if (finalPart != null) {
-                            boolean saveChanges = false;
-                            for (int i = 0; i < part.getObjects().getChanges().size(); i++) {
-                                if (
-                                    finalPart.getObjects().getChanges().size() == 0 ||
-                                        (!saveChanges
-                                            && !finalPart.getObjects().getChanges().get(i).equals(part.getObjects().getChanges().get(i)))
-                                ) {
-                                    saveChanges = true;
-                                    if (saveChanges) {
-                                        finalPart.getObjects().getChanges().add(part.getObjects().getChanges().get(i));
+                    if (paraParts != null) {
+                        NucleoData finalPart = null;
+                        for (NucleoData part : paraParts) {
+                            NucleoChain previousChainPart = part.previousParentChain();
+                            int parallel = previousChainPart.getParallel();
+                            previousChainPart = previousChainPart.getParallelChains().get(parallel);
+                            if (finalPart != null) {
+                                boolean saveChanges = false;
+                                for (int i = 0; i < part.getObjects().getChanges().size(); i++) {
+                                    if (
+                                        finalPart.getObjects().getChanges().size() == 0 ||
+                                            (!saveChanges
+                                                && !finalPart.getObjects().getChanges().get(i).equals(part.getObjects().getChanges().get(i)))
+                                    ) {
+                                        saveChanges = true;
+                                        if (saveChanges) {
+                                            finalPart.getObjects().getChanges().add(part.getObjects().getChanges().get(i));
+                                        }
                                     }
                                 }
-                            }
-                            int stepStart = previousChainPart.stepStart;
-                            if (stepStart != -1) {
-                                previousChainPart.setStepStart(finalPart.getSteps().size());
-                                for (int i = stepStart; i < part.getSteps().size(); i++) {
-                                    finalPart.getSteps().add(part.getSteps().get(i));
+                                int stepStart = previousChainPart.stepStart;
+                                if (stepStart != -1) {
+                                    previousChainPart.setStepStart(finalPart.getSteps().size());
+                                    for (int i = stepStart; i < part.getSteps().size(); i++) {
+                                        finalPart.getSteps().add(part.getSteps().get(i));
+                                    }
                                 }
+                                finalPart.previousParentChain().getParallelChains().set(parallel, previousChainPart);
+                                previousChainPart.setRecombined(true);
+                            } else {
+                                previousChainPart.setRecombined(true);
+                                finalPart = part;
                             }
-                            finalPart.previousParentChain().getParallelChains().set(parallel, previousChainPart);
-                            previousChainPart.setRecombined(true);
-                        } else {
-                            previousChainPart.setRecombined(true);
-                            finalPart = part;
                         }
+                        if (data.getTrack() == 1) logger.debug(root + ": executing");
+                        finalPart.previousParentChain().setRecombined(true);
+                        responder.setData(finalPart);
+                        responder.handle();
                     }
-                    if (data.getTrack() == 1) logger.debug(root + ": executing");
-                    finalPart.previousParentChain().setRecombined(true);
-                    responder.setData(finalPart);
-                    responder.handle();
                 }
             }
         } else {

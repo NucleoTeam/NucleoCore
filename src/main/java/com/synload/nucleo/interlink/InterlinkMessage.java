@@ -3,7 +3,9 @@ package com.synload.nucleo.interlink;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 
-public class InterlinkMessage {
+import java.io.Serializable;
+
+public class InterlinkMessage implements Serializable {
   public InterlinkMessage(){}
   public NucleoData data = null;
   public ServiceInformation information = null;

@@ -2,19 +2,31 @@ package com.synload.nucleo.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-import org.apache.commons.beanutils.PropertyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.beans.*;
-import java.util.*;
 
-public class NucleoObject {
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+public class NucleoObject implements Serializable {
+
     private List<NucleoChange> changes = Lists.newLinkedList();
-    @JsonIgnore private Map<String, Object> objects = Maps.newHashMap();
+    private Map<String, Object> objects = Maps.newHashMap();
+    private transient Map<String, Object> currentObjects = objects;
+
+    private boolean ledgerMode = false;
+    private int step;
 
     @JsonIgnore
     private ObjectMapper mapper = new ObjectMapper(){{
@@ -26,23 +38,78 @@ public class NucleoObject {
 
 
     public NucleoObject() {
-
+        currentObjects = objects;
     }
 
     public NucleoObject(NucleoObject old) {
-        changes = Lists.newLinkedList(old.changes);
+        if(old.changes!=null) {
+            changes = Lists.newLinkedList(old.changes);
+        }else{
+            changes = Lists.newLinkedList();
+        }
     }
 
-    public NucleoObject latestObjects() {
-        objects = Maps.newHashMap();
-        Lists.newLinkedList(this.changes).forEach(c->{
-            if(c.getType()==NucleoChangeType.SET)
-                set(c.getObjectPath(), c.storedObject(), true);
+    Map<String, Object> fullCopy(){
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ObjectOutputStream objectOutputStream = null;
+        ByteArrayInputStream bis = null;
+        Map<String, Object> tmp = null;
+        try {
+            objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+            objectOutputStream.writeObject(objects);
+            objectOutputStream.flush();
+            bis = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (byteArrayOutputStream != null)
+                    byteArrayOutputStream.close();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+            try {
+                if (objectOutputStream != null)
+                    objectOutputStream.close();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+        if(bis!=null) {
+            ObjectInput in = null;
+            try {
+                in = new ObjectInputStream(bis);
+                tmp = (Map<String, Object>) in.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (in != null) {
+                        in.close();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                try {
+                    bis.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return tmp;
+    }
+    public NucleoObject startParallel() {  // do not write changes to objects, just add add/delete/update
+        Map<String, Object> tmp = this.fullCopy();
+        Lists.newLinkedList(this.changes).stream().sorted(Comparator.comparingInt(NucleoChange::getParallelStep).thenComparingInt(a -> a.getPriority().value)).forEach(c->{
+            if(c.getType()==NucleoChangeType.CREATE)
+                createWrite(c.getObjectPath(), c.storedObject());
+            if(c.getType()==NucleoChangeType.UPDATE)
+                update(c.getObjectPath(), getObjects());
             if(c.getType()==NucleoChangeType.DELETE)
-                delete(c.getObjectPath(), true);
-            if(c.getType()==NucleoChangeType.ADD)
-                add(c.getObjectPath(), c.storedObject(), true);
+                delete(c.getObjectPath());
         });
+        currentObjects = tmp;
         return this;
     }
 
@@ -58,172 +125,501 @@ public class NucleoObject {
         return Queues.newArrayDeque(Arrays.asList(objectPath.split("\\.")));
     }
 
-    // GET DATA USING PATH
-    public Object get(String objectPath){
-        return get( splitPath(objectPath), this.objects );
-    }
-    public Object get(Queue<String> objectPath, Object obj){
-        if(objectPath.isEmpty() || obj == null)
-            return obj;
-        String objectKey = objectPath.poll();
-        try {
-            if(List.class.isInstance(obj)){
-                return get(objectPath, ((List)obj).get(Integer.valueOf(objectKey).intValue()));
-            }
-            if(Map.class.isInstance(obj)){
-                if(!((Map)obj).containsKey(objectKey))
-                    return null;
-                return get(objectPath, ((Map)obj).get(objectKey));
-            }
-            Object nextObj = PropertyUtils.getProperty(obj, objectKey);
-            //logger.info(new ObjectMapper().writeValueAsString(nextObj));
-            return get(objectPath, nextObj);
-        }catch (Exception e){
-            e.printStackTrace();
+    public Object getValueFromObject(String objectPath, Object object){
+        NucleoObjectPath.Path[] paths = NucleoObjectPath.pathArray(objectPath);
+        if(paths.length==0){
             return null;
         }
+        int x=-1;
+        int lenPaths = paths.length;
+        for(x=0;x<lenPaths;x++){
+            if(object==null)
+                return null;
+            NucleoObjectPath.Path path = paths[x];
+            if(object instanceof Map){
+                if(((Map<String, Object>)object).containsKey(path.getPath())){
+                    object = ((Map<String, Object>)object).get(path.getPath());
+                }
+            }else if(object instanceof List){
+                Predicate predicates = null;
+                int len = path.getOptions().size();
+                for (int i = 0; i < len; i++) {
+                    NucleoObjectPath.Option option = path.getOptions().get(i);
+                    if(option.operator!=null) {
+                        if (predicates == null) {
+                            predicates = createPredicate(option);
+                        } else {
+                            Predicate predicate = createPredicate(option);
+                            if(option.getCombiner().equals('&')){
+                                predicates = predicate.and(predicates);
+                            }else if(option.getCombiner().equals('|')){
+                                predicates = predicate.or(predicates);
+                            }
+                        }
+                    }else{
+                        if(len>1){
+                            return null;
+                        }
+                        int idx = Integer.valueOf(option.getValue()).intValue();
+                        if(idx<((List) object).size() && idx>=0) {
+                            object = ((List) object).get(idx);
+                        }else{
+                            return null;
+                        }
+                        break;
+                    }
+                }
+                if(predicates!=null) {
+                    List obj = (List) ((List) object).stream().filter(predicates).collect(Collectors.toList());
+                    if (obj.size() > 0) {
+                        object = obj.get(0);
+                    }else{
+                        return null;
+                    }
+                }
+            }else if(object instanceof Object){
+                try {
+                    PropertyDescriptor pd = Arrays.stream(Introspector.getBeanInfo(object.getClass()).getPropertyDescriptors()).filter(f->f.getName().equals(path.getPath())).findFirst().get();
+                    object = pd.getReadMethod().invoke(object);
+                } catch (IllegalAccessException | IntrospectionException | InvocationTargetException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }else{
+                System.out.println("test");
+                return null;
+            }
+            if(lenPaths-1==x) {
+                return object;
+            }
+        }
+        return object;
     }
 
-    // Add to value based on path/ only works for lists
-    public boolean add(String objectPath, Object objectToAdd){
-        Object obj = get(objectPath);
-        if(List.class.isInstance(obj)) {
-            ((List) obj).add(objectToAdd);
+    public Object get(String objectPath){
+        return getValueFromObject(objectPath, currentObjects);
+    }
+
+    public void createOrUpdate(String objectPath, Object object, NucleoChangePriority priority){
+        if(get(objectPath)!=null){
+            update(objectPath, object, priority);
+        }
+        create(objectPath, object, priority);
+    }
+
+    public void createOrUpdate(String objectPath, Object object){
+        if(get(objectPath)!=null){
+            update(objectPath, object);
+        }
+        create(objectPath, object);
+    }
+
+    private boolean createWrite(String objectPath, Object object){
+        Map<String, Object> tmp = currentObjects;
+        NucleoObjectPath.Path[] entries = NucleoObjectPath.pathArray(objectPath);
+        if(entries.length==0){
+            return false;
+        }
+        int x=-1;
+        for(x=0;x<entries.length-1;x++){
+            if(!tmp.containsKey(entries[x].getPath())){
+                tmp.put(entries[x].getPath(), Maps.newTreeMap());
+            }
+            tmp = (Map<String, Object>) tmp.get(entries[x].getPath());
+        }
+        if(!tmp.containsKey(entries[x].getPath())) {
+            tmp.put(entries[x].getPath(), object);
             return true;
         }
         return false;
     }
-    public boolean add(String objectPath, Object objectToAdd, boolean latest){
-        if(!latest)
-            changes.add(new NucleoChange(NucleoChangeType.ADD, objectPath, objectToAdd));
-        return add(objectPath, objectToAdd);
-    }
 
-
-    public boolean set(String objectPath, Object objectToSave){
-        return set(objectPath, objectToSave, false);
-    }
-    public boolean set(String objectPath, Object objectToSave, boolean latest){
-        if(!latest)
-            changes.add(new NucleoChange(NucleoChangeType.SET, objectPath, objectToSave));
-        return set( splitPath(objectPath), this.objects, objectToSave);
-    }
-    public boolean set(Queue<String> objectPath, Object obj, Object objectToSave){
-        boolean save = false;
-        if(objectPath.isEmpty())
-            return false;
-        String objectKey = objectPath.poll();
-        if(objectPath.isEmpty())
-            save = true;
-        try {
-            if(List.class.isInstance(obj)){
-                if(save) {
-                    ((List) obj).set(Integer.valueOf(objectKey).intValue(), objectToSave);
-                    return true;
-                }else
-                    return set(objectPath, ((List)obj).get(Integer.valueOf(objectKey).intValue()), objectToSave);
-            }
-            if(Map.class.isInstance(obj)){
-                if(save) {
-                    ((Map)obj).put(objectKey, objectToSave);
-                    return true;
-                }else
-                    return set(objectPath, ((Map)obj).get(objectKey), objectToSave);
-            }
-            if(save){
-                new PropertyDescriptor(objectKey,obj.getClass()).getWriteMethod().invoke(obj, objectToSave);
-                return true;
-            }else {
-                Object nextObj = PropertyUtils.getProperty(obj, objectKey);
-                return set(objectPath, nextObj, objectToSave);
-            }
-        }catch (Exception e){
-            e.printStackTrace();
+    public boolean create(String objectPath, Object object, NucleoChangePriority priority){
+        boolean success = createWrite(objectPath, object);
+        if(isLedgerMode() && success){
+            changes.add(new NucleoChange(NucleoChangeType.CREATE, objectPath, object, step, priority));
         }
-        return false;
+        return success;
+    }
+    public boolean create(String objectPath, Object object){
+        return create(objectPath, object, NucleoChangePriority.NONE);
     }
 
-    public boolean delete(String objectPath){
-        return delete(objectPath, false);
-    }
-    public boolean delete(String objectPath, boolean latest){
-        if(!latest)
-            changes.add(new NucleoChange(NucleoChangeType.DELETE, objectPath, null));
-        return delete( splitPath(objectPath), this.objects);
-    }
-    public boolean delete(Queue<String> objectPath, Object obj){
-        boolean delete = false;
-        if(objectPath.isEmpty())
+
+    private boolean updateWrite(String objectPath, Object object){
+        Object tmp = currentObjects;
+        NucleoObjectPath.Path[] paths = NucleoObjectPath.pathArray(objectPath);
+        if(paths.length==0){
             return false;
-        Object objectKey = objectPath.poll();
-        if(objectPath.isEmpty())
-            delete = true;
-        try {
-            if(List.class.isInstance(obj)){
-                if(delete) {
-                    if(Integer.class.isInstance(objectKey)) {
-                        ((List) obj).remove(((Integer)objectKey).intValue());
-                        return true;
-                    }else if(int.class.isInstance(objectKey)) {
-                        ((List) obj).remove((int)objectKey);
-                        return true;
-                    }else if(String.class.isInstance(objectKey)) {
-                        ((List) obj).remove(Integer.valueOf((String)objectKey).intValue());
-                        return true;
-                    }else
-                        return false;
-                }else {
-                    if (Integer.class.isInstance(objectKey)) {
-                        return delete(objectPath, ((List) obj).get(((Integer)objectKey).intValue()));
-                    } else if (int.class.isInstance(objectKey)) {
-                        return delete(objectPath, ((List) obj).get((int) objectKey));
-                    } else if (String.class.isInstance(objectKey)) {
-                        return delete(objectPath, ((List) obj).get(Integer.valueOf((String) objectKey).intValue()));
-                    } else
-                        return false;
-                }
-            }
-            if(Map.class.isInstance(obj)){
-                if(delete) {
-                    if(!((Map)obj).containsKey(objectKey))
-                        return false;
-                    ((Map)obj).remove(objectKey);
-                    return true;
-                }else {
-                    if(!((Map)obj).containsKey(objectKey))
-                        return false;
-                    return delete(objectPath, ((Map) obj).get(objectKey));
-                }
-            }
-            if(delete){
-                if(String.class.isInstance(objectKey)) {
-                    new PropertyDescriptor((String) objectKey, obj.getClass()).getWriteMethod().invoke(obj);
-                    return true;
-                }
+        }
+        int x=-1;
+        int lenPaths = paths.length;
+        for(x=0;x<lenPaths;x++){
+            if(tmp==null)
                 return false;
-            }else {
-                if (String.class.isInstance(objectKey)) {
-                    return delete(objectPath, new PropertyDescriptor((String)objectKey, obj.getClass()).getReadMethod().invoke(obj));
-                } else
+            NucleoObjectPath.Path path = paths[x];
+            if(tmp instanceof Map){
+                if(((Map<String, Object>)tmp).containsKey(path.getPath())){
+                    if(lenPaths-1==x) {
+                        ((Map<String, Object>)tmp).put(path.getPath(), object);
+                        return true;
+                    }
+                    tmp = ((Map<String, Object>)tmp).get(path.getPath());
+                }
+            }else if(tmp instanceof List){
+                Predicate predicates = null;
+                int len = path.getOptions().size();
+                for (int i = 0; i < len; i++) {
+                    NucleoObjectPath.Option option = path.getOptions().get(i);
+                    if(option.operator!=null) {
+                        if (predicates == null) {
+                            predicates = createPredicate(option);
+                        } else {
+                            Predicate predicate = createPredicate(option);
+                            if(option.getCombiner().equals('&')){
+                                predicates = predicate.and(predicates);
+                            }else if(option.getCombiner().equals('|')){
+                                predicates = predicate.or(predicates);
+                            }
+                        }
+                    }else{
+                        if(len>1){
+                            return false;
+                        }
+                        if(lenPaths-1==x) {
+                            ((List) tmp).set(Integer.valueOf(option.getValue()).intValue(), object);
+                            return true;
+                        }
+                        int idx = Integer.valueOf(option.getValue()).intValue();
+                        if(idx<((List) tmp).size() && idx>=0) {
+                            tmp = ((List) tmp).get(idx);
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                }
+                if(predicates!=null) {
+                    List obj = (List) ((List) tmp).stream().filter(predicates).collect(Collectors.toList());
+                    if (obj.size()>0) {
+                        if(lenPaths-1==x) {
+                            ((List) tmp).set(((List) tmp).indexOf(obj.get(0)), object);
+                            return true;
+                        }
+                        tmp = obj.get(0);
+                    }else{
+                        return false;
+                    }
+                }
+            }else if(tmp instanceof Object){
+                try {
+                    if(lenPaths-1==x) {
+                        PropertyDescriptor pd = Arrays.stream(Introspector.getBeanInfo(tmp.getClass()).getPropertyDescriptors()).filter(f->f.getName().equals(path.getPath())).findFirst().get();
+                        pd.getWriteMethod().invoke(tmp, object);
+                        return true;
+                    }else {
+                        PropertyDescriptor pd = Arrays.stream(Introspector.getBeanInfo(tmp.getClass()).getPropertyDescriptors()).filter(f->f.getName().equals(path.getPath())).findFirst().get();
+                        tmp = pd.getReadMethod().invoke(tmp);
+                    }
+                } catch (IllegalAccessException | IntrospectionException | InvocationTargetException e) {
+                    e.printStackTrace();
                     return false;
+                }
             }
-        }catch (Exception e){
-            e.printStackTrace();
         }
         return false;
     }
-    public NucleoObjectMap map(String objectPath){
-        Object obj = get(objectPath);
-        if(Map.class.isInstance(obj))
-            return new NucleoObjectMap((Map)obj, objectPath, this);
-        return null;
+
+    public boolean update(String objectPath, Object object, NucleoChangePriority priority){
+        if(get(objectPath)!=null){
+            boolean success = updateWrite(objectPath, object);
+            if(isLedgerMode() && success){
+                changes.add(new NucleoChange(NucleoChangeType.UPDATE, objectPath, object, step, priority));
+            }
+            return success;
+        }
+        return false;
     }
-    public NucleoObjectList list(String objectPath){
-        Object obj = get(objectPath);
-        if(List.class.isInstance(obj))
-            return new NucleoObjectList((List)obj, objectPath, this);
-        return null;
+    public boolean update(String objectPath, Object object){
+        return update(objectPath, object, NucleoChangePriority.NONE);
     }
+
+    private boolean deleteWrite(String objectPath){
+        Object tmp = currentObjects;
+        NucleoObjectPath.Path[] paths = NucleoObjectPath.pathArray(objectPath);
+        if(paths.length==0){
+            return false;
+        }
+        int x=-1;
+        int lenPaths = paths.length;
+        for(x=0;x<lenPaths;x++){
+            if(tmp==null)
+                return false;
+            NucleoObjectPath.Path path = paths[x];
+            if(tmp instanceof Map){
+                if(((Map<String, Object>)tmp).containsKey(path.getPath())){
+                    if(lenPaths-1==x) {
+                        ((Map<String, Object>)tmp).remove(path.getPath());
+                        return true;
+                    }
+                    tmp = ((Map<String, Object>)tmp).get(path.getPath());
+                }
+            }else if(tmp instanceof List){
+                Predicate predicates = null;
+                int len = path.getOptions().size();
+                for (int i = 0; i < len; i++) {
+                    NucleoObjectPath.Option option = path.getOptions().get(i);
+                    if(option.operator!=null) {
+                        if (predicates == null) {
+                            predicates = createPredicate(option);
+                        } else {
+                            Predicate predicate = createPredicate(option);
+                            if(option.getCombiner().equals('&')){
+                                predicates = predicate.and(predicates);
+                            }else if(option.getCombiner().equals('|')){
+                                predicates = predicate.or(predicates);
+                            }
+                        }
+                    }else{
+                        if(len>1){
+                            return false;
+                        }
+                        if(lenPaths-1==x) {
+                            int idx = Integer.valueOf(option.getValue()).intValue();
+                            if(idx<((List) tmp).size()) {
+                                ((List) tmp).remove(idx);
+                                return true;
+                            }
+                            return false;
+                        }
+                        int idx = Integer.valueOf(option.getValue()).intValue();
+                        if(idx<((List) tmp).size() && idx>=0) {
+                            tmp = ((List) tmp).get(idx);
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                }
+                if(predicates!=null) {
+                    List obj = (List) ((List) tmp).stream().filter(predicates).collect(Collectors.toList());
+                    if(lenPaths-1==x) {
+                        ((List) tmp).removeIf(predicates);
+                        return true;
+                    }
+
+                    if (obj.size() >0) {
+                        tmp = obj.get(0);
+                    }else{
+                        return false;
+                    }
+                }
+            }else if(tmp instanceof Object){
+                try {
+                    PropertyDescriptor pd = Arrays.stream(Introspector.getBeanInfo(tmp.getClass()).getPropertyDescriptors()).filter(f->f.getName().equals(path.getPath())).findFirst().get();
+                    tmp = pd.getReadMethod().invoke(tmp);
+                } catch (IllegalAccessException | IntrospectionException | InvocationTargetException e) {
+                    e.printStackTrace();
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean delete(String objectPath, NucleoChangePriority priority){
+        if(get(objectPath)!=null){
+            boolean success = deleteWrite(objectPath);
+            if(isLedgerMode() && success){
+                changes.add(new NucleoChange(NucleoChangeType.DELETE, objectPath, null, step, priority));
+            }
+            return success;
+        }
+        return false;
+    }
+    public boolean delete(String objectPath){
+        return delete(objectPath, NucleoChangePriority.NONE);
+    }
+
+    private boolean addToListWrite(String objectPath, Object object){
+        Object tmp = currentObjects;
+        NucleoObjectPath.Path[] paths = NucleoObjectPath.pathArray(objectPath);
+        if(paths.length==0){
+            return false;
+        }
+        int x=-1;
+        int lenPaths = paths.length;
+        for(x=0;x<lenPaths;x++){
+            if(tmp==null)
+                return false;
+            NucleoObjectPath.Path path = paths[x];
+            if(tmp instanceof Map){
+                if(((Map<String, Object>)tmp).containsKey(path.getPath())){
+                    tmp = ((Map<String, Object>)tmp).get(path.getPath());
+                }
+            }else if(tmp instanceof List){
+                Predicate predicates = null;
+                int len = path.getOptions().size();
+                for (int i = 0; i < len; i++) {
+                    NucleoObjectPath.Option option = path.getOptions().get(i);
+                    if(option.operator!=null) {
+                        if (predicates == null) {
+                            predicates = createPredicate(option);
+                        } else {
+                            Predicate predicate = createPredicate(option);
+                            if(option.getCombiner().equals('&')){
+                                predicates = predicate.and(predicates);
+                            }else if(option.getCombiner().equals('|')){
+                                predicates = predicate.or(predicates);
+                            }
+                        }
+                    }else{
+                        if(len>1){
+                            return false;
+                        }
+                        int idx = Integer.valueOf(option.getValue()).intValue();
+                        if(idx<((List) tmp).size() && idx>=0) {
+                            tmp = ((List) tmp).get(idx);
+                        }else{
+                            return false;
+                        }
+                        break;
+                    }
+                }
+                if(predicates!=null) {
+                    List obj = (List) ((List) tmp).stream().filter(predicates).collect(Collectors.toList());
+                    if (obj.size() > 0) {
+                        tmp = obj.get(0);
+                    }else{
+                        return false;
+                    }
+                }
+            }else if(tmp instanceof Object){
+                try {
+                    PropertyDescriptor pd = Arrays.stream(Introspector.getBeanInfo(tmp.getClass()).getPropertyDescriptors()).filter(f->f.getName().equals(path.getPath())).findFirst().get();
+                    tmp = pd.getReadMethod().invoke(tmp);
+                } catch (IllegalAccessException | IntrospectionException | InvocationTargetException e) {
+                    e.printStackTrace();
+                    return false;
+                }
+            }
+        }
+        if(lenPaths==x && tmp instanceof List) {
+            ((List) tmp).add(object);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean addToList(String objectPath, Object object, NucleoChangePriority priority){
+        if(get(objectPath)!=null){
+            boolean success = addToListWrite(objectPath, object);
+            if(isLedgerMode() && success){
+                changes.add(new NucleoChange(NucleoChangeType.ADD, objectPath, object, step, priority));
+            }
+            return success;
+        }
+        return false;
+    }
+    public boolean addToList(String objectPath, Object object){
+        return addToList(objectPath, object, NucleoChangePriority.NONE);
+    }
+
+    public Predicate createPredicate(NucleoObjectPath.Option option){
+        return (Predicate)(c)->{
+            Object obj = c;
+            String path = String.join(".", option.getPath());
+            if(!path.equals("")) {
+                obj = getValueFromObject(path, c);
+            }
+            if(obj==null){
+                return false;
+            }
+            switch(option.getOperator()){
+                case EQUAL:
+                    return equal(obj, option.getValue());
+                case NOT_EQUAL:
+                    return notEqual(obj, option.getValue());
+                case LESSER:
+                    return lesser(obj, option.getValue());
+                case GREATER:
+                    return greater(obj, option.getValue());
+                case IN:
+                    return inList(obj, option.getValue());
+                default:
+                    System.exit(-1);
+            }
+            return false;
+        };
+    }
+    public boolean equal(Object object, String value){
+        if(object instanceof Integer){
+            return object.equals(Integer.valueOf(value));
+        }else if(object instanceof String){
+            return object.equals(value);
+        }else if(object instanceof Float){
+            return object.equals(Float.valueOf(value));
+        }else if(object instanceof Boolean){
+            return object.equals(Boolean.valueOf(value));
+        }else if(object instanceof Character){
+            if(value.toCharArray().length>0) {
+                return object.equals(Character.valueOf(value.toCharArray()[0]));
+            }
+        }
+        return false;
+    }
+    public boolean greater(Object object, String value){
+        if(object instanceof Integer){
+            return ((Integer) object).compareTo(Integer.valueOf(value))>0;
+        }else if(object instanceof String){
+            return ((String) object).compareTo(value)>0;
+        }else if(object instanceof Float){
+            return ((Float) object).compareTo(Float.valueOf(value))>0;
+        }else if(object instanceof Character){
+            if(value.toCharArray().length>0) {
+                return ((Character) object).compareTo(Character.valueOf(value.toCharArray()[0]))>0;
+            }
+        }
+        return false;
+    }
+    public boolean lesser(Object object, String value){
+        if(object instanceof Integer){
+            return ((Integer) object).compareTo(Integer.valueOf(value))<0;
+        }else if(object instanceof String){
+            return ((String) object).compareTo(value)<0;
+        }else if(object instanceof Float){
+            return ((Float) object).compareTo(Float.valueOf(value))<0;
+        }else if(object instanceof Character){
+            if(value.toCharArray().length>0) {
+                return ((Character) object).compareTo(Character.valueOf(value.toCharArray()[0]))<0;
+            }
+        }
+        return false;
+    }
+    public boolean notEqual(Object object, String value){
+        return !equal(object, value);
+    }
+
+    public boolean inList(Object object, String value){
+        return Arrays.stream(value.substring(1).split(value.substring(0, 1))).map(compareVal->equal(object, compareVal)).filter(result->result).count()>0;
+    }
+
+    public int getStep() {
+        return step;
+    }
+
+    public void setStep(int step) {
+        this.step = step;
+    }
+
+    public boolean isLedgerMode() {
+        return ledgerMode;
+    }
+
+    public void setLedgerMode(boolean ledgerMode) {
+        this.ledgerMode = ledgerMode;
+    }
+
     public boolean exists(String objectPath){
         return get(objectPath) != null;
     }
@@ -235,4 +631,5 @@ public class NucleoObject {
     public void setChanges(List<NucleoChange> changes) {
         this.changes = changes;
     }
+
 }

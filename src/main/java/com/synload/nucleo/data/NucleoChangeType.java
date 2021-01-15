@@ -1,7 +1,8 @@
 package com.synload.nucleo.data;
 
 public enum NucleoChangeType {
-    SET,
-    ADD,
-    DELETE
+    UPDATE,
+    DELETE,
+    CREATE,
+    ADD
 }

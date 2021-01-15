@@ -28,7 +28,7 @@ public class NettyIncomingHandler extends ChannelInboundHandlerAdapter {
             final int rcvPktLength = buf.readableBytes();
             final byte[] rcvPktBuf = new byte[rcvPktLength];
             buf.readBytes(rcvPktBuf);
-            getNettyServer().getNettyIncomingHandler().receivePacket(this.getNettyServer().getMesh().getHub(), rcvPktBuf);
+            getNettyServer().getNettyDatagramUtils().receivePacket(rcvPktBuf);
         } finally {
             ReferenceCountUtil.release(msg);
         }

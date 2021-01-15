@@ -2,18 +2,23 @@ package com.synload.nucleo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.data.NucleoObject;
-import com.synload.nucleo.data.NucleoObjectList;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.hub.Hub;
 import com.synload.nucleo.interlink.InterlinkManager;
+import com.synload.nucleo.utils.NucleoDataStats;
 import com.synload.nucleo.zookeeper.ZooKeeperManager;
+import org.apache.curator.shaded.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
@@ -34,7 +39,7 @@ public class NucleoMesh {
         this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }};
 
-    public NucleoMesh(String meshName, String serviceName, String zookeeper, String elasticServer, int elasticPort, String packageStr) {
+    public NucleoMesh(String meshName, String serviceName, String zookeeper, String elasticServer, int elasticPort, String packageStr) throws ClassNotFoundException {
         this.uniqueName = UUID.randomUUID().toString();
         hub = new Hub(this, uniqueName, elasticServer, elasticPort);
         this.meshName = meshName;
@@ -42,19 +47,32 @@ public class NucleoMesh {
         logger.info("Starting nucleo client and joining mesh " + meshName + " with service name " + serviceName);
         int ePort = nextAvailable();
         logger.info("Selected Port: " + ePort);
-        this.interlinkManager = new InterlinkManager(this, ePort);
-        this.interlinkManager.createServer();
+        this.interlinkManager = new InterlinkManager(
+            this,
+            ePort,
+            Class.forName("com.synload.nucleo.interlink.mina.MinaServer"),
+            Class.forName("com.synload.nucleo.interlink.mina.MinaClient")
+        );
+        interlinkManager.createServer();
         getHub().register(packageStr);
         try {
             manager = new ZooKeeperManager(zookeeper, this);
+            manager.create();
+            manager.start();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+    public void shutdown() throws IOException {
+        // close down all connections / threads
+        manager.close();
+        interlinkManager.close();
+        getHub().close();
+    }
 
     public static int nextAvailable() {
-        int port = (int) Math.round(Math.random() * 1000) + 8000;
-        if (port < 8000 || port > 9000) {
+        int port = (int) Math.round(Math.random() * 1000) + 9000;
+        if (port < 9000 || port > 10000) {
             throw new IllegalArgumentException("Invalid start port: " + port);
         }
         ServerSocket ss = null;
@@ -157,7 +175,7 @@ public class NucleoMesh {
         this.manager = manager;
     }
 
-    public static class Test{
+    public static class Test implements Serializable {
         public Test(){
 
         }
@@ -189,53 +207,93 @@ public class NucleoMesh {
             this.list = list;
         }
     }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ClassNotFoundException {
         mapper.enableDefaultTyping();
         //createTopic();
 
         Test test = new Test();
         test.setTest("poppy");
         NucleoData data = new NucleoData();
-        data.latestObjects();
-        data.getObjects().set("hello", test);
-        NucleoObjectList list = data.getObjects().list("hello.list");
-        if(list!=null)
-            list.add("test");
-        list.delete(0);
-        if(list!=null)
-            list.add("works");
+        data.getObjects().createOrUpdate("hello", test);
+        if(data.getObjects().exists("hello.list")) {
+            data.getObjects().addToList("hello.list", "test");
+            data.getObjects().delete("hello.list.[0]");
+            data.getObjects().addToList("hello.list", "works");
+        }
         try {
             //logger.info(new ObjectMapper().writeValueAsString(data.getDifferences()));
-            logger.info(mapper.writeValueAsString(data.latestObjects()));
-
+            logger.info(mapper.writeValueAsString(data.getObjects()));
         }catch (Exception e){
             e.printStackTrace();
         }
-        NucleoMesh mesh = new NucleoMesh("mcbans", "nucleocore", "192.168.1.7:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
-        while (true) {
-            mesh.call(
-                new String[]{"information", "[popcorn/information.hits/information.test/information.popcorn]", "information.test", "[popcorn.poppyx/information.hits/information.test]"},
-                new NucleoObject() {{
-                    set("wow", "works?");
-                    set("time", System.currentTimeMillis());
-                }},
-                new NucleoResponder() {
-                    @Override
-                    public void run(NucleoData data) {
-                        long totalTime = (System.currentTimeMillis() - (long) data.latestObjects().get("time"));
-                        if (totalTime > 50) {
-                            logger.info("timeout for: " + data.getRoot());
-                            logger.debug("total: " + totalTime + "ms");
-                        } else {
-                            logger.info("total: " + totalTime + "ms");
-                            logger.info("data: " + data.getRoot());
+        data = new NucleoData();
+        test = new Test();
+
+        data.getObjects().createOrUpdate("hello", test);
+        if(data.getObjects().exists("hello.list")) {
+            data.getObjects().addToList("hello.list", "test");
+            data.getObjects().delete("hello.list.[^,test,works]");
+            data.getObjects().setLedgerMode(true);
+            data.getObjects().addToList("hello.list", "This is a test");
+            data.getObjects().update("hello.list", Lists.newArrayList());
+            System.out.println(data.getObjects().get("hello.list.[0]"));
+            data.getObjects().addToList("hello.list", "works");
+        }
+        try {
+            //logger.info(new ObjectMapper().writeValueAsString(data.getDifferences()));
+            logger.info(mapper.writeValueAsString(data.getObjects()));
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        System.exit(1);
+        NucleoMesh mesh = new NucleoMesh("nucleoTest", "nucleoMesh", "192.168.1.141:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
+        new Thread(()->{
+            while (!Thread.currentThread().isInterrupted()) {
+                mesh.call(
+                    new String[]{"information", "[popcorn/information.hits/information.test/information.popcorn]", "information.test", "[popcorn.poppyx/information.hits/information.test]"},
+                    new NucleoObject() {{
+                        createOrUpdate("wow", "works?");
+                        createOrUpdate("time", System.currentTimeMillis());
+                    }},
+                    new NucleoResponder() {
+                        @Override
+                        public void run(NucleoData data) {
+                            long totalTime = (System.currentTimeMillis() - (long) data.getObjects().get("time"));
+                            if (totalTime > 50) {
+                                logger.debug("timeout for: " + data.getRoot());
+                                logger.debug("total: " + totalTime + "ms");
+                            } else {
+                                NucleoDataStats stats = new NucleoDataStats();
+                                stats.calculate(data);
+                                if(stats.getAverage()>0) {
+                                    try {
+                                        logger.info(new ObjectMapper().writeValueAsString(stats));
+                                    } catch (JsonProcessingException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                                /*logger.info("total: " + totalTime + "ms");
+                                logger.info("data: " + data.getRoot());*/
+                            }
                         }
                     }
+                );
+                try {
+                    Thread.sleep(5000);
+                } catch (Exception e) {
                 }
-            );
+            }
+        }).start();
+        try {
+            System.out.println("Press enter/return to quit\n");
+            new BufferedReader(new InputStreamReader(System.in)).readLine();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally {
             try {
-                Thread.sleep(2000);
-            } catch (Exception e) {
+                mesh.shutdown();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 

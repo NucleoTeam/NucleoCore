@@ -8,7 +8,7 @@ import java.util.UUID;
 public class NucleoTimeout implements Runnable {
     private Hub hub;
     private final static int maxRetries = 4;
-    private final static long loopTimer = 1000;
+    private final static long loopTimer = 4000;
     private NucleoData data;
 
     public NucleoTimeout(Hub hub, NucleoData data) {

@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.interlink.InterlinkClient;
+import com.synload.nucleo.interlink.InterlinkHandler;
 import com.synload.nucleo.interlink.InterlinkMessage;
 import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.slf4j.Logger;
@@ -12,16 +14,16 @@ import org.slf4j.LoggerFactory;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
-public class NettyClient {
+public class NettyClient implements InterlinkClient {
     @JsonIgnore
     protected static final Logger logger = LoggerFactory.getLogger(NettyClient.class);
 
-    public ServiceInformation node;
+    private ServiceInformation serviceInformation;
 
     @JsonIgnore
-    public NucleoMesh mesh;
+    private InterlinkHandler interlinkHandler;
 
-    private NettyDatagramUtils utils;
+    private NettyDatagramUtils nettyDatagramUtils;
 
     @JsonIgnore
     private static ObjectMapper mapper = new ObjectMapper(){{
@@ -29,19 +31,19 @@ public class NettyClient {
         this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }};
 
-    public NettyClient(ServiceInformation node, NucleoMesh mesh){
-        this.node = node;
-        this.mesh = mesh;
-        this.utils = new NettyDatagramUtils();
+    public NettyClient(ServiceInformation serviceInformation, InterlinkHandler interlinkHandler){
+        this.serviceInformation = serviceInformation;
+        this.interlinkHandler = interlinkHandler;
+        this.nettyDatagramUtils = new NettyDatagramUtils(interlinkHandler);
     }
 
     public void add(String topic, NucleoData data){
         try {
             DatagramSocket socket = new DatagramSocket();
-            String[] connectionInfo = node.getConnectString().split(":");
+            String[] connectionInfo = serviceInformation.getConnectString().split(":");
             InetAddress address = InetAddress.getByName(connectionInfo[0]);
             try {
-                utils.send(socket, new InterlinkMessage(topic, data), address, Integer.valueOf(connectionInfo[1]));
+                nettyDatagramUtils.send(socket, new InterlinkMessage(topic, data), address, Integer.valueOf(connectionInfo[1]));
             }catch (Exception e){
                 e.printStackTrace();
             }
@@ -50,28 +52,23 @@ public class NettyClient {
         }
     }
 
-    public ServiceInformation getNode() {
-        return node;
+    @Override
+    public boolean isConnected() {
+
+        return false;
     }
 
-    public void setNode(ServiceInformation node) {
-        this.node = node;
+    public ServiceInformation getServiceInformation() {
+        return serviceInformation;
     }
 
-    public NucleoMesh getMesh() {
-        return mesh;
+    @Override
+    public void close() {
+
     }
 
-    public void setMesh(NucleoMesh mesh) {
-        this.mesh = mesh;
+    @Override
+    public void run() {
+        logger.info("Netty interlink client created");
     }
-
-    public NettyDatagramUtils getUtils() {
-        return utils;
-    }
-
-    public void setUtils(NettyDatagramUtils utils) {
-        this.utils = utils;
-    }
-
 }

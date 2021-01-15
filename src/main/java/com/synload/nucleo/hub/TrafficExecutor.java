@@ -39,14 +39,13 @@ public class TrafficExecutor {
     }
 
     public void handle() {
-        data.latestObjects(); // build current state of objects
         try {
             //data.markTime("Start Execution on " + hub.getUniqueName());
             if (topic.startsWith("nucleo.client.")) {
                 // handle ping requests for uptime
                 logger.debug("ORIGIN RECEIVED");
-                if (data.latestObjects().getObjects().containsKey("_ping")) {
-                    Stack<String> hosts = (Stack<String>) data.latestObjects().getObjects().get("ping");
+                if (data.getObjects().exists("_ping")) {
+                    Stack<String> hosts = (Stack<String>) data.getObjects().get("ping");
                     if (hosts != null && !hosts.isEmpty()) {
                         String host = hosts.pop();
                         //System.out.println("going to: nucleo.client." + host);
@@ -55,7 +54,7 @@ public class TrafficExecutor {
                         return;
                     } else {
                         //esPusher.add(data);
-                        data.latestObjects().getObjects().remove("_ping");
+                        data.getObjects().delete("_ping");
                         //data.markTime("Execution Complete");
                         hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
                         //System.out.println("ping going home!");
@@ -64,12 +63,12 @@ public class TrafficExecutor {
                 }
 
                 // handle routing of request through this service
-                if (data.latestObjects().getObjects().containsKey("_route")) {
-                    List<String> hosts = (List<String>) data.latestObjects().getObjects().get("_route");
+                if (data.getObjects().exists("_route")) {
+                    List<String> hosts = (List<String>) data.getObjects().get("_route");
                     if (hosts != null && !hosts.isEmpty()) { // route not complete
                         String host = hosts.remove(0);
                         if (host.equals(hub.getUniqueName())) {
-                            data.latestObjects().getObjects().remove("_route");
+                            data.getObjects().delete("_route");
                             //data.markTime("Route Complete");
                             hub.trafficCurrentRoute(data);
                             return;
@@ -79,7 +78,7 @@ public class TrafficExecutor {
                         hub.sendToMesh("nucleo.client." + host, data);
                         return;
                     } else {
-                        data.latestObjects().getObjects().remove("_route");
+                        data.getObjects().delete("_route");
                         //data.markTime("Route Complete");
                         hub.trafficCurrentRoute(data);
                         return;
