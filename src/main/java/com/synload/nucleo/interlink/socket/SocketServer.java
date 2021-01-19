@@ -29,7 +29,6 @@ public class SocketServer implements InterlinkServer {
             while ((socket = server.accept())!=null) {
                 logger.info(socket.getInetAddress().getHostAddress() + " connected!");
                 new Thread(new SocketReadHandler(socket, null, this)).start();
-                Thread.sleep(10);
             }
         }catch (Exception e){
             e.printStackTrace();

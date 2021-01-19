@@ -55,11 +55,10 @@ public class SocketReadHandler implements Runnable{
                         int sizeRemaining = ByteBuffer.wrap(buffer).getInt();
                         output = readFromSock(sizeRemaining, is);
                         if (output.size() == sizeRemaining) {
-                            ByteArrayInputStream bis = new ByteArrayInputStream(output.toByteArray());
                             ObjectInput in = null;
                             InterlinkMessage data = null;
                             try {
-                                in = new ObjectInputStream(bis);
+                                in = new ObjectInputStream(new ByteArrayInputStream(output.toByteArray()));
                                 data = (InterlinkMessage) in.readObject();
                             } catch (IOException e) {
                                 e.printStackTrace();
@@ -71,13 +70,8 @@ public class SocketReadHandler implements Runnable{
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
-                                try{
-                                    bis.close();
-                                }catch (Exception e){
-                                    e.printStackTrace();
-                                }
                             }
-                            //System.out.println("read: "+data.getData().getRoot().toString());
+                            logger.info("Read From Socket: "+data.getData().getRoot().toString() + " => " + data.getTopic());
                             //data.getData().markTime("Read from Socket");
                             if (data != null && data.getData() != null) {
                                 logger.debug(data.getData().getRoot().toString() + ": data received for topic "+ data.getTopic());

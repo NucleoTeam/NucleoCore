@@ -50,8 +50,8 @@ public class NucleoMesh {
         this.interlinkManager = new InterlinkManager(
             this,
             ePort,
-            Class.forName("com.synload.nucleo.interlink.mina.MinaServer"),
-            Class.forName("com.synload.nucleo.interlink.mina.MinaClient")
+            Class.forName("com.synload.nucleo.interlink.socket.SocketServer"),
+            Class.forName("com.synload.nucleo.interlink.socket.SocketWriteClient")
         );
         interlinkManager.createServer();
         getHub().register(packageStr);
@@ -102,18 +102,6 @@ public class NucleoMesh {
         return nextAvailable();
     }
 
-    public void call(String chain, NucleoObject objects, Method onFinishedMethod, Object onFinishedObject) {
-        this.getHub().push(hub.constructNucleoData(chain, objects), new NucleoResponder() {
-            @Override
-            public void run(NucleoData returnedData) {
-                try {
-                    onFinishedMethod.invoke(onFinishedObject, returnedData);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }, true);
-    }
 
     public void call(String chain, NucleoObject objects, NucleoResponder nucleoResponder) {
         this.getHub().push(hub.constructNucleoData(chain, objects), nucleoResponder, true);
@@ -213,39 +201,40 @@ public class NucleoMesh {
 
         Test test = new Test();
         test.setTest("poppy");
-        NucleoData data = new NucleoData();
-        data.getObjects().createOrUpdate("hello", test);
-        if(data.getObjects().exists("hello.list")) {
-            data.getObjects().addToList("hello.list", "test");
-            data.getObjects().delete("hello.list.[0]");
-            data.getObjects().addToList("hello.list", "works");
+        NucleoData data2 = new NucleoData();
+        data2.getObjects().createOrUpdate("hello", test);
+        if(data2.getObjects().exists("hello.list")) {
+            data2.getObjects().addToList("hello.list", "test");
+            data2.getObjects().delete("hello.list.[0]");
+            data2.getObjects().addToList("hello.list", "works");
         }
         try {
             //logger.info(new ObjectMapper().writeValueAsString(data.getDifferences()));
-            logger.info(mapper.writeValueAsString(data.getObjects()));
+            logger.info(mapper.writeValueAsString(data2.getObjects()));
         }catch (Exception e){
             e.printStackTrace();
         }
-        data = new NucleoData();
+        data2 = new NucleoData();
         test = new Test();
 
-        data.getObjects().createOrUpdate("hello", test);
-        if(data.getObjects().exists("hello.list")) {
-            data.getObjects().addToList("hello.list", "test");
-            data.getObjects().delete("hello.list.[^,test,works]");
-            data.getObjects().setLedgerMode(true);
-            data.getObjects().addToList("hello.list", "This is a test");
-            data.getObjects().update("hello.list", Lists.newArrayList());
-            System.out.println(data.getObjects().get("hello.list.[0]"));
-            data.getObjects().addToList("hello.list", "works");
+        data2.getObjects().createOrUpdate("hello", test);
+        if(data2.getObjects().exists("hello.list")) {
+            data2.getObjects().addToList("hello.list", "test");
+            data2.getObjects().delete("hello.list.[^,test,works]");
+
+            data2.getObjects().addToList("hello.list", "This is a test");
+            data2.getObjects().update("hello.list", Lists.newArrayList());
+            data2.getObjects().setLedgerMode(true);
+            data2.getObjects().addToList("hello.list", "works");
+            System.out.println(data2.getObjects().get("hello.list.[0]"));
+            System.out.println((((Test)data2.getObjects().getCurrentObjects().get("hello")).getList()).get(0));
         }
         try {
             //logger.info(new ObjectMapper().writeValueAsString(data.getDifferences()));
-            logger.info(mapper.writeValueAsString(data.getObjects()));
+            logger.info(mapper.writeValueAsString(data2.getObjects()));
         }catch (Exception e){
             e.printStackTrace();
         }
-        System.exit(1);
         NucleoMesh mesh = new NucleoMesh("nucleoTest", "nucleoMesh", "192.168.1.141:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
         new Thread(()->{
             while (!Thread.currentThread().isInterrupted()) {
@@ -255,31 +244,31 @@ public class NucleoMesh {
                         createOrUpdate("wow", "works?");
                         createOrUpdate("time", System.currentTimeMillis());
                     }},
-                    new NucleoResponder() {
-                        @Override
-                        public void run(NucleoData data) {
-                            long totalTime = (System.currentTimeMillis() - (long) data.getObjects().get("time"));
-                            if (totalTime > 50) {
-                                logger.debug("timeout for: " + data.getRoot());
-                                logger.debug("total: " + totalTime + "ms");
-                            } else {
-                                NucleoDataStats stats = new NucleoDataStats();
-                                stats.calculate(data);
-                                if(stats.getAverage()>0) {
-                                    try {
-                                        logger.info(new ObjectMapper().writeValueAsString(stats));
-                                    } catch (JsonProcessingException e) {
-                                        e.printStackTrace();
+                    (data)->{
+                            Object totalTimeObject =data.getObjects().get("time");
+                            if(totalTimeObject!=null) {
+                                long totalTime = (System.currentTimeMillis() - ((Long) totalTimeObject).longValue());
+                                if (totalTime > 50) {
+                                    logger.debug("timeout for: " + data.getRoot());
+                                    logger.debug("total: " + totalTime + "ms");
+                                } else {
+                                    NucleoDataStats stats = new NucleoDataStats();
+                                    stats.calculate(data);
+                                    if (stats.getAverage() > 0) {
+                                        try {
+                                            logger.info(new ObjectMapper().writeValueAsString(stats));
+                                        } catch (JsonProcessingException e) {
+                                            e.printStackTrace();
+                                        }
                                     }
+                                    logger.info("total: " + totalTime + "ms");
+                                    logger.info("data: " + data.getRoot());
                                 }
-                                /*logger.info("total: " + totalTime + "ms");
-                                logger.info("data: " + data.getRoot());*/
                             }
-                        }
                     }
                 );
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(30000);
                 } catch (Exception e) {
                 }
             }
@@ -296,6 +285,6 @@ public class NucleoMesh {
                 e.printStackTrace();
             }
         }
-
+        System.exit(1);
     }
 }

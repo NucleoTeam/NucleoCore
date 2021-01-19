@@ -115,13 +115,8 @@ public class Hub {
             sendToMesh("nucleo.client." + originalData.getOrigin(), originalData);
         } else {
             String topic = data.currentChainString();
-            //if (eventHandler.getChainToMethod().containsKey(topic)) {
-            //    logger.debug(data.getRoot().toString() + " - executing locally " + topic);
-            //    handle(this, data, topic);
-            //} else {
-                logger.debug(data.getRoot().toString() + " - sending " + topic);
-                sendToMesh(topic, data);
-            //}
+            logger.debug(data.getRoot().toString() + " - sending " + topic);
+            sendToMesh(topic, data);
         }
     }
 

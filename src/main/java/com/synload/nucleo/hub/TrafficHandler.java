@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.synload.nucleo.event.NucleoChain;
 import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.event.NucleoStep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +23,7 @@ public class TrafficHandler {
         for (int i = 0; i < chain.getParallelChains().size(); i++) {
             data.getChainList().get(data.getOnChain()).setParallel(i);
             NucleoData newData = new NucleoData(data);
+            newData.getObjects().setLedgerMode(true);
             nextDatas.add(newData);
         }
         return nextDatas;
@@ -36,7 +38,7 @@ public class TrafficHandler {
 
     public List<NucleoData> render(NucleoData data, NucleoChain chain) {
         if (chain == null)
-            return renderSingle(data, chain);
+            return renderSingle(data, null);
         if (chain.getChainString() != null)
             return renderSingle(data, chain);
         if (chain.getParallelChains().size() > 0)
@@ -51,16 +53,19 @@ public class TrafficHandler {
 
         if (data.getOnChain() == -1) {
             data.setOnChain(0);
+            data.getObjects().setStep(0);
             return render(data, data.currentChain());
         }
         NucleoChain currentChain = data.currentChain();
         if (currentChain != null && currentChain.getChainString().length > currentChain.getPart() + 1) {
             currentChain.setPart(currentChain.getPart() + 1);
+            data.getObjects().setStep(data.getOnChain() + 1);
             return render(data, currentChain);
         }
         data.currentChain().setComplete(true);
         data.currentParentChain().setComplete(true);
         data.setOnChain(data.getOnChain() + 1);
+        data.getObjects().setStep(data.getOnChain() + 1);
         if (data.getTrack() != 0)
             try {
                 logger.debug("render: " + new ObjectMapper().writeValueAsString(data));
@@ -75,9 +80,12 @@ public class TrafficHandler {
         if (!this.parallelParts.containsKey(root))
             this.parallelParts.put(root, Lists.newLinkedList());
 
-        if (parallelParts.get(data.getRoot().toString()).stream().filter(
-            part -> part.previousParentChain().getParallel() == data.previousParentChain().getParallel()
-        ).count() == 0) {
+        if (parallelParts
+            .get(data.getRoot().toString())
+            .stream()
+            .filter(part -> part.previousParentChain().getParallel() == data.previousParentChain().getParallel())
+            .count() == 0
+        ) {
             this.parallelParts.get(root).add(data);
         }
     }
@@ -96,7 +104,15 @@ public class TrafficHandler {
         NucleoChain previousChain = data.previousParentChain();
         String root = data.getRoot().toString();
 
-        if (data.getTrack() == 1) logger.debug(root + ": parallel received");
+        if (data.getTrack() == 1){
+            if(data.getSteps().size()>0) {
+                NucleoStep step = data.getSteps().get(data.getSteps().size() - 1);
+                logger.debug(root + ": parallel received from " + step.getHost() + " -> " + step.getStep());
+            }else{
+                logger.debug(root + ": parallel received but did not come from a step!");
+            }
+
+        }
 
         if (previousChain != null && previousChain.getParallelChains().size() > 0 && !previousChain.isRecombined()) {
             if (previousChain.isComplete()) {
@@ -117,18 +133,10 @@ public class TrafficHandler {
                             previousChainPart = previousChainPart.getParallelChains().get(parallel);
                             if (finalPart != null) {
                                 boolean saveChanges = false;
-                                for (int i = 0; i < part.getObjects().getChanges().size(); i++) {
-                                    if (
-                                        finalPart.getObjects().getChanges().size() == 0 ||
-                                            (!saveChanges
-                                                && !finalPart.getObjects().getChanges().get(i).equals(part.getObjects().getChanges().get(i)))
-                                    ) {
-                                        saveChanges = true;
-                                        if (saveChanges) {
-                                            finalPart.getObjects().getChanges().add(part.getObjects().getChanges().get(i));
-                                        }
-                                    }
-                                }
+                                logger.info("Merged "+root+" <= "+part.getSteps().get(part.getSteps().size()-1).getStep());
+                                finalPart.getObjects().getChanges().addAll(part.getObjects().getChanges());
+                                finalPart.getObjects().setLedgerMode(false);
+                                finalPart.getObjects().mergeChanges();
                                 int stepStart = previousChainPart.stepStart;
                                 if (stepStart != -1) {
                                     previousChainPart.setStepStart(finalPart.getSteps().size());
@@ -139,6 +147,7 @@ public class TrafficHandler {
                                 finalPart.previousParentChain().getParallelChains().set(parallel, previousChainPart);
                                 previousChainPart.setRecombined(true);
                             } else {
+                                logger.info("Merged "+root+" <= "+part.getSteps().get(part.getSteps().size()-1).getStep());
                                 previousChainPart.setRecombined(true);
                                 finalPart = part;
                             }

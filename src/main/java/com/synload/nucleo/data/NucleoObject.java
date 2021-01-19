@@ -23,7 +23,9 @@ public class NucleoObject implements Serializable {
 
     private List<NucleoChange> changes = Lists.newLinkedList();
     private Map<String, Object> objects = Maps.newHashMap();
-    private transient Map<String, Object> currentObjects = objects;
+
+    @JsonIgnore
+    private Map<String, Object> currentObjects;
 
     private boolean ledgerMode = false;
     private int step;
@@ -36,31 +38,46 @@ public class NucleoObject implements Serializable {
 
     @JsonIgnore protected static final Logger logger = LoggerFactory.getLogger(NucleoObject.class);
 
-
-    public NucleoObject() {
-        currentObjects = objects;
+    private Map<String, Object> getWorkingObjects(){
+        if(currentObjects==null){
+            currentObjects = objects;
+        }
+        return currentObjects;
     }
 
+    public NucleoObject() {
+
+    }
+
+
+
     public NucleoObject(NucleoObject old) {
-        if(old.changes!=null) {
+        if(old.objects!=null){
+            objects = (new HashMap<>());
+            objects.putAll(old.objects);
+        }else{
+            objects = Maps.newTreeMap();
+        }
+        if(old.changes!=null){
             changes = Lists.newLinkedList(old.changes);
         }else{
             changes = Lists.newLinkedList();
         }
     }
 
-    Map<String, Object> fullCopy(){
+    Object fullCopy(Object objectToCopy){
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ObjectOutputStream objectOutputStream = null;
         ByteArrayInputStream bis = null;
-        Map<String, Object> tmp = null;
+        Object copiedObject=null;
         try {
             objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-            objectOutputStream.writeObject(objects);
+            objectOutputStream.writeObject(objectToCopy);
             objectOutputStream.flush();
             bis = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         } finally {
             try {
                 if (byteArrayOutputStream != null)
@@ -79,9 +96,10 @@ public class NucleoObject implements Serializable {
             ObjectInput in = null;
             try {
                 in = new ObjectInputStream(bis);
-                tmp = (Map<String, Object>) in.readObject();
+                copiedObject = in.readObject();
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
+                return null;
             } finally {
                 try {
                     if (in != null) {
@@ -97,10 +115,10 @@ public class NucleoObject implements Serializable {
                 }
             }
         }
-        return tmp;
+        return objectToCopy;
     }
-    public NucleoObject startParallel() {  // do not write changes to objects, just add add/delete/update
-        Map<String, Object> tmp = this.fullCopy();
+    public void mergeChanges() {  // do not write changes to objects, just add add/delete/update
+        Map<String, Object> tmp = (Map<String, Object>)this.fullCopy(getWorkingObjects());
         Lists.newLinkedList(this.changes).stream().sorted(Comparator.comparingInt(NucleoChange::getParallelStep).thenComparingInt(a -> a.getPriority().value)).forEach(c->{
             if(c.getType()==NucleoChangeType.CREATE)
                 createWrite(c.getObjectPath(), c.storedObject());
@@ -109,8 +127,8 @@ public class NucleoObject implements Serializable {
             if(c.getType()==NucleoChangeType.DELETE)
                 delete(c.getObjectPath());
         });
+        this.changes.clear();
         currentObjects = tmp;
-        return this;
     }
 
     public Map<String, Object> getObjects() {
@@ -139,6 +157,8 @@ public class NucleoObject implements Serializable {
             if(object instanceof Map){
                 if(((Map<String, Object>)object).containsKey(path.getPath())){
                     object = ((Map<String, Object>)object).get(path.getPath());
+                }else{
+                    return null;
                 }
             }else if(object instanceof List){
                 Predicate predicates = null;
@@ -176,6 +196,8 @@ public class NucleoObject implements Serializable {
                     }else{
                         return null;
                     }
+                }else{
+                    return null;
                 }
             }else if(object instanceof Object){
                 try {
@@ -186,7 +208,6 @@ public class NucleoObject implements Serializable {
                     return null;
                 }
             }else{
-                System.out.println("test");
                 return null;
             }
             if(lenPaths-1==x) {
@@ -197,7 +218,7 @@ public class NucleoObject implements Serializable {
     }
 
     public Object get(String objectPath){
-        return getValueFromObject(objectPath, currentObjects);
+        return getValueFromObject(objectPath, getWorkingObjects());
     }
 
     public void createOrUpdate(String objectPath, Object object, NucleoChangePriority priority){
@@ -215,17 +236,19 @@ public class NucleoObject implements Serializable {
     }
 
     private boolean createWrite(String objectPath, Object object){
-        Map<String, Object> tmp = currentObjects;
+        Map<String, Object> tmp = getWorkingObjects();
         NucleoObjectPath.Path[] entries = NucleoObjectPath.pathArray(objectPath);
         if(entries.length==0){
             return false;
         }
-        int x=-1;
-        for(x=0;x<entries.length-1;x++){
-            if(!tmp.containsKey(entries[x].getPath())){
-                tmp.put(entries[x].getPath(), Maps.newTreeMap());
+        int x=0;
+        if(entries.length>1) {
+            for (x = 0; x < entries.length - 1; x++) {
+                if (!tmp.containsKey(entries[x].getPath())) {
+                    tmp.put(entries[x].getPath(), Maps.newTreeMap());
+                }
+                tmp = (Map<String, Object>) tmp.get(entries[x].getPath());
             }
-            tmp = (Map<String, Object>) tmp.get(entries[x].getPath());
         }
         if(!tmp.containsKey(entries[x].getPath())) {
             tmp.put(entries[x].getPath(), object);
@@ -247,7 +270,7 @@ public class NucleoObject implements Serializable {
 
 
     private boolean updateWrite(String objectPath, Object object){
-        Object tmp = currentObjects;
+        Object tmp = getWorkingObjects();
         NucleoObjectPath.Path[] paths = NucleoObjectPath.pathArray(objectPath);
         if(paths.length==0){
             return false;
@@ -345,7 +368,7 @@ public class NucleoObject implements Serializable {
     }
 
     private boolean deleteWrite(String objectPath){
-        Object tmp = currentObjects;
+        Object tmp = getWorkingObjects();
         NucleoObjectPath.Path[] paths = NucleoObjectPath.pathArray(objectPath);
         if(paths.length==0){
             return false;
@@ -442,7 +465,7 @@ public class NucleoObject implements Serializable {
     }
 
     private boolean addToListWrite(String objectPath, Object object){
-        Object tmp = currentObjects;
+        Object tmp = getWorkingObjects();
         NucleoObjectPath.Path[] paths = NucleoObjectPath.pathArray(objectPath);
         if(paths.length==0){
             return false;
@@ -632,4 +655,11 @@ public class NucleoObject implements Serializable {
         this.changes = changes;
     }
 
+    public Map<String, Object> getCurrentObjects() {
+        return currentObjects;
+    }
+
+    public void setCurrentObjects(Map<String, Object> currentObjects) {
+        this.currentObjects = currentObjects;
+    }
 }

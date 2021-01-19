@@ -73,7 +73,6 @@ public class TrafficExecutor {
                             hub.trafficCurrentRoute(data);
                             return;
                         }
-                        //System.out.println("going to: nucleo.client." + host);
                         //data.markTime("Sending to " + host);
                         hub.sendToMesh("nucleo.client." + host, data);
                         return;
@@ -99,13 +98,12 @@ public class TrafficExecutor {
                     //data.markTime("Execution Complete");
                     hub.log("complete", data);
                     responder.run(data);
+                    System.out.println("");
                     //System.out.println("response: " + data.markTime() + "ms");
                     return;
                 }
             } else if (hub.getEventHandler().getChainToMethod().containsKey(topic)) {
-
                 data.setStepsStart();
-
                 logger.debug(data.getRoot().toString() + " - processing " + topic);
                 Object[] methodData = hub.getEventHandler().getChainToMethod().get(topic);
                 NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
@@ -140,7 +138,6 @@ public class TrafficExecutor {
                             //esPusher.add(data);
                             //data.markTime("Execution Complete");
                             hub.log("incomplete", data);
-
                             hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
                             return;
                         }
@@ -159,6 +156,7 @@ public class TrafficExecutor {
                         try {
                             method.invoke(obj, data);
                         } catch (Exception e) {
+                            e.printStackTrace();
                             data.getChainBreak().setBreakChain(true);
                             data.getChainBreak().getBreakReasons().add(e.getMessage());
                         }
@@ -177,7 +175,7 @@ public class TrafficExecutor {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    responder.run();
+                    responder.run(data);
                 }
             } else {
                 //System.out.println("Topic or responder not found: " + topic);

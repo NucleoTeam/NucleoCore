@@ -135,7 +135,7 @@ public class SocketWriteClient implements InterlinkClient  {
                 }
                 tries++;
                 try{
-                    Thread.sleep(1000,0);
+                    Thread.sleep(100,0);
                 }catch (Exception e){
                     e.printStackTrace();
                 }
