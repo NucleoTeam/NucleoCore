@@ -39,9 +39,9 @@ public class NucleoMesh {
         this.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }};
 
-    public NucleoMesh(String meshName, String serviceName, String zookeeper, String elasticServer, int elasticPort, String packageStr) throws ClassNotFoundException {
+    public NucleoMesh(String meshName, String serviceName, String zookeeper, String packageStr) throws ClassNotFoundException {
         this.uniqueName = UUID.randomUUID().toString();
-        hub = new Hub(this, uniqueName, elasticServer, elasticPort);
+        hub = new Hub(this, uniqueName);
         this.meshName = meshName;
         this.serviceName = serviceName;
         logger.info("Starting nucleo client and joining mesh " + meshName + " with service name " + serviceName);
@@ -235,7 +235,7 @@ public class NucleoMesh {
         }catch (Exception e){
             e.printStackTrace();
         }
-        NucleoMesh mesh = new NucleoMesh("nucleoTest", "nucleoMesh", "192.168.1.141:2181", "192.168.1.7", 9200, "com.synload.nucleo.information");
+        NucleoMesh mesh = new NucleoMesh("nucleoTest", "nucleoMesh", "192.168.1.141:2181",  "com.synload.nucleo.information");
         new Thread(()->{
             while (!Thread.currentThread().isInterrupted()) {
                 mesh.call(

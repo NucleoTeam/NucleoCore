@@ -26,12 +26,10 @@ public class Hub {
     protected static final Logger logger = LoggerFactory.getLogger(Hub.class);
 
 
-    public Hub(NucleoMesh mesh, String uniqueName, String elasticServer, int elasticPort) {
+    public Hub(NucleoMesh mesh, String uniqueName) {
         this.uniqueName = uniqueName;
         this.mesh = mesh;
         this.offline = false;
-        //esPusher = new ElasticSearchPusher(elasticServer, elasticPort, "http");
-        //new Thread(esPusher).start();
     }
 
     public NucleoData constructNucleoData(String chain, NucleoObject objects) {
