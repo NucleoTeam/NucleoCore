@@ -45,7 +45,7 @@ public class TrafficExecutor {
                 // handle ping requests for uptime
                 logger.debug("ORIGIN RECEIVED");
                 if (data.getObjects().exists("_ping")) {
-                    Stack<String> hosts = (Stack<String>) data.getObjects().get("ping");
+                    Stack<String> hosts = (Stack<String>) data.getObjects().get("_ping");
                     if (hosts != null && !hosts.isEmpty()) {
                         String host = hosts.pop();
                         //System.out.println("going to: nucleo.client." + host);
@@ -96,9 +96,9 @@ public class TrafficExecutor {
                     data.getExecution().setEnd(System.currentTimeMillis());
                     //esPusher.add(data);
                     //data.markTime("Execution Complete");
+                    System.out.println("complete");
                     hub.log("complete", data);
                     responder.run(data);
-                    System.out.println("");
                     //System.out.println("response: " + data.markTime() + "ms");
                     return;
                 }
@@ -130,25 +130,23 @@ public class TrafficExecutor {
                     obj = methodData[0];
                 }
                 Method method = (Method) methodData[1];
-                NucleoResponder responder = new NucleoResponder() {
-                    public void run(NucleoData data) {
-                        if (data.getChainBreak().isBreakChain()) {
-                            timing.setEnd(System.currentTimeMillis());
-                            data.getSteps().add(timing);
-                            //esPusher.add(data);
-                            //data.markTime("Execution Complete");
-                            hub.log("incomplete", data);
-                            hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
-                            return;
-                        }
-                        logger.debug(data.getRoot().toString() + " - processed " + topic);
+                NucleoResponder responder = data -> {
+                    if (data.getChainBreak().isBreakChain()) {
                         timing.setEnd(System.currentTimeMillis());
                         data.getSteps().add(timing);
                         //esPusher.add(data);
                         //data.markTime("Execution Complete");
                         hub.log("incomplete", data);
-                        hub.nextChain(data);
+                        hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
+                        return;
                     }
+                    logger.debug(data.getRoot().toString() + " - processed " + topic);
+                    timing.setEnd(System.currentTimeMillis());
+                    data.getSteps().add(timing);
+                    //esPusher.add(data);
+                    //data.markTime("Execution Complete");
+                    hub.log("incomplete", data);
+                    hub.nextChain(data);
                 };
                 int len = method.getParameterTypes().length;
                 if (len > 0) {
@@ -165,6 +163,7 @@ public class TrafficExecutor {
                         try {
                             method.invoke(obj, data, responder);
                         } catch (Exception e) {
+                            e.printStackTrace();
                             data.getChainBreak().setBreakChain(true);
                             data.getChainBreak().getBreakReasons().add(e.getMessage());
                         }

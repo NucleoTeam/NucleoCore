@@ -45,11 +45,9 @@ public class NucleoMesh {
         this.meshName = meshName;
         this.serviceName = serviceName;
         logger.info("Starting nucleo client and joining mesh " + meshName + " with service name " + serviceName);
-        int ePort = nextAvailable();
-        logger.info("Selected Port: " + ePort);
+
         this.interlinkManager = new InterlinkManager(
             this,
-            ePort,
             Class.forName("com.synload.nucleo.interlink.socket.SocketServer"),
             Class.forName("com.synload.nucleo.interlink.socket.SocketWriteClient")
         );
@@ -68,38 +66,6 @@ public class NucleoMesh {
         manager.close();
         interlinkManager.close();
         getHub().close();
-    }
-
-    public static int nextAvailable() {
-        int port = (int) Math.round(Math.random() * 1000) + 9000;
-        if (port < 9000 || port > 10000) {
-            throw new IllegalArgumentException("Invalid start port: " + port);
-        }
-        ServerSocket ss = null;
-        DatagramSocket ds = null;
-        try {
-            ss = new ServerSocket(port);
-            ss.setReuseAddress(true);
-            ds = new DatagramSocket(port);
-            ds.setReuseAddress(true);
-            return port;
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (ds != null) {
-                ds.close();
-            }
-
-            if (ss != null) {
-                try {
-                    ss.close();
-                } catch (IOException e) {
-                    /* should not be thrown */
-                }
-            }
-        }
-
-        return nextAvailable();
     }
 
 
@@ -245,6 +211,7 @@ public class NucleoMesh {
                         createOrUpdate("time", System.currentTimeMillis());
                     }},
                     (data)->{
+                        System.out.println("complete in ");
                             Object totalTimeObject =data.getObjects().get("time");
                             if(totalTimeObject!=null) {
                                 long totalTime = (System.currentTimeMillis() - ((Long) totalTimeObject).longValue());
@@ -268,7 +235,7 @@ public class NucleoMesh {
                     }
                 );
                 try {
-                    Thread.sleep(30000);
+                    Thread.sleep(10000);
                 } catch (Exception e) {
                 }
             }

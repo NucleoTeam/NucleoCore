@@ -9,7 +9,10 @@ import com.synload.nucleo.zookeeper.ServiceInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.DatagramSocket;
+import java.net.ServerSocket;
 import java.util.*;
 
 public class InterlinkManager {
@@ -27,12 +30,46 @@ public class InterlinkManager {
     Class serverClass;
     Class clientClass;
 
-    public InterlinkManager(NucleoMesh mesh, int port, Class serverClass, Class clientClass){
+    public InterlinkManager(NucleoMesh mesh, Class serverClass, Class clientClass){
+        int ePort = nextAvailable();
+        logger.info("Selected Port: " + ePort);
         this.mesh = mesh;
-        this.port = port;
+        this.port = ePort;
         this.serverClass = serverClass;
         this.clientClass = clientClass;
     }
+    public static int nextAvailable() {
+        int port = (int) Math.round(Math.random() * 1000) + 9000;
+        if (port < 9000 || port > 10000) {
+            throw new IllegalArgumentException("Invalid start port: " + port);
+        }
+        ServerSocket ss = null;
+        DatagramSocket ds = null;
+        try {
+            ss = new ServerSocket(port);
+            ss.setReuseAddress(true);
+            ds = new DatagramSocket(port);
+            ds.setReuseAddress(true);
+            return port;
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (ds != null) {
+                ds.close();
+            }
+
+            if (ss != null) {
+                try {
+                    ss.close();
+                } catch (IOException e) {
+                    /* should not be thrown */
+                }
+            }
+        }
+
+        return nextAvailable();
+    }
+
     public void createServer() {
         try {
             interlinkServer = (InterlinkServer)serverClass.getDeclaredConstructor(int.class, InterlinkHandler.class).newInstance(this.port, (InterlinkHandler)(topic, data)->{

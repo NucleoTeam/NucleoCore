@@ -19,7 +19,7 @@ public class NucleoData implements Cloneable, Serializable {
     private List<NucleoStep> steps = new ArrayList<>();
     private NucleoStep execution = new NucleoStep();
     private int onChain = -1;
-    private int track = 1;
+    private int track = 0;
     private Stack<Object[]> timeExecutions = new Stack<>();
     private long timeTrack = System.currentTimeMillis();
     private int retries = 0;
