@@ -12,21 +12,17 @@ import java.util.TreeMap;
 public class ServiceInformation {
     public Set<String> events;
     public boolean leader;
-    public String name;
-    public String connectString;
-    public String host;
+    public String uniqueName;
     public String meshName;
     public String service;
 
     public ServiceInformation() {
     }
 
-    public ServiceInformation(String meshName, String service, String name, Set<String> events,  String connectString, String host, boolean leader) {
+    public ServiceInformation(String meshName, String service, String uniqueName, Set<String> events, boolean leader) {
         this.events = events;
         this.leader = leader;
-        this.name = name;
-        this.connectString = connectString;
-        this.host = host;
+        this.uniqueName = uniqueName;
         this.meshName = meshName;
         this.service = service;
     }
@@ -39,28 +35,12 @@ public class ServiceInformation {
         this.events = events;
     }
 
-    public String getName() {
-        return name;
+    public String getUniqueName() {
+        return uniqueName;
     }
 
-    public void setName(String unique) {
-        this.name = unique;
-    }
-
-    public String getConnectString() {
-        return connectString;
-    }
-
-    public void setConnectString(String connectString) {
-        this.connectString = connectString;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
+    public void setUniqueName(String uniqueName) {
+        this.uniqueName = uniqueName;
     }
 
     public String getMeshName() {

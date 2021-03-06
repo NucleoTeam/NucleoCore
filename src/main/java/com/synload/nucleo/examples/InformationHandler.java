@@ -1,13 +1,13 @@
-package com.synload.nucleo.information;
+package com.synload.nucleo.examples;
 
 import com.synload.nucleo.event.NucleoClass;
 import com.synload.nucleo.data.NucleoData;
-import com.synload.nucleo.event.NucleoEvent;
+import com.synload.nucleo.event.NucleoLink;
 import com.synload.nucleo.event.NucleoResponder;
 
 @NucleoClass
 public class InformationHandler {
-  @NucleoEvent("information")
+  @NucleoLink("information")
   public NucleoData information(NucleoData data){
     if(data.getObjects().exists("stop")){
       data.getChainBreak().setBreakChain(true);
@@ -16,23 +16,24 @@ public class InformationHandler {
     data.getObjects().createOrUpdate("taco", "bell");
     return data;
   }
-  @NucleoEvent("popcorn")
+  @NucleoLink("popcorn")
   public void popcorn(NucleoData data, NucleoResponder r){
     data.getObjects().createOrUpdate("POPPY", "CORN");
     r.run(data);
   }
-  @NucleoEvent(chains={"information.popcorn"})
+  @NucleoLink(chains={"information.popcorn"})
   public void infoPopcorn(NucleoData data, NucleoResponder r){
     data.getObjects().createOrUpdate("information-popcorn", "set");
     r.run(data);
   }
-  @NucleoEvent("information.popcorn > popcorn.poppyx")
+  @NucleoLink("information.popcorn > popcorn.poppyx")
   public NucleoData poppyx(NucleoData data){
     data.getObjects().createOrUpdate("POP", "LOCK");
     return data;
   }
-  @NucleoEvent("information.popcorn,information.test > popcorn.poppy")
+  @NucleoLink("information.popcorn,information.test > popcorn.poppy")
   public NucleoData poppy(NucleoData data){
+
     data.getObjects().createOrUpdate("TOP", "TOP");
     return data;
   }

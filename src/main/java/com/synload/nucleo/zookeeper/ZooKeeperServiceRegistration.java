@@ -15,17 +15,14 @@ public class ZooKeeperServiceRegistration {
 
     private NucleoMesh mesh;
     private String host;
-    private String hostName;
 
-    public ZooKeeperServiceRegistration(NucleoMesh mesh, ServiceDiscovery<ServiceInformation> serviceDiscovery, String host, String hostName){
+    public ZooKeeperServiceRegistration(NucleoMesh mesh, ServiceDiscovery<ServiceInformation> serviceDiscovery, String host){
         this.serviceDiscovery = serviceDiscovery;
         this.mesh = mesh;
         this.host = host;
-        this.hostName = hostName;
     }
     public void registerService(){
         try {
-
             ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
                 .name(mesh.getServiceName())
                 .id(mesh.getUniqueName())
@@ -33,13 +30,10 @@ public class ZooKeeperServiceRegistration {
                     mesh.getMeshName(),
                     mesh.getServiceName(),
                     mesh.getUniqueName(),
-                    mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                    host + ":" + mesh.getInterlinkManager().getPort(),
-                    hostName,
+                    mesh.getEventHandler().getChainToMethod().keySet(),
                     false
                 ))
-                .port(mesh.getInterlinkManager().getPort()) // in a real application, you'd use a common port
-                .uriSpec(new UriSpec(host + ":{port}"))
+                .uriSpec(new UriSpec(host))
                 .build();
             serviceDiscovery.registerService(thisInstance);
         } catch (Exception e) {
@@ -55,13 +49,10 @@ public class ZooKeeperServiceRegistration {
                     mesh.getMeshName(),
                     mesh.getServiceName(),
                     mesh.getUniqueName(),
-                    mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                    host + ":" + mesh.getInterlinkManager().getPort(),
-                    hostName,
+                    mesh.getEventHandler().getChainToMethod().keySet(),
                     false
                 ))
-                .port(mesh.getInterlinkManager().getPort()) // in a real application, you'd use a common port
-                .uriSpec(new UriSpec(host + ":{port}"))
+                .uriSpec(new UriSpec(host))
                 .build();
             serviceDiscovery.unregisterService(thisInstance);
         } catch (Exception e) {

@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 public class NucleoObject implements Serializable {
 
-    private List<NucleoChange> changes = Lists.newLinkedList();
+    private List<NucleoChange> changes = new ArrayList<>();
     private Map<String, Object> objects = Maps.newHashMap();
 
     @JsonIgnore
@@ -38,6 +38,7 @@ public class NucleoObject implements Serializable {
 
     @JsonIgnore protected static final Logger logger = LoggerFactory.getLogger(NucleoObject.class);
 
+    @JsonIgnore
     private Map<String, Object> getWorkingObjects(){
         if(currentObjects==null){
             currentObjects = objects;
@@ -53,22 +54,21 @@ public class NucleoObject implements Serializable {
 
     public NucleoObject(NucleoObject old) {
         if(old.objects!=null){
-            objects = (new HashMap<>());
-            objects.putAll(old.objects);
+            objects = new HashMap<>(old.objects);
         }else{
             objects = Maps.newTreeMap();
         }
         if(old.changes!=null){
-            changes = Lists.newLinkedList(old.changes);
+            changes = new ArrayList<>(old.changes);
         }else{
-            changes = Lists.newLinkedList();
+            changes = new ArrayList();
         }
     }
 
     Object fullCopy(Object objectToCopy){
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ObjectOutputStream objectOutputStream = null;
-        ByteArrayInputStream bis = null;
+        ByteArrayInputStream bis;
         Object copiedObject=null;
         try {
             objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
@@ -115,9 +115,9 @@ public class NucleoObject implements Serializable {
                 }
             }
         }
-        return objectToCopy;
+        return copiedObject;
     }
-    public void mergeChanges() {  // do not write changes to objects, just add add/delete/update
+    public void buildCurrentState() {  // merge all changes into current state
         Map<String, Object> tmp = (Map<String, Object>)this.fullCopy(getWorkingObjects());
         Lists.newLinkedList(this.changes).stream().sorted(Comparator.comparingInt(NucleoChange::getParallelStep).thenComparingInt(a -> a.getPriority().value)).forEach(c->{
             if(c.getType()==NucleoChangeType.CREATE)
@@ -129,6 +129,12 @@ public class NucleoObject implements Serializable {
         });
         this.changes.clear();
         currentObjects = tmp;
+    }
+
+    public void buildFinalizedState() {
+        this.buildCurrentState();
+        this.changes = new ArrayList<>();
+        this.objects = this.currentObjects;
     }
 
     public Map<String, Object> getObjects() {

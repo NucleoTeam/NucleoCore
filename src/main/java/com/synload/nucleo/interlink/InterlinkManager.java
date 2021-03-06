@@ -1,246 +1,134 @@
 package com.synload.nucleo.interlink;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
-import com.synload.nucleo.interlink.socket.SocketServer;
-import com.synload.nucleo.zookeeper.ServiceInformation;
+import com.synload.nucleo.utils.ObjectDeserializer;
+import com.synload.nucleo.utils.ObjectSerializer;
+import org.apache.commons.collections.list.TreeList;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.LongDeserializer;
+import org.apache.kafka.common.serialization.LongSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.net.DatagramSocket;
-import java.net.ServerSocket;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class InterlinkManager {
     protected static final Logger logger = LoggerFactory.getLogger(InterlinkManager.class);
     NucleoMesh mesh;
-    int port;
-    HashMap<String, InterlinkClient> connections = new HashMap<>();
-    TreeMap<String, Thread> connectionThreads = new TreeMap<>();
-    HashMap<String, InterlinkTopic.RoundRobin> topics = new HashMap<>();
-    HashMap<String, InterlinkClient> leaderTopics = new HashMap<>();
-    HashMap<String, String> leaders = new HashMap<>();
-    TreeMap<String, List<String>> route = new TreeMap<>();
-    InterlinkServer interlinkServer;
-    Thread serverThread;
-    Class serverClass;
-    Class clientClass;
+    Properties consumerProps = new Properties();
+    Properties producerProps = new Properties();
+    Properties brodcastProps = new Properties();
+    InterlinkConsumer consumer;
+    InterlinkConsumer broadcast;
+    InterlinkProducer producer;
+    ObjectMapper mapper = new ObjectMapper();
 
-    public InterlinkManager(NucleoMesh mesh, Class serverClass, Class clientClass){
-        int ePort = nextAvailable();
-        logger.info("Selected Port: " + ePort);
+    public InterlinkManager(NucleoMesh mesh, String kafkaServers){
         this.mesh = mesh;
-        this.port = ePort;
-        this.serverClass = serverClass;
-        this.clientClass = clientClass;
+        Properties properties = new Properties();
+        properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+
+
+        consumerProps.putAll(properties);
+        consumerProps.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServers);
+        consumerProps.setProperty(ConsumerConfig.GROUP_ID_CONFIG, mesh.getServiceName());
+        consumerProps.setProperty(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "78643200");
+        consumerProps.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, LongDeserializer.class.getName());
+        consumerProps.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ObjectDeserializer.class.getName());
+
+        producerProps.putAll(properties);
+        producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServers);
+        producerProps.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getName());
+        producerProps.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ObjectSerializer.class.getName());
+        producer = new InterlinkProducer(producerProps);
+        consumer = new InterlinkConsumer(consumerProps, (data)->{
+            mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);
+            mesh.getHub().handle(mesh.getHub(), data);
+        });
+        brodcastProps.putAll(consumerProps);
+
+        brodcastProps.setProperty(ConsumerConfig.GROUP_ID_CONFIG, mesh.getUniqueName());
+        broadcast = new InterlinkConsumer(brodcastProps, (data)->{
+            mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);
+            mesh.getHub().handle(mesh.getHub(), data);
+        });
     }
-    public static int nextAvailable() {
-        int port = (int) Math.round(Math.random() * 1000) + 9000;
-        if (port < 9000 || port > 10000) {
-            throw new IllegalArgumentException("Invalid start port: " + port);
-        }
-        ServerSocket ss = null;
-        DatagramSocket ds = null;
-        try {
-            ss = new ServerSocket(port);
-            ss.setReuseAddress(true);
-            ds = new DatagramSocket(port);
-            ds.setReuseAddress(true);
-            return port;
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (ds != null) {
-                ds.close();
-            }
-
-            if (ss != null) {
-                try {
-                    ss.close();
-                } catch (IOException e) {
-                    /* should not be thrown */
-                }
-            }
-        }
-
-        return nextAvailable();
+    public void subscribeBroadcasts(String... topics) {
+        broadcast.getTopics().addAll(Arrays.asList(topics).stream().map(c->"broadcast_"+c).collect(Collectors.toList()));
+    }
+    public void subscribeBroadcasts(Collection<String> topics) {
+        consumer.getTopics().addAll(topics.stream().map(c->"broadcast_"+c).collect(Collectors.toList()));
     }
 
-    public void createServer() {
-        try {
-            interlinkServer = (InterlinkServer)serverClass.getDeclaredConstructor(int.class, InterlinkHandler.class).newInstance(this.port, (InterlinkHandler)(topic, data)->{
-                mesh.getHub().handle(mesh.getHub(), data, topic);
-            });
-            serverThread = new Thread(interlinkServer);
-            serverThread.start();
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        } catch (NoSuchMethodException e) {
-            logger.error("Interlink client class constructor not defined.");
-            e.printStackTrace();
-        }
+    public void subscribeLeader(String topic) {
+        InterlinkConsumer ilc = new InterlinkConsumer(consumerProps, (data)->{
+            mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);
+            mesh.getHub().handle(mesh.getHub(), data);
+        }, false);
+        ilc.getTopics().add("leader_"+topic);
+        ilc.start();
+
     }
-    public void leaderCheck(ServiceInformation node){
-        if (node.isLeader() &&
-            ( leaders.get(node.getService()) != null && !leaders.get(node.getService()).equals(node.getName()) )
-            || leaders.get(node.getService()) == null
-        ) {
-            leaders.put(node.getService(), node.getName());
-            if (connections.containsKey(node.getName())) {
-                InterlinkClient socketClient = connections.get(node.getName());
-                for (String event : node.getEvents()) {
-                    leaderTopics.put(event, socketClient);
-                }
-                logger.info(node.getService() + " [ " + node.getName() + " ] : " + node.getConnectString() + " is the leader!");
-            }
-        }
+    public void start(){
+        consumer.start();
+        broadcast.start();
     }
-    public void sync(ServiceInformation node) {
-        InterlinkClient nodeClient = null;
-        if (!connections.containsKey(node.getName())) {
-            logger.info(node.getService() + " : " + node.getConnectString()+ " joined the mesh!");
-
-            try {
-                nodeClient = (InterlinkClient)clientClass.getDeclaredConstructor(ServiceInformation.class, InterlinkHandler.class).newInstance(node, (InterlinkHandler)(topic, data)->{
-                    route(topic, data); // if sending fails use route again
-                });
-            }catch (NoSuchMethodException e){
-                logger.error("Interlink client class constructor not defined.");
-                e.printStackTrace();
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            } catch (InstantiationException e) {
-                e.printStackTrace();
-            } catch (InvocationTargetException e) {
-                e.printStackTrace();
-            }
-
-            connections.put(node.getName(), nodeClient);
-            try {
-                Thread thread = new Thread(nodeClient);
-                synchronized(connectionThreads) {
-                    connectionThreads.put(node.getName(), thread);
-                }
-                thread.start();
-            } catch (Exception e) {
-
-            }
-            for (String event : node.getEvents()) {
-                synchronized (topics) {
-                    if (!topics.containsKey(event)) {
-                        topics.put(event, new InterlinkTopic.RoundRobin(this)); // use round robin
-                    }
-                    topics.get(event).add(nodeClient);
-                    logger.info("Added to [ " + event + " ] from " + node.getHost() + ", nodes available: " + topics.get(event).nodes.size());
-                }
-            }
-
-        }
+    public void subscribeLeader(String topic, int leaders) {
+        InterlinkConsumer ilc = new InterlinkConsumer(consumerProps, (data)->{
+            mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);
+            mesh.getHub().handle(mesh.getHub(), data);
+        }, false);
+        ilc.getTopics().add("leader_"+topic);
+        ilc.start();
     }
-    public void delete(String node){
-        InterlinkClient client = null;
-        synchronized(connections) {
-            if (connections.containsKey(node)) {
-                client = connections.remove(node);
-                synchronized(connectionThreads) {
-                    Thread x = connectionThreads.remove(node);
-                    if(x!=null)
-                        x.interrupt();
-                }
-            }
-        }
-        //logger.debug("connectionThreads: "+connectionThreads.size());
-        //logger.debug("connections: "+connections.size());
-        if(client!=null){
-            logger.info(client.getServiceInformation().getService() + " : " + node+ " has left the mesh");
-            for (String event : client.getServiceInformation().getEvents()) {
-                synchronized (topics) {
-                    if (topics.containsKey(event)) {
-                        topics.get(event).nodes.remove(client);
-                        logger.info("Removed event [ " + event + " ] from " + client.getServiceInformation().getHost() + ", nodes available: " + topics.get(event).nodes.size());
-                        if (topics.get(event).nodes.size() == 0) {
-                            logger.info("no nodes on [ " + event + " ], removing");
-                            topics.remove(event);
-                        }
-                    }
-                }
-            }
-            /*client.getQueue().forEach((NucleoTopicPush p) -> {
-                this.robin(p.getTopic(), p.getData()); // preserve the queue for this client and send to other clients
-            });*/
-        }
-    }
-    public void route(String topic, NucleoData data){
-        //System.out.println(topic);
-        if (topic.startsWith("nucleo.client.")) {
-            String node = topic.substring(14);
-            if (connections.containsKey(node)) {
-                connections.get(node).add("nucleo.client." + node, data);
-                return;
-            }else if(node.equals(mesh.getUniqueName())){
-                mesh.getHub().handle(mesh.getHub(), data, topic);
-                return;
-            }
-            /*try{
-                System.out.println(new ObjectMapper().writeValueAsString(data));
-            }catch (Exception e){}*/
-            //System.out.println("[" + topic + "] failed to route on "+mesh.getUniqueName());
-        } else {
 
-            if (topics.containsKey(topic)) {
-                topics.get(topic).send(topic, data);
-                return;
-            }
-        }
-        try {
-            //System.out.println("["+topic+"] " + new ObjectMapper().writeValueAsString(connections));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        //System.out.println("[" + topic + "] route not found");
+    public void subscribe(String... topics) {
+        consumer.getTopics().addAll(Arrays.asList(topics));
+    }
+
+    public void subscribe(Collection<String> topics) {
+        consumer.getTopics().addAll(topics);
+    }
+
+    public void unsubscribeLeader(String topic) {
+        unsubscribe("leader_"+topic);
+    }
+    public void unsubscribeBroadcast(String... topics){
+        Set<String> topicsToRemove = new HashSet<>(Arrays.asList(topics));
+        Set<String> topicsLeft = broadcast.getTopics().stream().filter(k->!topicsToRemove.contains(k)).collect(Collectors.toSet());
+        broadcast.setTopics(topicsLeft);
+        broadcast.getConsumer().unsubscribe();
+        broadcast.getConsumer().subscribe(topicsLeft);
+    }
+
+    public void unsubscribe(String... topics){
+        Set<String> topicsToRemove = new HashSet<>(Arrays.asList(topics));
+        Set<String> topicsLeft = consumer.getTopics().stream().filter(k->!topicsToRemove.contains(k)).collect(Collectors.toSet());
+        consumer.setTopics(topicsLeft);
+        consumer.getConsumer().unsubscribe();
+        consumer.getConsumer().subscribe(topicsLeft);
+    }
+
+
+    public void broadcast(String topic, NucleoData data){
+        send("broadcast_"+topic, data);
     }
 
     public void leader(String topic, NucleoData data){
-        if(leaderTopics.containsKey(topic)){
-            InterlinkClient leaderWriteConnection = leaderTopics.get(topic);
-            route(topic, leaderWriteConnection, data);
-        }
+        send("leader_"+topic, data);
     }
-    public void route(String topic, InterlinkClient node, NucleoData data) {
-        synchronized (route) {
-            /*List<String> routeToNode = route.get(node.node.name);
-            if (routeToNode != null && routeToNode.size() > 0) {
-                routeToNode = Lists.newLinkedList(routeToNode);
-                String firstNode = routeToNode.remove(0);
-                if (routeToNode.size() > 0) {
-                    if (connections.containsKey(firstNode)) {
-                        synchronized (data) {
-                            data.getObjects().put("_route", routeToNode);
-                        }
-                        connections.get(firstNode).add("nucleo.client." + firstNode, data);
-                        data.markTime("Route sending to "+connections.get(firstNode).node.name);
-                        return;
-                    }
-                }
-            }*/
-            //data.markTime("Route sending to "+node.node.name);
-            node.add(topic, data);
-            return;
-        }
+
+    public void send(String topic, NucleoData data){
+        mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.SEND_TOPIC, mesh, topic, data);
+        producer.send(topic, data);
     }
 
     public void close(){
-        this.getConnections().forEach((String key, InterlinkClient action)->action.close());
-        interlinkServer.close();
-        serverThread.interrupt();
+        this.consumer.close();
+        this.broadcast.close();
     }
 
     public NucleoMesh getMesh() {
@@ -251,35 +139,4 @@ public class InterlinkManager {
         this.mesh = mesh;
     }
 
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public HashMap<String, InterlinkClient> getConnections() {
-        return connections;
-    }
-
-    public void setConnections(HashMap<String, InterlinkClient> connections) {
-        this.connections = connections;
-    }
-
-    public HashMap<String, InterlinkTopic.RoundRobin> getTopics() {
-        return topics;
-    }
-
-    public void setTopics(HashMap<String, InterlinkTopic.RoundRobin> topics) {
-        this.topics = topics;
-    }
-
-    public TreeMap<String, List<String>> getRoute() {
-        return route;
-    }
-
-    public void setRoute(TreeMap<String, List<String>> route) {
-        this.route = route;
-    }
 }

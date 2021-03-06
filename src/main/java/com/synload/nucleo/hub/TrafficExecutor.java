@@ -1,6 +1,7 @@
 package com.synload.nucleo.hub;
 
 import com.google.common.collect.Sets;
+import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.event.NucleoStep;
@@ -41,71 +42,23 @@ public class TrafficExecutor {
     public void handle() {
         try {
             //data.markTime("Start Execution on " + hub.getUniqueName());
-            if (topic.startsWith("nucleo.client.")) {
-                // handle ping requests for uptime
-                logger.debug("ORIGIN RECEIVED");
-                if (data.getObjects().exists("_ping")) {
-                    Stack<String> hosts = (Stack<String>) data.getObjects().get("_ping");
-                    if (hosts != null && !hosts.isEmpty()) {
-                        String host = hosts.pop();
-                        //System.out.println("going to: nucleo.client." + host);
-                        //data.markTime("Execution Complete");
-                        hub.sendToMesh("nucleo.client." + host, data);
-                        return;
-                    } else {
-                        //esPusher.add(data);
-                        data.getObjects().delete("_ping");
-                        //data.markTime("Execution Complete");
-                        hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
-                        //System.out.println("ping going home!");
-                        return;
-                    }
-                }
-
-                // handle routing of request through this service
-                if (data.getObjects().exists("_route")) {
-                    List<String> hosts = (List<String>) data.getObjects().get("_route");
-                    if (hosts != null && !hosts.isEmpty()) { // route not complete
-                        String host = hosts.remove(0);
-                        if (host.equals(hub.getUniqueName())) {
-                            data.getObjects().delete("_route");
-                            //data.markTime("Route Complete");
-                            hub.trafficCurrentRoute(data);
-                            return;
-                        }
-                        //data.markTime("Sending to " + host);
-                        hub.sendToMesh("nucleo.client." + host, data);
-                        return;
-                    } else {
-                        data.getObjects().delete("_route");
-                        //data.markTime("Route Complete");
-                        hub.trafficCurrentRoute(data);
-                        return;
-                    }
-                }
-
+            if (topic == null) {
                 // Finish request and execute the final responder
                 NucleoResponder responder = hub.getResponders().get(data.getRoot().toString());
                 if (responder != null) {
                     hub.getResponders().remove(data.getRoot().toString());
-                    Thread timeout = hub.getTimeouts().get(data.getRoot().toString());
-                    if (timeout != null) {
-                        timeout.interrupt();
-                        hub.getTimeouts().remove(data.getRoot().toString());
-                    }
                     data.getExecution().setEnd(System.currentTimeMillis());
                     //esPusher.add(data);
                     //data.markTime("Execution Complete");
-                    System.out.println("complete");
                     hub.log("complete", data);
                     responder.run(data);
                     //System.out.println("response: " + data.markTime() + "ms");
                     return;
                 }
-            } else if (hub.getEventHandler().getChainToMethod().containsKey(topic)) {
+            } else if (hub.getMesh().getEventHandler().getChainToMethod().containsKey(topic)) {
                 data.setStepsStart();
                 logger.debug(data.getRoot().toString() + " - processing " + topic);
-                Object[] methodData = hub.getEventHandler().getChainToMethod().get(topic);
+                Object[] methodData = hub.getMesh().getEventHandler().getChainToMethod(topic);
                 NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
                 if (methodData[2] != null) {
                     Set<String> missingChains;
@@ -117,7 +70,7 @@ public class TrafficExecutor {
                         //esPusher.add(data);
                         //data.markTime("Execution Complete");
                         hub.log("complete", data);
-                        hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
+                        hub.sendRoot(data);
                         return;
                     }
                 }
@@ -137,7 +90,7 @@ public class TrafficExecutor {
                         //esPusher.add(data);
                         //data.markTime("Execution Complete");
                         hub.log("incomplete", data);
-                        hub.sendToMesh("nucleo.client." + data.getOrigin(), data);
+                        hub.sendRoot(data);
                         return;
                     }
                     logger.debug(data.getRoot().toString() + " - processed " + topic);
@@ -148,33 +101,51 @@ public class TrafficExecutor {
                     hub.log("incomplete", data);
                     hub.nextChain(data);
                 };
-                int len = method.getParameterTypes().length;
-                if (len > 0) {
-                    if (method.getParameterTypes()[0] == NucleoData.class && len == 1) {
-                        try {
-                            method.invoke(obj, data);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            data.getChainBreak().setBreakChain(true);
-                            data.getChainBreak().getBreakReasons().add(e.getMessage());
-                        }
-                        responder.run(data);
-                    } else if (method.getParameterTypes()[0] == NucleoData.class && len == 2 && method.getParameterTypes()[1] == NucleoResponder.class) {
-                        try {
-                            method.invoke(obj, data, responder);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            data.getChainBreak().setBreakChain(true);
-                            data.getChainBreak().getBreakReasons().add(e.getMessage());
-                        }
+                Object[] objects = new Object[method.getParameterCount()];
+                Class[] classes = method.getParameterTypes();
+                Class returnType = method.getReturnType();
+                boolean executeResponder = true;
+
+                data.getObjects().buildCurrentState(); // get current state of objects,
+
+                for (int i = 0; i < classes.length; i++) {
+                    if(classes[i] == NucleoData.class){
+                        objects[i] = data;
+                        continue;
                     }
-                } else {
+                    if(classes[i] == NucleoResponder.class){
+                        objects[i] = responder;
+                        executeResponder = false;
+                        continue;
+                    }
+                    if(classes[i] == NucleoMesh.class){
+                        objects[i] = this.getHub().getMesh();
+                        continue;
+                    }
+                    if(classes[i] == Hub.class){
+                        objects[i] = this.getHub();
+                        continue;
+                    }
+                    objects[i] = null;
+                }
+                if (executeResponder && returnType == NucleoData.class) {
                     try {
-                        method.invoke(obj);
+                        responder.run((NucleoData)method.invoke(obj, objects));
                     } catch (Exception e) {
                         e.printStackTrace();
+                        data.getChainBreak().setBreakChain(true);
+                        data.getChainBreak().getBreakReasons().add(e.getMessage());
                     }
-                    responder.run(data);
+                }else {
+                    try {
+                        method.invoke(obj, objects);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        data.getChainBreak().setBreakChain(true);
+                        data.getChainBreak().getBreakReasons().add(e.getMessage());
+                    }
+                    if (executeResponder)
+                        responder.run(data);
                 }
             } else {
                 //System.out.println("Topic or responder not found: " + topic);

@@ -1,18 +1,18 @@
-package com.synload.nucleo.information;
+package com.synload.nucleo.examples;
 
 import com.synload.nucleo.event.NucleoClass;
 import com.synload.nucleo.data.NucleoData;
-import com.synload.nucleo.event.NucleoEvent;
+import com.synload.nucleo.event.NucleoLink;
 
 @NucleoClass
 public class HitsHandler {
-  @NucleoEvent("information.hits")
+  @NucleoLink("information.hits")
   public NucleoData hitCount(NucleoData data){
     data.getObjects().createOrUpdate("test","run");
     return data;
   }
 
-  @NucleoEvent("information.test")
+  @NucleoLink("information.test")
   public NucleoData anotherTest(NucleoData data){
     data.getObjects().createOrUpdate("papa","kek");
     return data;
@@ -21,7 +21,7 @@ public class HitsHandler {
   /*
      Only execute information.changeme only after information.hits is run
    */
-  @NucleoEvent("information.hits > information.changeme")
+  @NucleoLink("information.hits > information.changeme")
   public NucleoData changeMe(NucleoData data){
     data.getObjects().createOrUpdate("wow", "kekekekeke");
     return data;

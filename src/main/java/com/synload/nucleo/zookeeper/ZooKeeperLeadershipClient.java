@@ -2,6 +2,7 @@ package com.synload.nucleo.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.interlink.InterlinkEventType;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
@@ -26,61 +27,52 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
     private String serviceName = "";
     private LeaderSelector leader = null;
     private NucleoMesh mesh;
-    private String host;
-    private String hostName;
+    private String topicName;
 
-    public ZooKeeperLeadershipClient(NucleoMesh mesh, CuratorFramework client, ServiceDiscovery<ServiceInformation> serviceDiscovery, String leaderPath, String host, String hostName){
+    public ZooKeeperLeadershipClient(NucleoMesh mesh, CuratorFramework client, ServiceDiscovery<ServiceInformation> serviceDiscovery, String leaderPath, String topicName) {
         this.mesh = mesh;
-        this.host = host;
-        this.hostName = hostName;
         this.serviceDiscovery = serviceDiscovery;
         serviceName = mesh.getHub().getMesh().getServiceName();
-        logger.info(leaderPath + "/for/" + serviceName);
+        logger.info(leaderPath + "/for/" + topicName);
+        this.topicName=topicName;
         leader = new LeaderSelector(
             client,
-            leaderPath + "/for/" + serviceName,
+            leaderPath + "/for/" + topicName,
             this
         );
         leader.setId(mesh.getUniqueName());
         leader.autoRequeue();
     }
 
-    public void start(){
+    public void start() {
         leader.start();
     }
 
     @Override
     public void takeLeadership(CuratorFramework client) throws Exception {
-        try {
-            logger.info("New leader for " + serviceName + ", " + mesh.getUniqueName() + " is the new leader");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        ServiceInformation serviceInformation = new ServiceInformation(
+            mesh.getMeshName(),
+            mesh.getServiceName(),
+            mesh.getUniqueName(),
+            mesh.getEventHandler().getChainToMethod().keySet(),
+            true
+        );
         ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
             .id(mesh.getUniqueName())
             .name(mesh.getServiceName())
-            .payload(new ServiceInformation(
-                mesh.getMeshName(),
-                mesh.getServiceName(),
-                mesh.getUniqueName(),
-                mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                host + ":" + mesh.getInterlinkManager().getPort(),
-                hostName,
-                true
-            ))
-            .port(mesh.getInterlinkManager().getPort())
-            .uriSpec(new UriSpec(host + ":{port}"))
+            .payload(serviceInformation)
             .build();
         serviceDiscovery.updateService(thisInstance);
-        logger.info("This service is now the leader of the mesh.");
-
-        try{
+        logger.info("New leader for " + topicName + ", "+serviceName+" ( " + mesh.getUniqueName() + " ) is the new leader");
+        mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.GAIN_LEADER, mesh, serviceInformation, topicName);
+        try {
             countDownLatch.await();
             countDownLatch = new CountDownLatch(1);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        logger.info("This service gave up leadership.");
+        mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.CEDE_LEADER, mesh, serviceInformation, topicName);
+        logger.info("This service gave up leadership of the topic "+topicName);
     }
 
     @Override
@@ -99,13 +91,9 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
                             mesh.getMeshName(),
                             mesh.getServiceName(),
                             mesh.getUniqueName(),
-                            mesh.getHub().getEventHandler().getChainToMethod().keySet(),
-                            host + ":" + mesh.getInterlinkManager().getPort(),
-                            hostName,
+                            mesh.getEventHandler().getChainToMethod().keySet(),
                             false
                         ))
-                        .port(mesh.getInterlinkManager().getPort())
-                        .uriSpec(new UriSpec(host + ":{port}"))
                         .build();
                     serviceDiscovery.registerService(thisInstance);
                 } catch (Exception e) {

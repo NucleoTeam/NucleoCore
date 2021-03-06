@@ -99,7 +99,7 @@ public class TrafficHandler {
         return false;
     }
 
-    public void processParallel(NucleoData data, TrafficExecutor responder) {
+    public synchronized void processParallel(NucleoData data, TrafficExecutor responder) {
 
         NucleoChain previousChain = data.previousParentChain();
         String root = data.getRoot().toString();
@@ -132,11 +132,9 @@ public class TrafficHandler {
                             int parallel = previousChainPart.getParallel();
                             previousChainPart = previousChainPart.getParallelChains().get(parallel);
                             if (finalPart != null) {
-                                boolean saveChanges = false;
-                                logger.info("Merged "+root+" <= "+part.getSteps().get(part.getSteps().size()-1).getStep());
+                                logger.info("Final Part Merged "+root+" <= "+part.getSteps().get(part.getSteps().size()-1).getStep());
                                 finalPart.getObjects().getChanges().addAll(part.getObjects().getChanges());
                                 finalPart.getObjects().setLedgerMode(false);
-                                finalPart.getObjects().mergeChanges();
                                 int stepStart = previousChainPart.stepStart;
                                 if (stepStart != -1) {
                                     previousChainPart.setStepStart(finalPart.getSteps().size());
@@ -153,6 +151,7 @@ public class TrafficHandler {
                             }
                         }
                         if (data.getTrack() == 1) logger.debug(root + ": executing");
+                        finalPart.getObjects().buildFinalizedState();
                         finalPart.previousParentChain().setRecombined(true);
                         responder.setData(finalPart);
                         responder.handle();

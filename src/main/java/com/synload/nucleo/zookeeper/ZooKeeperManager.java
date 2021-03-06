@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class ZooKeeperManager {
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperManager.class);
@@ -30,7 +31,7 @@ public class ZooKeeperManager {
     private static ServiceDiscovery<ServiceInformation> serviceDiscovery = null;
     private CuratorFramework client = null;
 
-    private ZooKeeperLeadershipClient leadershipClient;
+    private List<ZooKeeperLeadershipClient> leadershipClient;
     private ZooKeeperServiceMonitor serviceMonitor;
     private ZooKeeperServiceRegistration serviceRegistration;
 
@@ -61,7 +62,6 @@ public class ZooKeeperManager {
             logger.info("Unique Id: " + mesh.getUniqueName());
             logger.info("Service Name: " + mesh.getServiceName());
             logger.info("IP Address: " + host);
-            logger.info("Port: " + mesh.getInterlinkManager().getPort());
             logger.info("HostName: " + hostName);
 
             client = CuratorFrameworkFactory.newClient(connString, new ExponentialBackoffRetry(500, 2));
@@ -79,9 +79,15 @@ public class ZooKeeperManager {
 
             logger.info("Connected to ZooKeeper");
 
-            leadershipClient = new ZooKeeperLeadershipClient(mesh, client, serviceDiscovery, leaderPath, host, hostName);
+            leadershipClient = mesh.getEventHandler()
+                .getChainToMethod()
+                .keySet()
+                .stream()
+                .map(topic->new ZooKeeperLeadershipClient(mesh, client, serviceDiscovery, leaderPath, topic))
+                .collect(Collectors.toList());
+
             serviceMonitor = new ZooKeeperServiceMonitor(mesh, serviceDiscovery);
-            serviceRegistration = new ZooKeeperServiceRegistration(mesh, serviceDiscovery, host, hostName);
+            serviceRegistration = new ZooKeeperServiceRegistration(mesh, serviceDiscovery, host);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -91,14 +97,14 @@ public class ZooKeeperManager {
     Thread serviceMonitorThread;
     public void start(){
         serviceRegistration.registerService();
-        leadershipClient.start();
+        leadershipClient.forEach(l->l.start());
         serviceMonitorThread = new Thread(serviceMonitor);
         serviceMonitorThread.start();
     }
 
 
     public void close() throws IOException {
-        leadershipClient.close();
+        leadershipClient.forEach(l->l.close());
         serviceMonitorThread.interrupt();
         serviceRegistration.unregister();
         serviceDiscovery.close();
