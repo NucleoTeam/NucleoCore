@@ -1,5 +1,12 @@
 package com.synload.nucleo.path;
 
-public class ParallelRun {
+import java.util.LinkedList;
+import java.util.List;
+
+public class ParallelRun extends Run {
+
+    public ParallelRun() {
+
+    }
 
 }
