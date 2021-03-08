@@ -1,8 +1,6 @@
 package com.synload.nucleo.path;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class PathBuilder {
     Run start = null;
@@ -70,10 +68,34 @@ public class PathBuilder {
         return generateSerialRun(chain);
     }
     interface Modification{
-        void write(Run run);
+        void action(Run run);
+    }
+    interface Filter{
+        boolean filter(Run run);
+    }
+    List<Run> traverseFilter(Run start, Filter filterMethod){
+        List<Run> filteredRuns = new LinkedList<>();
+        Stack<Run> toGo = new Stack();
+        HashSet<Run> seen = new HashSet();
+        toGo.add(start);
+        while(!toGo.isEmpty()){
+            Run run = toGo.pop();
+            if(filterMethod.filter(run)){
+                filteredRuns.add(run);
+            }
+            run.getNextRuns().forEach(r->{
+                if(!seen.contains(r)){
+                    toGo.add(r);
+                    seen.add(r);
+                }
+            });
+        }
+
+
+        return filteredRuns;
     }
     void traverseModify(Run run, Modification modification){
-        modification.write(run);
+        modification.action(run);
         run.getNextRuns().forEach(i->traverseModify(i, modification));
     }
     PathPlusLeafs generateParallelRun(PathPlusLeafs... pathPlusLeafsOld){
@@ -136,8 +158,10 @@ public class PathBuilder {
         pathBuilder.addParallel(
             pathBuilder.generateSerialRun("information.hits","information.test"),
             pathBuilder.generateRun("popcorn"),
-            pathBuilder.generateSerialRun("information.jest","information.test"),
-            pathBuilder.generateSerialRun("information.test")
+            pathBuilder.generateParallelRun(
+                pathBuilder.generateSerialRun("information.hits","information.test"),
+                pathBuilder.generateSerialRun("information.test")
+            )
         ).add(
             "information.test",
             "information.popcorn"
@@ -145,6 +169,13 @@ public class PathBuilder {
             pathBuilder.generateSerialRun("information.hits","information.test"),
             pathBuilder.generateRun("popcorn")
         );
+        List<Run> run = pathBuilder.traverseFilter(pathBuilder.getStart(), (r)->{
+            if(r.getClass()==SingularRun.class){
+                return ((SingularRun) r).getChain().equals("popcorn");
+            }
+            return false;
+        });
+        run.forEach(r ->display(r, ""));;
         System.out.println("Root");
         display(pathBuilder.getStart(),"");
     }
