@@ -1,10 +1,9 @@
 package com.synload.nucleo.data;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Lists;
-import com.synload.nucleo.event.NucleoChain;
-import com.synload.nucleo.event.NucleoChainStatus;
-import com.synload.nucleo.event.NucleoStep;
+import com.synload.nucleo.chain.ChainExecution;
+import com.synload.nucleo.chain.NucleoChainStatus;
+import com.synload.nucleo.chain.path.Run;
+import com.synload.nucleo.chain.path.SingularRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,10 +13,9 @@ import java.util.*;
 public class NucleoData implements Cloneable, Serializable {
     protected static final Logger logger = LoggerFactory.getLogger(NucleoData.class);
     private UUID root;
-    private List<NucleoChain> chainList = new ArrayList<>();
     private String origin;
     private List<NucleoStep> steps = new ArrayList<>();
-    private NucleoStep execution = new NucleoStep();
+    private ChainExecution chainExecution = null;
     private int onChain = -1;
     private int track = 0;
     private Stack<Object[]> timeExecutions = new Stack<>();
@@ -29,15 +27,33 @@ public class NucleoData implements Cloneable, Serializable {
 
     public NucleoData() {
         root = UUID.randomUUID();
-        getExecution().setStart(System.currentTimeMillis());
+        //getChainExecution().setStart(System.currentTimeMillis());
+    }
+
+    public NucleoData(NucleoData data, ChainExecution execution) {
+        this.root = data.root;
+        this.origin = data.origin;
+        //data.steps.stream().forEach(x -> this.steps.add(new NucleoStep(x)));
+        this.chainExecution = execution;
+        this.onChain = data.onChain;
+        this.track = data.track;
+        if(data.timeExecutions!=null) {
+            this.timeExecutions = (Stack<Object[]>) data.timeExecutions.clone();
+        }else{
+            timeExecutions = new Stack<>();
+        }
+        this.timeTrack = data.timeTrack;
+        this.retries = data.retries;
+        this.version = data.version;
+        this.objects = new NucleoObject(data.getObjects());
+        this.chainBreak = new NucleoChainStatus(data.chainBreak);
     }
 
     public NucleoData(NucleoData data) {
         this.root = data.root;
-        data.chainList.stream().forEach(x -> this.getChainList().add(new NucleoChain(x)));
         this.origin = data.origin;
-        data.steps.stream().forEach(x -> this.steps.add(new NucleoStep(x)));
-        this.execution = new NucleoStep(data.execution);
+        //data.steps.stream().forEach(x -> this.steps.add(new NucleoStep(x)));
+        this.chainExecution = data.getChainExecution();
         this.onChain = data.onChain;
         this.track = data.track;
         if(data.timeExecutions!=null) {
@@ -66,110 +82,34 @@ public class NucleoData implements Cloneable, Serializable {
         return 0;
     }
 
-    public void buildChains(String[] chains) {
-        for (String chain : chains) {
-            NucleoChain nucleoChain = buildChains(chain);
-            this.getChainList().add(nucleoChain);
-        }
-    }
-
-    public NucleoChain buildChains(String chain) {
-        if (chain == null || chain.length() == 0)
-            return null;
-        if (chain.startsWith("[")) {
-            String[] parallels = chain.substring(1, chain.length() - 1).split("/");
-            NucleoChain chainParallel = new NucleoChain();
-            //logger.debug(this.getRoot().toString() + " - " + "Parallel chain");
-            for (String parallel : parallels) {
-                NucleoChain parallelInner = new NucleoChain();
-                parallelInner.setChainString(parallel.split("\\."));
-                chainParallel.getParallelChains().add(parallelInner);
-            }
-            return chainParallel;
-        } else {
-            NucleoChain singleChain = new NucleoChain();
-            singleChain.setChainString(chain.split("\\."));
-            //logger.debug(this.getRoot().toString() + " - " + "Single chain request");
-            return singleChain;
-        }
-    }
-
-    public boolean previousParallelStep(){
-        if(this.previousParentChain()!=null){
-            return !this.previousParentChain().parallelChains.isEmpty();
-        }
-        return false;
-    }
-
     public boolean onParallelStep(){
-        if(this.currentParentChain()!=null){
-            return !this.currentParentChain().parallelChains.isEmpty();
-        }
-        return false;
+        return chainExecution.getCurrent().isParallel();
     }
 
-    public String depthChainString(NucleoChain chain) {
-        if (chain != null) {
-            return String.join(".", Arrays.copyOfRange(chain.getChainString(), 0, chain.part + 1));
-        }
-        return null;
+    public Run currentChain() {
+        return chainExecution.getCurrent();
+    }
+    public Set<Run> currentParentChains() {
+        return currentChain().allParents();
     }
 
-    public NucleoChain currentChain() {
-        if (this.getChainList().size() <= onChain) {
-            return null;
-        }
-        return depthChain(chainList.get(onChain));
-    }
-    public NucleoChain currentParentChain() {
-        if (this.getChainList().size() <= onChain) {
-            return null;
-        }
-        return chainList.get(onChain);
-    }
-
-    public NucleoChain previousChain() {
-        if (onChain <= 0) {
-            return null;
-        }
-        return depthChain(chainList.get(onChain - 1));
-    }
-
-    public NucleoChain previousParentChain() {
-        if (onChain <= 0) {
-            return null;
-        }
-        return chainList.get(onChain - 1);
-    }
-
-    public NucleoChain depthChain(NucleoChain chain) {
-        if (chain.getChainString() != null) {
-            return chain;
-        } else if (chain.getParallel() != -1) {
-            return depthChain(chain.getParallelChains().get(chain.getParallel()));
-        }
-        return null;
-    }
-
-    public int parallel(int direction) {
-        if (this.getOnChain() + direction < 0 || this.getOnChain() + direction > this.getChainList().size())
-            return 0;
-
-        return this.getChainList().get(this.getOnChain() + direction).getParallelChains().size();
+    public Set<Run> previousParentChain() {
+        return currentChain().getParents();
     }
 
     public String currentChainString() {
-        if (this.getChainList().size() == 0 || this.getChainList().size() <= this.onChain)
-            return null;
-        return depthChainString(this.currentChain());
+        if(chainExecution.getCurrent().getClass() == SingularRun.class){
+            return ((SingularRun)chainExecution.getCurrent()).getChain();
+        }
+        return null;
     }
 
-    public void setStepsStart() {
+    /*public void setStepsStart() {
         NucleoChain chain = currentChain();
         if (chain.stepStart == -1) {
             chain.setStepStart(steps.size());
         }
-    }
+    }*/
 
     public NucleoObject getObjects() {
         return objects;
@@ -203,14 +143,6 @@ public class NucleoData implements Cloneable, Serializable {
         this.chainBreak = chainBreak;
     }
 
-    public List<NucleoChain> getChainList() {
-        return chainList;
-    }
-
-    public void setChainList(List<NucleoChain> chainList) {
-        this.chainList = chainList;
-    }
-
     public int getOnChain() {
         return onChain;
     }
@@ -219,20 +151,28 @@ public class NucleoData implements Cloneable, Serializable {
         this.onChain = onChain;
     }
 
-    public List<NucleoStep> getSteps() {
+    /*public List<NucleoStep> getSteps() {
         return steps;
     }
 
     public void setSteps(List<NucleoStep> steps) {
         this.steps = steps;
     }
-
-    public NucleoStep getExecution() {
-        return execution;
+*/
+    public ChainExecution getChainExecution() {
+        return chainExecution;
     }
 
-    public void setExecution(NucleoStep execution) {
-        this.execution = execution;
+    public void setChainExecution(ChainExecution chainExecution) {
+        this.chainExecution = chainExecution;
+    }
+
+    public List<NucleoStep> getSteps() {
+        return steps;
+    }
+
+    public void setSteps(List<NucleoStep> steps) {
+        this.steps = steps;
     }
 
     public int getVersion() {

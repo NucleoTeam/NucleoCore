@@ -1,5 +1,6 @@
 package com.synload.nucleo.zookeeper;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.synload.nucleo.NucleoMesh;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder;
@@ -13,6 +14,7 @@ public class ZooKeeperServiceRegistration {
 
     private ServiceDiscovery<ServiceInformation> serviceDiscovery = null;
 
+    @JsonIgnore
     private NucleoMesh mesh;
     private String host;
 
@@ -30,7 +32,7 @@ public class ZooKeeperServiceRegistration {
                     mesh.getMeshName(),
                     mesh.getServiceName(),
                     mesh.getUniqueName(),
-                    mesh.getEventHandler().getChainToMethod().keySet(),
+                    mesh.getChainHandler().getChainToMethod().values(),
                     false
                 ))
                 .uriSpec(new UriSpec(host))
@@ -49,7 +51,7 @@ public class ZooKeeperServiceRegistration {
                     mesh.getMeshName(),
                     mesh.getServiceName(),
                     mesh.getUniqueName(),
-                    mesh.getEventHandler().getChainToMethod().keySet(),
+                    mesh.getChainHandler().getChainToMethod().values(),
                     false
                 ))
                 .uriSpec(new UriSpec(host))

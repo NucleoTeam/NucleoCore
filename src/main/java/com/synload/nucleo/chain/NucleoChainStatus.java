@@ -1,8 +1,7 @@
-package com.synload.nucleo.event;
+package com.synload.nucleo.chain;
 
 import java.io.Serializable;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Set;
 
 public class NucleoChainStatus implements Serializable {

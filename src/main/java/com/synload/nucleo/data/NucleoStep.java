@@ -1,4 +1,4 @@
-package com.synload.nucleo.event;
+package com.synload.nucleo.data;
 
 import java.io.Serializable;
 import java.net.InetAddress;

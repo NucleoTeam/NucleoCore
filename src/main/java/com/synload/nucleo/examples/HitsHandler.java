@@ -2,7 +2,8 @@ package com.synload.nucleo.examples;
 
 import com.synload.nucleo.event.NucleoClass;
 import com.synload.nucleo.data.NucleoData;
-import com.synload.nucleo.event.NucleoLink;
+import com.synload.nucleo.chain.link.NucleoLink;
+import com.synload.nucleo.chain.link.NucleoRequirement;
 
 @NucleoClass
 public class HitsHandler {
@@ -21,7 +22,8 @@ public class HitsHandler {
   /*
      Only execute information.changeme only after information.hits is run
    */
-  @NucleoLink("information.hits > information.changeme")
+  @NucleoRequirement(value = "information.hits", acceptPreviousLinks = true) // can ignore information if run previously
+  @NucleoLink(value = "information.changeme", acceptPreviousLinks = true) // can ignore information if run previously
   public NucleoData changeMe(NucleoData data){
     data.getObjects().createOrUpdate("wow", "kekekekeke");
     return data;

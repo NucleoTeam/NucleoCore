@@ -79,7 +79,7 @@ public class ZooKeeperManager {
 
             logger.info("Connected to ZooKeeper");
 
-            leadershipClient = mesh.getEventHandler()
+            leadershipClient = mesh.getChainHandler()
                 .getChainToMethod()
                 .keySet()
                 .stream()

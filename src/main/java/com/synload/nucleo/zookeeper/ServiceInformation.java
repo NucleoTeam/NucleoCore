@@ -1,16 +1,14 @@
 package com.synload.nucleo.zookeeper;
 
 import com.fasterxml.jackson.annotation.JsonRootName;
+import com.synload.nucleo.chain.link.NucleoLinkMeta;
 
-import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
-
 
 @JsonRootName("details")
 public class ServiceInformation {
-    public Set<String> events;
+    public Collection<NucleoLinkMeta> events;
     public boolean leader;
     public String uniqueName;
     public String meshName;
@@ -19,7 +17,7 @@ public class ServiceInformation {
     public ServiceInformation() {
     }
 
-    public ServiceInformation(String meshName, String service, String uniqueName, Set<String> events, boolean leader) {
+    public ServiceInformation(String meshName, String service, String uniqueName, Collection<NucleoLinkMeta> events, boolean leader) {
         this.events = events;
         this.leader = leader;
         this.uniqueName = uniqueName;
@@ -27,11 +25,11 @@ public class ServiceInformation {
         this.service = service;
     }
 
-    public Set<String> getEvents() {
+    public Collection<NucleoLinkMeta> getEvents() {
         return events;
     }
 
-    public void setEvents(Set<String> events) {
+    public void setEvents(Collection<NucleoLinkMeta> events) {
         this.events = events;
     }
 

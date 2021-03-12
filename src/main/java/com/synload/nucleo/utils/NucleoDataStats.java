@@ -1,8 +1,7 @@
 package com.synload.nucleo.utils;
 
-import com.google.common.collect.Lists;
 import com.synload.nucleo.data.NucleoData;
-import com.synload.nucleo.event.NucleoStep;
+import com.synload.nucleo.data.NucleoStep;
 
 import java.util.List;
 import java.util.stream.Collectors;

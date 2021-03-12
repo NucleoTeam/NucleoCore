@@ -2,16 +2,15 @@ package com.synload.nucleo.hub;
 
 import com.google.common.collect.Sets;
 import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.chain.link.NucleoLinkMeta;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.event.NucleoResponder;
-import com.synload.nucleo.event.NucleoStep;
+import com.synload.nucleo.data.NucleoStep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
-import java.util.List;
 import java.util.Set;
-import java.util.Stack;
 
 public class TrafficExecutor {
     public Hub hub;
@@ -47,7 +46,7 @@ public class TrafficExecutor {
                 NucleoResponder responder = hub.getResponders().get(data.getRoot().toString());
                 if (responder != null) {
                     hub.getResponders().remove(data.getRoot().toString());
-                    data.getExecution().setEnd(System.currentTimeMillis());
+                    //data.getChainExecution().setEnd(System.currentTimeMillis());
                     //esPusher.add(data);
                     //data.markTime("Execution Complete");
                     hub.log("complete", data);
@@ -55,12 +54,15 @@ public class TrafficExecutor {
                     //System.out.println("response: " + data.markTime() + "ms");
                     return;
                 }
-            } else if (hub.getMesh().getEventHandler().getChainToMethod().containsKey(topic)) {
-                data.setStepsStart();
+            }
+            NucleoLinkMeta nucleoLinkMeta = hub.getMesh().getChainHandler().getChainToMethod(topic);
+            if(nucleoLinkMeta!=null) {
                 logger.debug(data.getRoot().toString() + " - processing " + topic);
-                Object[] methodData = hub.getMesh().getEventHandler().getChainToMethod(topic);
                 NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
-                if (methodData[2] != null) {
+
+                // Verify requirements met, or kill entire request and send back to origin
+
+                /*if (nucleoLinkMeta.getRequirements().size()>0) {
                     Set<String> missingChains;
                     if ((missingChains = verifyPrevious((Set<String>) methodData[2])) != null) {
                         timing.setEnd(System.currentTimeMillis());
@@ -73,16 +75,8 @@ public class TrafficExecutor {
                         hub.sendRoot(data);
                         return;
                     }
-                }
+                }*/
                 //data.markTime("Verified Chain Requirements");
-                Object obj;
-                if (methodData[0] instanceof Class) {
-                    Class clazz = (Class) methodData[0];
-                    obj = clazz.getDeclaredConstructor().newInstance();
-                } else {
-                    obj = methodData[0];
-                }
-                Method method = (Method) methodData[1];
                 NucleoResponder responder = data -> {
                     if (data.getChainBreak().isBreakChain()) {
                         timing.setEnd(System.currentTimeMillis());
@@ -101,9 +95,9 @@ public class TrafficExecutor {
                     hub.log("incomplete", data);
                     hub.nextChain(data);
                 };
-                Object[] objects = new Object[method.getParameterCount()];
-                Class[] classes = method.getParameterTypes();
-                Class returnType = method.getReturnType();
+                Object[] objects = new Object[nucleoLinkMeta.getMethod().getParameterCount()];
+                Class[] classes = nucleoLinkMeta.getMethod().getParameterTypes();
+                Class returnType = nucleoLinkMeta.getMethod().getReturnType();
                 boolean executeResponder = true;
 
                 data.getObjects().buildCurrentState(); // get current state of objects,
@@ -130,7 +124,7 @@ public class TrafficExecutor {
                 }
                 if (executeResponder && returnType == NucleoData.class) {
                     try {
-                        responder.run((NucleoData)method.invoke(obj, objects));
+                        responder.run((NucleoData)nucleoLinkMeta.getMethod().invoke(nucleoLinkMeta.getObject(), objects));
                     } catch (Exception e) {
                         e.printStackTrace();
                         data.getChainBreak().setBreakChain(true);
@@ -138,7 +132,7 @@ public class TrafficExecutor {
                     }
                 }else {
                     try {
-                        method.invoke(obj, objects);
+                        nucleoLinkMeta.getMethod().invoke(nucleoLinkMeta.getObject(), objects);
                     } catch (Exception e) {
                         e.printStackTrace();
                         data.getChainBreak().setBreakChain(true);

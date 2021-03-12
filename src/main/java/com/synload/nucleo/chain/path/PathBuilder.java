@@ -1,15 +1,34 @@
-package com.synload.nucleo.path;
+package com.synload.nucleo.chain.path;
 
 import java.util.*;
 
 public class PathBuilder {
     Run start = null;
     List<Run> currentLeafs = new LinkedList<>();
-    private class TestRequirements{
+    private static class PathRequirements{
         private HashMap<String, List<String>> requirements = new HashMap<>();
         private HashMap<String, Run> requirementFulfillment = new HashMap<>();
+
+        public PathRequirements() {
+        }
+
+        public HashMap<String, List<String>> getRequirements() {
+            return requirements;
+        }
+
+        public void setRequirements(HashMap<String, List<String>> requirements) {
+            this.requirements = requirements;
+        }
+
+        public HashMap<String, Run> getRequirementFulfillment() {
+            return requirementFulfillment;
+        }
+
+        public void setRequirementFulfillment(HashMap<String, Run> requirementFulfillment) {
+            this.requirementFulfillment = requirementFulfillment;
+        }
     }
-    private class PathPlusLeafs{
+    public static class PathPlusLeafs{
         List<Run> leafs = new LinkedList<>();
         Run root = null;
         public PathPlusLeafs() {
@@ -31,7 +50,7 @@ public class PathBuilder {
             this.root = root;
         }
     }
-    PathPlusLeafs generateSerialRun(Object... chains){
+    public static PathPlusLeafs generateSerialRun(Object... chains){
         PathPlusLeafs pathPlusLeafs = new PathPlusLeafs();
         List<Run> last = new LinkedList<>();
         for (int i = 0; i < chains.length; i++) {
@@ -70,10 +89,17 @@ public class PathBuilder {
         pathPlusLeafs.getLeafs().addAll(last);
         return pathPlusLeafs;
     }
-    PathPlusLeafs generateRun(String chain){
+    public static PathPlusLeafs generateRun(String chain){
         return generateSerialRun(chain);
     }
-    PathPlusLeafs generateParallelRun(PathPlusLeafs... pathPlusLeafsOld){
+    public static PathPlusLeafs generateExactRun(String chain){
+        PathPlusLeafs pathPlusLeafs = new PathPlusLeafs();
+        Run run = new SingularRun(chain);
+        pathPlusLeafs.setRoot(run);
+        pathPlusLeafs.getLeafs().add(run);
+        return pathPlusLeafs;
+    }
+    public static PathPlusLeafs generateParallelRun(PathPlusLeafs... pathPlusLeafsOld){
         PathPlusLeafs pathPlusLeafs = new PathPlusLeafs();
         ParallelRun parallelRun = new ParallelRun();
         for (int i = 0; i < pathPlusLeafsOld.length; i++) {
@@ -85,7 +111,7 @@ public class PathBuilder {
         return pathPlusLeafs;
     }
 
-    PathBuilder addParallel(PathPlusLeafs... pathPlusLeafsOld){
+    public PathBuilder addParallel(PathPlusLeafs... pathPlusLeafsOld){
         PathPlusLeafs pathPlusLeafs = generateParallelRun(pathPlusLeafsOld);
         Run.traverseModify(pathPlusLeafs.getRoot(), (run)->{
            run.setParallel(true);
@@ -103,10 +129,9 @@ public class PathBuilder {
 
         return this;
     }
-    PathBuilder add(Object... chains){
+    public PathBuilder add(Object... chains){
         PathPlusLeafs pathPlusLeafs = generateSerialRun(chains);
         if (currentLeafs.size() > 0) {
-
             currentLeafs.forEach(leaf ->{
                 pathPlusLeafs.getRoot().getParents().addAll(currentLeafs);
                 leaf.getNextRuns().add(pathPlusLeafs.getRoot());
@@ -127,65 +152,36 @@ public class PathBuilder {
         PathBuilder pathBuilder = new PathBuilder();
         return pathBuilder;
     }
-    static Map<Integer, Character> build = new HashMap<>();
-    static char[] chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray();
-    static void display(Run run, String spaces){
-        if(run.getClass() == ParallelRun.class){
-            System.out.println(spaces+"- Parallel");
-            run.getNextRuns().forEach(r->display(r, spaces+"  "));
-        }else if(run.getClass() == SingularRun.class){
-            int x = System.identityHashCode(run);
-            if(!build.containsKey(x)){
-                build.put(x, chars[build.size()]);
-            }
-            System.out.println(spaces+"- "+build.get(x)+": "+((SingularRun) run).getChain()+" ["+run.getParents().size()+"] ["+run.isParallel()+"]");
-            run.getNextRuns().forEach(r->display(r, spaces+"  "));
-        }
-    }
+
     //String possibleString = "{[information.hits,information.test],popcorn,{[information.hits,information.test],information.test}},information.test,information.popcorn,{[information.hits,information.test],popcorn}";
     public static void main(String[] args){
         PathBuilder pathBuilder = new PathBuilder();
         pathBuilder.addParallel(
-            pathBuilder.generateSerialRun("information.hits","information.test"),
-            pathBuilder.generateRun("popcorn"),
-            pathBuilder.generateSerialRun(
-                "information.hits",
-                "information.test",
-                pathBuilder.generateParallelRun(
-                    pathBuilder.generateSerialRun("test.poppy", "poggers"),
-                    pathBuilder.generateSerialRun("you.are.my.little", "pog.champ")
-                )
-            ),
-            pathBuilder.generateRun("information.test")
+            generateSerialRun("user.login.check", generateExactRun("user.account.information")),
+            generateRun("forum.get.index")
         ).add(
-            "information.test",
-            "information.popcorn",
-            pathBuilder.generateParallelRun(
-                pathBuilder.generateSerialRun("test.poppy", "poggers"),
-                pathBuilder.generateSerialRun("you.are.my.little", "pog.champ")
-            )
-        ).addParallel(
-            pathBuilder.generateSerialRun("information.hits","information.test"),
-            pathBuilder.generateRun("popcorn")
+            generateExactRun("forum.get.posts")
         ).add(
-            "koko"
+            generateExactRun("forum.update.post")
         );
 
         List<Run> run = Run.traverseFilter(pathBuilder.getStart(), (r)->{
             if(r.getClass() == SingularRun.class){
-                return ((SingularRun) r).getChain().equals("koko");
+                return ((SingularRun) r).getChain().equals("forum.get.updates");
             }
             return false;
         });
+        PathRequirements testRequirements = new PathRequirements();
+        testRequirements.getRequirements().put("forum.get.updates", new LinkedList<>(){{
+            add("user.perm.post.update");
+        }});
+        testRequirements.getRequirementFulfillment().put("forum.get.updates", null);
 
-        Run splicer = pathBuilder.generateSerialRun("losing.it").getRoot();
+        Run splicer = generateSerialRun("losing.it", "another.one").getRoot();
         run.forEach(r->r.splice(splicer.clone()));
         run.forEach(r->r.splice(splicer.clone()));
-        run.forEach(r ->display(r, ""));
-        run.forEach(r ->r.allParents().forEach(p->{
-            if(p.getClass() == SingularRun.class)
-                System.out.println("parent: "+((SingularRun) p).getChain());
-        }));
+        run.forEach(r ->new PathDisplay().display(r, ""));
+        run.forEach(r ->r.allParentsString().forEach(p->System.out.println("parent: "+p)));
 
         pathBuilder.getStart().last().forEach(r ->{
             if(r.getClass() == SingularRun.class)
@@ -193,6 +189,6 @@ public class PathBuilder {
         });
 
         System.out.println("Root");
-        display(pathBuilder.getStart(),"");
+        new PathDisplay().display(pathBuilder.getStart(),"");
     }
 }

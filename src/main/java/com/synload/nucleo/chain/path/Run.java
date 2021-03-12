@@ -1,10 +1,7 @@
-package com.synload.nucleo.path;
+package com.synload.nucleo.chain.path;
 
 import com.google.common.collect.Queues;
-import com.synload.nucleo.data.NucleoData;
-import com.synload.nucleo.utils.ObjectSerializer;
 import org.apache.commons.lang3.SerializationException;
-
 import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -13,29 +10,6 @@ public class Run implements Serializable{
     List<Run> nextRuns = new LinkedList<>();
     Set<Run> parents = new HashSet<>();
     boolean parallel = false;
-    public List<Run> getNextRuns() {
-        return nextRuns;
-    }
-
-    public void setNextRuns(List<Run> nextRuns) {
-        this.nextRuns = nextRuns;
-    }
-
-    public boolean isParallel() {
-        return parallel;
-    }
-
-    public void setParallel(boolean parallel) {
-        this.parallel = parallel;
-    }
-
-    public Set<Run> getParents() {
-        return parents;
-    }
-
-    public void setParents(Set<Run> parents) {
-        this.parents = parents;
-    }
     public Set<Run> allParents(){
         Set<Run> allParents = new HashSet<>();
         Queue<Run> parentQueue = Queues.newLinkedBlockingDeque();
@@ -44,6 +18,17 @@ public class Run implements Serializable{
             Run p = parentQueue.poll();
             allParents.addAll(p.getParents());
             parentQueue.addAll(p.getParents());
+        }
+        return new HashSet<>(allParents);
+    }
+    public Set<String> allParentsString(){
+        Set<String> allParents = new HashSet<>();
+        Queue<Run> parentQueue = Queues.newLinkedBlockingDeque();
+        parentQueue.addAll(this.parents);
+        while(!parentQueue.isEmpty()){
+            Run par = parentQueue.poll();
+            allParents.addAll(par.getParents().stream().filter(p->p.getClass()==SingularRun.class).map(p->((SingularRun) p).getChain()).collect(Collectors.toList()));
+            parentQueue.addAll(par.getParents());
         }
         return new HashSet<>(allParents);
     }
@@ -89,7 +74,7 @@ public class Run implements Serializable{
     }
     public void splice(Run spliced){
 
-        if(spliced.getParents().stream().filter(r->r.isParallel()).count()>0 && this.isParallel()){
+        if(this.getParents().stream().filter(r->r.isParallel()).count()>0 && this.isParallel()){
             traverseModify(spliced, r->r.setParallel(true));
         }
 
@@ -107,6 +92,31 @@ public class Run implements Serializable{
         this.parents.addAll(splicedLastRuns);
 
     }
+
+    public List<Run> getNextRuns() {
+        return nextRuns;
+    }
+
+    public void setNextRuns(List<Run> nextRuns) {
+        this.nextRuns = nextRuns;
+    }
+
+    public boolean isParallel() {
+        return parallel;
+    }
+
+    public void setParallel(boolean parallel) {
+        this.parallel = parallel;
+    }
+
+    public Set<Run> getParents() {
+        return parents;
+    }
+
+    public void setParents(Set<Run> parents) {
+        this.parents = parents;
+    }
+
     protected Run clone() {
         Run run = null;
         ByteArrayOutputStream bos = new ByteArrayOutputStream();

@@ -4,15 +4,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.synload.nucleo.chain.ChainHandler;
+import com.synload.nucleo.chain.path.PathBuilder;
+import com.synload.nucleo.chain.path.Run;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.data.NucleoObject;
+import com.synload.nucleo.event.ClassScanner;
 import com.synload.nucleo.event.EventHandler;
+import com.synload.nucleo.event.NucleoClass;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.hub.Hub;
 import com.synload.nucleo.interlink.InterlinkManager;
 import com.synload.nucleo.utils.NucleoDataStats;
 import com.synload.nucleo.zookeeper.ZooKeeperManager;
 import org.apache.curator.shaded.com.google.common.collect.Lists;
+import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +37,7 @@ public class NucleoMesh {
     private String serviceName;
     private InterlinkManager interlinkManager;
     private EventHandler eventHandler = new EventHandler();
+    private ChainHandler chainHandler = new ChainHandler();
     protected static final Logger logger = LoggerFactory.getLogger(NucleoMesh.class);
 
 
@@ -42,12 +49,14 @@ public class NucleoMesh {
         logger.info("Starting nucleo client and joining mesh " + meshName + " with service name " + serviceName);
 
         interlinkManager = new InterlinkManager(this, kafkaServers);
+
+
         logger.info("Registering event methods.");
-        getHub().register("com.synload.nucleo.interlink.handlers");
-        getHub().register(packageStr);
-        interlinkManager.subscribe(getEventHandler().getChainToMethod().keySet());
+        registerPackage("com.synload.nucleo.interlink.handlers");
+        registerPackage(packageStr);
+        interlinkManager.subscribe(getChainHandler().getChainToMethod().keySet());
         interlinkManager.subscribe("nucleo.client."+this.uniqueName);
-        interlinkManager.subscribeBroadcasts(getEventHandler().getChainToMethod().keySet());
+        interlinkManager.subscribeBroadcasts(getChainHandler().getChainToMethod().keySet());
 
         interlinkManager.start();
         try {
@@ -59,6 +68,18 @@ public class NucleoMesh {
         }
     }
 
+    public void registerPackage(String... servicePackages) {
+        Arrays.stream(servicePackages).forEach(servicePackage -> {
+            try {
+                Reflections reflect = new Reflections(servicePackage);
+                Set<Class<?>> classes = reflect.getTypesAnnotatedWith(NucleoClass.class);
+                new ClassScanner(getEventHandler(), getChainHandler()).registerClasses(classes);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
     public void shutdown() throws IOException {
         // close down all connections / threads
         manager.close();
@@ -67,15 +88,16 @@ public class NucleoMesh {
     }
 
 
-    public void call(String chain, NucleoObject objects, NucleoResponder nucleoResponder) {
-        this.getHub().push(hub.constructNucleoData(chain, objects), nucleoResponder, true);
-    }
+    public boolean call(Run chain, NucleoObject objects, NucleoResponder nucleoResponder) {
 
-    public boolean call(String[] chains, NucleoObject objects, NucleoResponder nucleoResponder) {
-        if (chains.length == 0) {
-            return false;
-        }
-        this.getHub().push(hub.constructNucleoData(chains, objects), nucleoResponder, true);
+        // add origin to end of execution
+        Run origin = PathBuilder.generateExactRun("nucleo.client."+this.getUniqueName()).getRoot();
+
+        // handle the prequery optimizations here.
+
+        chain.last().forEach(l->l.getNextRuns().add(origin));
+
+        this.getHub().push(hub.constructNucleoData(chain, objects), nucleoResponder, true);
         return true;
     }
 
@@ -105,5 +127,13 @@ public class NucleoMesh {
 
     public EventHandler getEventHandler() {
         return eventHandler;
+    }
+
+    public ChainHandler getChainHandler() {
+        return chainHandler;
+    }
+
+    public void setChainHandler(ChainHandler chainHandler) {
+        this.chainHandler = chainHandler;
     }
 }

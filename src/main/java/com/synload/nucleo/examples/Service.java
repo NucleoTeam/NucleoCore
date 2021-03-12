@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.chain.path.PathBuilder;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.data.NucleoObject;
 import com.synload.nucleo.utils.NucleoDataStats;
@@ -98,11 +99,25 @@ public class Service {
         }catch (Exception e){
             e.printStackTrace();
         }
-        NucleoMesh mesh = new NucleoMesh("nucleoTest", "nucleoMesh", "10.0.0.42.:2181",  "10.0.0.42:9092", "com.synload.nucleo.examples");
+        NucleoMesh mesh = new NucleoMesh("nucleoTest", "nucleoMesh", "10.0.0.37.:2181",  "10.0.0.37:9092", "com.synload.nucleo.examples");
         new Thread(()->{
             while (!Thread.currentThread().isInterrupted()) {
+                PathBuilder pb = new PathBuilder()
+                    .add(PathBuilder.generateRun("information"))
+                    .addParallel(
+                        PathBuilder.generateRun("popcorn"),
+                        PathBuilder.generateRun("information.hits"),
+                        PathBuilder.generateRun("information.test"),
+                        PathBuilder.generateRun("information.popcorn")
+                    )
+                    .add(PathBuilder.generateRun("information.test"))
+                    .addParallel(
+                        PathBuilder.generateRun("popcorn.poppyx"),
+                        PathBuilder.generateRun("information.hits"),
+                        PathBuilder.generateRun("information.test")
+                    );
                 mesh.call(
-                    new String[]{"information", "[popcorn/information.hits/information.test/information.popcorn]", "information.test", "[popcorn.poppyx/information.hits/information.test]"},
+                    pb.getStart(),
                     new NucleoObject() {{
                         createOrUpdate("wow", "works?");
                         createOrUpdate("time", System.currentTimeMillis());

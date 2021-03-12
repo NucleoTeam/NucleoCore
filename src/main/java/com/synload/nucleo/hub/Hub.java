@@ -3,6 +3,9 @@ package com.synload.nucleo.hub;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.*;
 import com.synload.nucleo.NucleoMesh;
+import com.synload.nucleo.chain.ChainExecution;
+import com.synload.nucleo.chain.path.PathBuilder;
+import com.synload.nucleo.chain.path.Run;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.data.NucleoObject;
 import com.synload.nucleo.event.*;
@@ -34,29 +37,19 @@ public class Hub {
         this.offline = false;
     }
 
-    public NucleoData constructNucleoData(String chain, NucleoObject objects) {
+    public NucleoData constructNucleoData(Run chain, NucleoObject objects) {
         logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
         data.setOrigin(uniqueName);
-        data.buildChains(chain);
-        return data;
-    }
-
-    public NucleoData constructNucleoData(String[] chains, NucleoObject objects) {
-        logger.debug("Constructing request");
-        NucleoData data = new NucleoData();
-        data.setObjects(objects);
-        data.setTimeTrack(System.currentTimeMillis());
-        data.setOrigin(uniqueName);
-        data.buildChains(chains);
+        data.setChainExecution(new ChainExecution(chain));
         return data;
     }
 
     public void log(String state, NucleoData data) {
         if (data.getTrack() == 1) {
             data.setVersion(data.getVersion() + 1);
-            push(constructNucleoData(new String[]{"_watch." + state}, new NucleoObject() {{
+            push(constructNucleoData(PathBuilder.generateExactRun("_watch." + state).getRoot(), new NucleoObject() {{
                 createOrUpdate("root", new NucleoData(data));
             }}), new NucleoResponder() {
                 @Override
@@ -67,40 +60,21 @@ public class Hub {
     }
 
     public void nextChain(NucleoData data) {
-        int onChain = data.getOnChain();
-        if (data.getTrack() != 0)
-            try {
-                logger.debug("before: " + new ObjectMapper().writeValueAsString(data));
-            } catch (Exception e) {
-                e.printStackTrace();
+        List<NucleoData> dataList = trafficHandler.getNext(data);
+        if (dataList != null) {
+            if(dataList.size()==0){
+                logger.debug(data.currentChainString() + " - sending to origin");
+                //sendRoot(data);
             }
-        List<NucleoData> datas = trafficHandler.getNext(data);
-        if (data.getTrack() != 0) {
-            try {
-                //logger.debug("next: " + new ObjectMapper().writeValueAsString(datas));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        if (datas != null) {
-            logger.debug(data.getRoot().toString() + ": data parts " + datas.size());
-            datas.stream().forEach(x -> {
-                if (x.currentChain() == null) {
-                    logger.debug(x.currentChainString() + " - sending to origin");
-                    sendRoot(x);
+            logger.debug(data.getRoot().toString() + ": data parts " + dataList.size());
+            dataList.stream().forEach(nucleoData -> {
+                String topic = nucleoData.currentChainString();
+                long previousParallelCount = nucleoData.getChainExecution().getCurrent().getParents().stream().filter(f->f.isParallel()).count();
+                if (!nucleoData.getChainExecution().getCurrent().isParallel() && previousParallelCount > 0) {
+                    logger.debug(nucleoData.currentChainString() + ": sending to leader to re-assemble");
+                    mesh.getInterlinkManager().leader(topic, nucleoData);
                 } else {
-                    String topic = x.currentChainString();
-                    if (onChain != x.getOnChain() && onChain > -1 && data.getChainList().get(onChain).getParallelChains().size() > 0) {
-                        logger.debug(x.currentChainString() + ": sending to leader to re-assemble");
-                        mesh.getInterlinkManager().leader(topic, x);
-                    } else {
-                        /*if (x.getChainList().get(x.getOnChain()).getParallelChains().size() > 0) {
-                            logger.debug(x.currentChain() + ": routing to complete parallel");
-                        } else {
-                            logger.debug(x.currentChain() + ": routing to complete chain");
-                        }*/
-                        sendTopic(topic, x);
-                    }
+                    sendTopic(topic, nucleoData);
                 }
             });
         }
@@ -135,21 +109,9 @@ public class Hub {
         nextChain(data);
     }
 
-    public void register(String... servicePackages) {
-        Arrays.stream(servicePackages).forEach(servicePackage -> {
-            try {
-                Reflections reflect = new Reflections(servicePackage);
-                Set<Class<?>> classes = reflect.getTypesAnnotatedWith(NucleoClass.class);
-                mesh.getEventHandler().registerClasses(classes);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
     public void handle(Hub hub, NucleoData data) {
         String topic = data.currentChainString();
-        executorService.submit(() -> trafficHandler.processParallel(data, new TrafficExecutor(hub, data, topic)));
+        executorService.submit(() -> trafficHandler.process(data, new TrafficExecutor(hub, data, topic)));
     }
 
     public void close() {

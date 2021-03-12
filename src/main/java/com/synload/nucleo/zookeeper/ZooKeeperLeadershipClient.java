@@ -54,7 +54,7 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
             mesh.getMeshName(),
             mesh.getServiceName(),
             mesh.getUniqueName(),
-            mesh.getEventHandler().getChainToMethod().keySet(),
+            mesh.getChainHandler().getChainToMethod().values(),
             true
         );
         ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
@@ -91,7 +91,7 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
                             mesh.getMeshName(),
                             mesh.getServiceName(),
                             mesh.getUniqueName(),
-                            mesh.getEventHandler().getChainToMethod().keySet(),
+                            mesh.getChainHandler().getChainToMethod().values(),
                             false
                         ))
                         .build();

@@ -1,4 +1,4 @@
-package com.synload.nucleo.event;
+package com.synload.nucleo.chain.link;
 
 import java.lang.annotation.*;
 
@@ -8,4 +8,6 @@ import java.lang.annotation.*;
 public @interface NucleoLink {
   String value() default "";
   String[] chains() default {};
+  boolean linkOnly() default true;
+  boolean acceptPreviousLinks() default false;
 }

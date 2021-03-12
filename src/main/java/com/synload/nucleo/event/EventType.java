@@ -1,5 +1,6 @@
 package com.synload.nucleo.event;
 
+import com.synload.nucleo.chain.link.NucleoLink;
 import com.synload.nucleo.hub.HubEvent;
 import com.synload.nucleo.interlink.InterlinkEvent;
 

@@ -1,7 +1,4 @@
-package com.synload.nucleo.path;
-
-import java.util.List;
-import java.util.stream.Collectors;
+package com.synload.nucleo.chain.path;
 
 public class SingularRun extends Run {
     String chain;
