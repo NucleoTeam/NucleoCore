@@ -21,6 +21,12 @@ public class ChainExecution implements Serializable {
         this.root = start;
     }
 
+    public ChainExecution(ChainExecution chainExecution) {
+        this.current = chainExecution.getCurrent();
+        this.root = chainExecution.getRoot();
+        this.history = chainExecution.getHistory();
+    }
+
     public List<ChainExecution> next(){
         List<ChainExecution> nexts = new LinkedList<>();
         this.current.getNextRuns().stream().forEach(r->{
@@ -65,7 +71,7 @@ public class ChainExecution implements Serializable {
         this.history = history;
     }
 
-    protected ChainExecution clone() {
+    public ChainExecution clone() {
         ChainExecution execution = null;
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream out = null;

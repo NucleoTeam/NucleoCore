@@ -26,7 +26,6 @@ public class ClassScanner {
                 for (Method method : ((Class) clazz).getDeclaredMethods()) {
                     Arrays.stream(EventType.values()).forEach(a -> {
                         if (method.isAnnotationPresent(a.clazz)) {
-                            logger.info(a.value + "| " + ((Class) clazz).getName() + "->" + method.getName());
                             registerMethod(obj, method, a);
                         }
                     });
@@ -35,7 +34,6 @@ public class ClassScanner {
                 for (Method method : clazz.getClass().getDeclaredMethods()) {
                     Arrays.stream(EventType.values()).forEach(a -> {
                         if (method.isAnnotationPresent(a.clazz)) {
-                            logger.info(a.value + "| " + ((Object) clazz).getClass().getName() + "->" + method.getName());
                             registerMethod(clazz, method, a);
                         }
                     });
@@ -46,10 +44,10 @@ public class ClassScanner {
     private void registerMethod(Object object, Method method, EventType eventType) {
         switch (eventType) {
             case HUB:
-                eventHandler.registerHub(object, method, eventType);
+                eventHandler.registerHub(object, method);
                 break;
             case INTERLINK:
-                eventHandler.registerInterlink(object, method, eventType);
+                eventHandler.registerInterlink(object, method);
                 break;
             case LINK:
                 chainHandler.registerLink(object, method);

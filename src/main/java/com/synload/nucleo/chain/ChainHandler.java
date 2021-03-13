@@ -11,13 +11,11 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ChainHandler {
     protected static final Logger logger = LoggerFactory.getLogger(ChainHandler.class);
     private Map<String, NucleoLinkMeta> links = new TreeMap<>();
-    public Map<String, NucleoLinkMeta> getChainToMethod() {
-        return links;
-    }
 
     public NucleoLinkMeta getChainToMethod(String key) {
         if (links.containsKey(key)) {
@@ -26,6 +24,10 @@ public class ChainHandler {
         return null;
     }
     private void registerLinkToChain(Object object, Method method, NucleoLink nucleoLink,  List<NucleoLinkMeta.RunRequirement> requirements, String chain){
+        List<String> parameterTypes = Arrays.stream(method.getParameterTypes()).map(p->p.getSimpleName()).collect(Collectors.toList());
+        logger.info("Link[ "+chain+" ] <= "+object.getClass().getName()+"->"+method.getName()+"( "+String.join(", ", parameterTypes)+" )");
+        if(requirements.size()>0)
+            logger.info("\t"+chain+" requires "+String.join(", ", requirements.stream().map(x->x.getChain()).collect(Collectors.toList())));
         NucleoLinkMeta nucleoLinkMeta = new NucleoLinkMeta();
         nucleoLinkMeta.setRequirements(requirements);
         nucleoLinkMeta.fromAnnotation(nucleoLink);
@@ -40,7 +42,6 @@ public class ChainHandler {
         List<NucleoLinkMeta.RunRequirement> runRequirements = new LinkedList<>();
         if(requirements.length>0){
             for (int i = 0; i < requirements.length; i++) {
-                logger.info("requirement found.");
                 runRequirements.add(new NucleoLinkMeta.RunRequirement(requirements[i]));
             }
         }
@@ -54,5 +55,13 @@ public class ChainHandler {
         } else {
             registerLinkToChain(object, method, nEvent, runRequirements, chain);
         }
+    }
+
+    public Map<String, NucleoLinkMeta> getLinks() {
+        return links;
+    }
+
+    public void setLinks(Map<String, NucleoLinkMeta> links) {
+        this.links = links;
     }
 }

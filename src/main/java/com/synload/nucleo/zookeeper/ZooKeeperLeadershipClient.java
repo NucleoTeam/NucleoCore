@@ -16,20 +16,21 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 
 public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListener {
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperLeadershipClient.class);
 
     private CountDownLatch countDownLatch = new CountDownLatch(1);
-    private ServiceDiscovery<ServiceInformation> serviceDiscovery = null;
+    private ServiceDiscovery<String> serviceDiscovery = null;
 
     private String serviceName = "";
     private LeaderSelector leader = null;
     private NucleoMesh mesh;
     private String topicName;
 
-    public ZooKeeperLeadershipClient(NucleoMesh mesh, CuratorFramework client, ServiceDiscovery<ServiceInformation> serviceDiscovery, String leaderPath, String topicName) {
+    public ZooKeeperLeadershipClient(NucleoMesh mesh, CuratorFramework client, ServiceDiscovery<String> serviceDiscovery, String leaderPath, String topicName) {
         this.mesh = mesh;
         this.serviceDiscovery = serviceDiscovery;
         serviceName = mesh.getHub().getMesh().getServiceName();
@@ -54,13 +55,13 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
             mesh.getMeshName(),
             mesh.getServiceName(),
             mesh.getUniqueName(),
-            mesh.getChainHandler().getChainToMethod().values(),
+            new ArrayList<>(mesh.getChainHandler().getLinks().values()),
             true
         );
-        ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
+        ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
             .id(mesh.getUniqueName())
             .name(mesh.getServiceName())
-            .payload(serviceInformation)
+            .payload(new ObjectSerializer().serialize(serviceInformation))
             .build();
         serviceDiscovery.updateService(thisInstance);
         logger.info("New leader for " + topicName + ", "+serviceName+" ( " + mesh.getUniqueName() + " ) is the new leader");
@@ -84,16 +85,16 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
                 break;
             case RECONNECTED:
                 try {
-                    ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
+                    ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
                         .id(mesh.getUniqueName())
                         .name(mesh.getServiceName())
-                        .payload(new ServiceInformation(
+                        .payload(new ObjectSerializer().serialize(new ServiceInformation(
                             mesh.getMeshName(),
                             mesh.getServiceName(),
                             mesh.getUniqueName(),
-                            mesh.getChainHandler().getChainToMethod().values(),
+                            new ArrayList<>(mesh.getChainHandler().getLinks().values()),
                             false
-                        ))
+                        )))
                         .build();
                     serviceDiscovery.registerService(thisInstance);
                 } catch (Exception e) {

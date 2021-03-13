@@ -28,7 +28,7 @@ public class ZooKeeperManager {
     private String connString;
     private NucleoMesh mesh;
 
-    private static ServiceDiscovery<ServiceInformation> serviceDiscovery = null;
+    private static ServiceDiscovery<String> serviceDiscovery = null;
     private CuratorFramework client = null;
 
     private List<ZooKeeperLeadershipClient> leadershipClient;
@@ -68,9 +68,9 @@ public class ZooKeeperManager {
             client.start();
             client.blockUntilConnected();
 
-            JsonInstanceSerializer<ServiceInformation> serializer = new JsonInstanceSerializer<ServiceInformation>(ServiceInformation.class);
+            JsonInstanceSerializer<String> serializer = new JsonInstanceSerializer<>(String.class);
 
-            serviceDiscovery = ServiceDiscoveryBuilder.builder(ServiceInformation.class)
+            serviceDiscovery = ServiceDiscoveryBuilder.builder(String.class)
                 .client(client)
                 .basePath(path)
                 .serializer(serializer)
@@ -80,7 +80,7 @@ public class ZooKeeperManager {
             logger.info("Connected to ZooKeeper");
 
             leadershipClient = mesh.getChainHandler()
-                .getChainToMethod()
+                .getLinks()
                 .keySet()
                 .stream()
                 .map(topic->new ZooKeeperLeadershipClient(mesh, client, serviceDiscovery, leaderPath, topic))

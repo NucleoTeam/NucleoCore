@@ -6,10 +6,8 @@ import com.synload.nucleo.chain.path.Run;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class NucleoLinkMeta implements Serializable {
     public static class RunRequirement extends NucleoLinkMeta {
@@ -25,10 +23,23 @@ public class NucleoLinkMeta implements Serializable {
             super.setLinkOnly(nucleoRequirement.linkOnly());
             this.setImmediateFollows(nucleoRequirement.immediateFollows());
 
-            if(nucleoRequirement.value() != null && !nucleoRequirement.value().equals(""))
-                this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.value()).getRoot());
-            else if(nucleoRequirement.chains().length>0)
-                this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.chains()).getRoot());
+            if(nucleoRequirement.value() != null && !nucleoRequirement.value().equals("")) {
+                this.setChain(nucleoRequirement.value());
+                if(isLinkOnly()) {
+                    this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.value()).getRoot());
+                }else{
+                    this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.value()).getRoot());
+                }
+            }else if(nucleoRequirement.chains().length>0) {
+                this.setChain(String.join("->", nucleoRequirement.chains()));
+                if(isLinkOnly()) {
+                    PathBuilder pathBuilder = new PathBuilder();
+                    pathBuilder.add(Arrays.stream(nucleoRequirement.chains()).map(n->PathBuilder.generateExactRun(n)).collect(Collectors.toList()));
+                    this.setFulfillment(pathBuilder.getStart());
+                }else{
+                    this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.chains()).getRoot());
+                }
+            }
         }
         public Run getFulfillment() {
             return Fulfillment;

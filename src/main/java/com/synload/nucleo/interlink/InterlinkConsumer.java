@@ -1,16 +1,21 @@
 package com.synload.nucleo.interlink;
 
+import com.synload.nucleo.chain.path.SingularRun;
 import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.zookeeper.ZooKeeperLeadershipClient;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class InterlinkConsumer implements Runnable{
+    protected static final Logger logger = LoggerFactory.getLogger(InterlinkConsumer.class);
     Set<String> topics = new HashSet<>();
     InterlinkHandler interlinkHandler;
     KafkaConsumer<Long, NucleoData> consumer = null;
@@ -32,7 +37,10 @@ public class InterlinkConsumer implements Runnable{
         try {
             while(!Thread.interrupted()) {
                 ConsumerRecords<Long, NucleoData> records = consumer.poll(Duration.ofMillis(100));
-                records.forEach(c->interlinkHandler.handleMessage(c.value()));
+                records.forEach(c->{
+                    interlinkHandler.handleMessage(c.value());
+                    //logger.info("received "+((SingularRun)c.value().getChainExecution().getCurrent()).getChain());
+                });
             }
         } catch (Exception ex) {
             ex.printStackTrace();

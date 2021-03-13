@@ -1,20 +1,20 @@
-package com.synload.nucleo.utils;
+package com.synload.nucleo.interlink;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.data.NucleoData;
+import com.synload.nucleo.utils.ObjectSerialization;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.Serializer;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class ObjectSerializer implements Serializer<NucleoData> {
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private static ObjectSerialization serializer = new ObjectSerialization();
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
 
@@ -25,23 +25,11 @@ public class ObjectSerializer implements Serializer<NucleoData> {
         if (data == null) {
             return null;
         }
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream out = null;
         try {
-            out = new ObjectOutputStream(bos);
-            out.writeObject(data);
-            out.flush();
-            byte[] yourBytes = bos.toByteArray();
-            return yourBytes;
-        } catch (IOException e) {
+            return compress(serializer.serialize(data));
+        } catch (Exception e) {
             e.printStackTrace();
             throw new SerializationException("Failed to serialize data", e);
-        } finally {
-            try {
-                bos.close();
-            } catch (IOException ex) {
-                // ignore close exception
-            }
         }
     }
 
@@ -53,5 +41,22 @@ public class ObjectSerializer implements Serializer<NucleoData> {
     @Override
     public void close() {
 
+    }
+
+    byte[] compress(byte[] data) throws IOException {
+        ByteArrayOutputStream byteStream = new ByteArrayOutputStream(data.length);
+        try {
+            GZIPOutputStream zipStream = new GZIPOutputStream(byteStream);
+            try {
+                zipStream.write(data);
+            } finally {
+                zipStream.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            byteStream.close();
+        }
+        return byteStream.toByteArray();
     }
 }

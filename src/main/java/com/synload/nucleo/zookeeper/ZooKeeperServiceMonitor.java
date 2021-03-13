@@ -14,10 +14,10 @@ import java.util.*;
 public class ZooKeeperServiceMonitor implements Runnable {
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperServiceMonitor.class);
 
-    ServiceDiscovery<ServiceInformation> serviceDiscovery;
+    ServiceDiscovery<String> serviceDiscovery;
     List<ServiceInformation> clients = new LinkedList<>();
     NucleoMesh mesh;
-    public ZooKeeperServiceMonitor(NucleoMesh mesh, ServiceDiscovery<ServiceInformation> serviceDiscovery){
+    public ZooKeeperServiceMonitor(NucleoMesh mesh, ServiceDiscovery<String> serviceDiscovery){
         this.serviceDiscovery = serviceDiscovery;
         this.mesh = mesh;
     }
@@ -28,9 +28,9 @@ public class ZooKeeperServiceMonitor implements Runnable {
                     Collection<String> serviceNames = serviceDiscovery.queryForNames();
                     List<ServiceInformation> clientsPreCheck = new LinkedList<>(clients);
                     for (String serviceName : serviceNames) {
-                        Collection<ServiceInstance<ServiceInformation>> instances = serviceDiscovery.queryForInstances(serviceName);
-                        for (ServiceInstance<ServiceInformation> instance : instances) {
-                            ServiceInformation serviceInformation = instance.getPayload();
+                        Collection<ServiceInstance<String>> instances = serviceDiscovery.queryForInstances(serviceName);
+                        for (ServiceInstance<String> instance : instances) {
+                            ServiceInformation serviceInformation = new ObjectSerializer().deserialize(instance.getPayload());
                             if (clients.stream().filter(c -> c.getUniqueName().equals(serviceInformation.getUniqueName())).count() == 0) {
                                 clients.add(serviceInformation);
                                 mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.NEW_SERVICE, mesh, serviceInformation);

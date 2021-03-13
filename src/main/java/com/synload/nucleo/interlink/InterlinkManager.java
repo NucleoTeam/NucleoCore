@@ -3,9 +3,6 @@ package com.synload.nucleo.interlink;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.data.NucleoData;
-import com.synload.nucleo.utils.ObjectDeserializer;
-import com.synload.nucleo.utils.ObjectSerializer;
-import org.apache.commons.collections.list.TreeList;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.LongDeserializer;
@@ -60,7 +57,7 @@ public class InterlinkManager {
         broadcast.getTopics().addAll(Arrays.asList(topics).stream().map(c->"broadcast_"+c).collect(Collectors.toList()));
     }
     public void subscribeBroadcasts(Collection<String> topics) {
-        consumer.getTopics().addAll(topics.stream().map(c->"broadcast_"+c).collect(Collectors.toList()));
+        broadcast.getTopics().addAll(topics.stream().map(c->"broadcast_"+c).collect(Collectors.toList()));
     }
 
     public void subscribeLeader(String topic) {
@@ -75,14 +72,6 @@ public class InterlinkManager {
     public void start(){
         consumer.start();
         broadcast.start();
-    }
-    public void subscribeLeader(String topic, int leaders) {
-        InterlinkConsumer ilc = new InterlinkConsumer(consumerProps, (data)->{
-            mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);
-            mesh.getHub().handle(mesh.getHub(), data);
-        }, false);
-        ilc.getTopics().add("leader_"+topic);
-        ilc.start();
     }
 
     public void subscribe(String... topics) {

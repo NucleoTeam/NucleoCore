@@ -14,6 +14,7 @@ import com.synload.nucleo.event.EventHandler;
 import com.synload.nucleo.event.NucleoClass;
 import com.synload.nucleo.event.NucleoResponder;
 import com.synload.nucleo.hub.Hub;
+import com.synload.nucleo.interlink.InterlinkEventType;
 import com.synload.nucleo.interlink.InterlinkManager;
 import com.synload.nucleo.utils.NucleoDataStats;
 import com.synload.nucleo.zookeeper.ZooKeeperManager;
@@ -43,7 +44,7 @@ public class NucleoMesh {
 
     public NucleoMesh(String meshName, String serviceName, String zookeeper, String kafkaServers, String... packageStr) throws ClassNotFoundException {
         this.uniqueName = UUID.randomUUID().toString();
-        hub = new Hub(this, this.uniqueName);
+        hub = new Hub(this);
         this.meshName = meshName;
         this.serviceName = serviceName;
         logger.info("Starting nucleo client and joining mesh " + meshName + " with service name " + serviceName);
@@ -54,9 +55,12 @@ public class NucleoMesh {
         logger.info("Registering event methods.");
         registerPackage("com.synload.nucleo.interlink.handlers");
         registerPackage(packageStr);
-        interlinkManager.subscribe(getChainHandler().getChainToMethod().keySet());
+
+        getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, this, "test");
+
+        interlinkManager.subscribe(getChainHandler().getLinks().keySet());
         interlinkManager.subscribe("nucleo.client."+this.uniqueName);
-        interlinkManager.subscribeBroadcasts(getChainHandler().getChainToMethod().keySet());
+        interlinkManager.subscribeBroadcasts(getChainHandler().getLinks().keySet());
 
         interlinkManager.start();
         try {
@@ -94,10 +98,11 @@ public class NucleoMesh {
         Run origin = PathBuilder.generateExactRun("nucleo.client."+this.getUniqueName()).getRoot();
 
         // handle the prequery optimizations here.
+        Set<Run> lastSet = chain.last();
+        origin.getParents().addAll(lastSet);
+        lastSet.forEach(l->l.getNextRuns().add(origin));
 
-        chain.last().forEach(l->l.getNextRuns().add(origin));
-
-        this.getHub().push(hub.constructNucleoData(chain, objects), nucleoResponder, true);
+        this.getHub().start(hub.constructNucleoData(chain, objects), nucleoResponder);
         return true;
     }
 

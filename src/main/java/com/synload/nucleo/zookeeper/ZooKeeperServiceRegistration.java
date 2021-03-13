@@ -9,32 +9,34 @@ import org.apache.curator.x.discovery.UriSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+
 public class ZooKeeperServiceRegistration {
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperServiceRegistration.class);
 
-    private ServiceDiscovery<ServiceInformation> serviceDiscovery = null;
+    private ServiceDiscovery<String> serviceDiscovery = null;
 
     @JsonIgnore
     private NucleoMesh mesh;
     private String host;
 
-    public ZooKeeperServiceRegistration(NucleoMesh mesh, ServiceDiscovery<ServiceInformation> serviceDiscovery, String host){
+    public ZooKeeperServiceRegistration(NucleoMesh mesh, ServiceDiscovery<String> serviceDiscovery, String host){
         this.serviceDiscovery = serviceDiscovery;
         this.mesh = mesh;
         this.host = host;
     }
     public void registerService(){
         try {
-            ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
+            ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
                 .name(mesh.getServiceName())
                 .id(mesh.getUniqueName())
-                .payload(new ServiceInformation(
+                .payload(new ObjectSerializer().serialize(new ServiceInformation(
                     mesh.getMeshName(),
                     mesh.getServiceName(),
                     mesh.getUniqueName(),
-                    mesh.getChainHandler().getChainToMethod().values(),
+                    new ArrayList<>(mesh.getChainHandler().getLinks().values()),
                     false
-                ))
+                )))
                 .uriSpec(new UriSpec(host))
                 .build();
             serviceDiscovery.registerService(thisInstance);
@@ -44,16 +46,16 @@ public class ZooKeeperServiceRegistration {
     }
     public void unregister(){
         try {
-            ServiceInstance<ServiceInformation> thisInstance = ServiceInstance.<ServiceInformation>builder()
+            ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
                 .name(mesh.getServiceName())
                 .id(mesh.getUniqueName())
-                .payload(new ServiceInformation(
+                .payload(new ObjectSerializer().serialize(new ServiceInformation(
                     mesh.getMeshName(),
                     mesh.getServiceName(),
                     mesh.getUniqueName(),
-                    mesh.getChainHandler().getChainToMethod().values(),
+                    new ArrayList<>(mesh.getChainHandler().getLinks().values()),
                     false
-                ))
+                )))
                 .uriSpec(new UriSpec(host))
                 .build();
             serviceDiscovery.unregisterService(thisInstance);

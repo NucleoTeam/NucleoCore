@@ -100,6 +100,10 @@ public class Service {
             e.printStackTrace();
         }
         NucleoMesh mesh = new NucleoMesh("nucleoTest", "nucleoMesh", "10.0.0.37.:2181",  "10.0.0.37:9092", "com.synload.nucleo.examples");
+        try {
+            Thread.sleep(5000);
+        } catch (Exception e) {
+        }
         new Thread(()->{
             while (!Thread.currentThread().isInterrupted()) {
                 PathBuilder pb = new PathBuilder()
@@ -131,15 +135,15 @@ public class Service {
                                 logger.info("timeout for: " + data.getRoot());
                                 logger.info("total: " + totalTime + "ms");
                             } else {
-                                NucleoDataStats stats = new NucleoDataStats();
-                                stats.calculate(data);
+                                //NucleoDataStats stats = new NucleoDataStats();
+                                /*stats.calculate(data);
                                 if (stats.getAverage() > 0) {
                                     try {
                                         logger.info(new ObjectMapper().writeValueAsString(stats));
                                     } catch (JsonProcessingException e) {
                                         e.printStackTrace();
                                     }
-                                }
+                                }*/
                                 logger.info("total: " + totalTime + "ms");
                                 logger.info("data: " + data.getRoot());
                             }
@@ -147,7 +151,7 @@ public class Service {
                     }
                 );
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(500);
                 } catch (Exception e) {
                 }
             }

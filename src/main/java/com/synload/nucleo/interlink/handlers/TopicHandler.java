@@ -1,5 +1,6 @@
 package com.synload.nucleo.interlink.handlers;
 
+import com.synload.nucleo.chain.path.SingularRun;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.event.NucleoClass;
 import com.synload.nucleo.interlink.InterlinkEvent;
@@ -13,12 +14,11 @@ public class TopicHandler {
     protected static final Logger logger = LoggerFactory.getLogger(TopicHandler.class);
 
     @InterlinkEvent(InterlinkEventType.RECEIVE_TOPIC)
-    public void receiveTopic(String topic){
-        logger.debug("Received message on topic "+topic);
+    public void receiveTopic(NucleoData data){
+        logger.debug("Received message on topic "+((SingularRun)data.getChainExecution().getCurrent()).getChain());
     }
     @InterlinkEvent(InterlinkEventType.SEND_TOPIC)
-    public void sendTopic(NucleoData data, String topic){
-        logger.debug("Sending message to topic "+topic);
+    public void sendTopic(NucleoData data){
+        logger.debug("Sending message to topic "+((SingularRun)data.getChainExecution().getCurrent()).getChain());
     }
-
 }

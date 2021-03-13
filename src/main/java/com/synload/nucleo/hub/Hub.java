@@ -6,6 +6,7 @@ import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.chain.ChainExecution;
 import com.synload.nucleo.chain.path.PathBuilder;
 import com.synload.nucleo.chain.path.Run;
+import com.synload.nucleo.chain.path.SingularRun;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.data.NucleoObject;
 import com.synload.nucleo.event.*;
@@ -23,7 +24,6 @@ public class Hub {
     private HashMap<String, NucleoResponder> responders = Maps.newHashMap();
     private String bootstrap;
     public static ObjectMapper objectMapper = new ObjectMapper();
-    private String uniqueName;
     private NucleoMesh mesh;
     private boolean offline = true;
     private ExecutorService executorService = Executors.newWorkStealingPool();
@@ -31,8 +31,7 @@ public class Hub {
     protected static final Logger logger = LoggerFactory.getLogger(Hub.class);
 
 
-    public Hub(NucleoMesh mesh, String uniqueName) {
-        this.uniqueName = uniqueName;
+    public Hub(NucleoMesh mesh) {
         this.mesh = mesh;
         this.offline = false;
     }
@@ -41,7 +40,7 @@ public class Hub {
         logger.debug("Constructing request");
         NucleoData data = new NucleoData();
         data.setObjects(objects);
-        data.setOrigin(uniqueName);
+        data.setOrigin(mesh.getUniqueName());
         data.setChainExecution(new ChainExecution(chain));
         return data;
     }
@@ -49,29 +48,21 @@ public class Hub {
     public void log(String state, NucleoData data) {
         if (data.getTrack() == 1) {
             data.setVersion(data.getVersion() + 1);
-            push(constructNucleoData(PathBuilder.generateExactRun("_watch." + state).getRoot(), new NucleoObject() {{
+            start(constructNucleoData(PathBuilder.generateExactRun("_watch." + state).getRoot(), new NucleoObject() {{
                 createOrUpdate("root", new NucleoData(data));
-            }}), new NucleoResponder() {
-                @Override
-                public void run(NucleoData returnedData) {
-                }
-            }, false);
+            }}), returnedData -> {});
         }
     }
 
     public void nextChain(NucleoData data) {
         List<NucleoData> dataList = trafficHandler.getNext(data);
         if (dataList != null) {
-            if(dataList.size()==0){
-                logger.debug(data.currentChainString() + " - sending to origin");
-                //sendRoot(data);
-            }
-            logger.debug(data.getRoot().toString() + ": data parts " + dataList.size());
+            logger.info(data.getRoot().toString() + ": data parts " + dataList.size());
             dataList.stream().forEach(nucleoData -> {
                 String topic = nucleoData.currentChainString();
                 long previousParallelCount = nucleoData.getChainExecution().getCurrent().getParents().stream().filter(f->f.isParallel()).count();
-                if (!nucleoData.getChainExecution().getCurrent().isParallel() && previousParallelCount > 0) {
-                    logger.debug(nucleoData.currentChainString() + ": sending to leader to re-assemble");
+                if (!nucleoData.getChainExecution().getCurrent().isParallel() && previousParallelCount > 0 && !topic.startsWith("nucleo.client")) {
+                    logger.info(nucleoData.currentChainString() + ": sending to leader to re-assemble");
                     mesh.getInterlinkManager().leader(topic, nucleoData);
                 } else {
                     sendTopic(topic, nucleoData);
@@ -100,13 +91,13 @@ public class Hub {
         mesh.getInterlinkManager().send("nucleo.client." + data.getOrigin(), data);
     }
 
-    public void push(NucleoData data, NucleoResponder responder, boolean allowTracking) {
+    public void start(NucleoData data, NucleoResponder responder) {
         if (offline) {
             logger.error("Attempting to use a closed hub!");
             return;
         }
         responders.put(data.getRoot().toString(), responder);
-        nextChain(data);
+        trafficHandler.current(data).forEach(nucleoData->sendTopic(((SingularRun)nucleoData.getChainExecution().getCurrent()).getChain(), nucleoData));;
     }
 
     public void handle(Hub hub, NucleoData data) {
@@ -141,14 +132,6 @@ public class Hub {
 
     public static void setObjectMapper(ObjectMapper objectMapper) {
         Hub.objectMapper = objectMapper;
-    }
-
-    public String getUniqueName() {
-        return uniqueName;
-    }
-
-    public void setUniqueName(String uniqueName) {
-        this.uniqueName = uniqueName;
     }
 
     public NucleoMesh getMesh() {

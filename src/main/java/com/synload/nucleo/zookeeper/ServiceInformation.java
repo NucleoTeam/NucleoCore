@@ -3,11 +3,12 @@ package com.synload.nucleo.zookeeper;
 import com.fasterxml.jackson.annotation.JsonRootName;
 import com.synload.nucleo.chain.link.NucleoLinkMeta;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
 @JsonRootName("details")
-public class ServiceInformation {
+public class ServiceInformation implements Serializable {
     public Collection<NucleoLinkMeta> events;
     public boolean leader;
     public String uniqueName;

@@ -1,5 +1,6 @@
 package com.synload.nucleo.chain.path;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Queues;
 import org.apache.commons.lang3.SerializationException;
 import java.io.*;
@@ -8,7 +9,10 @@ import java.util.stream.Collectors;
 
 public class Run implements Serializable{
     List<Run> nextRuns = new LinkedList<>();
+
+    @JsonIgnore
     Set<Run> parents = new HashSet<>();
+
     boolean parallel = false;
     public Set<Run> allParents(){
         Set<Run> allParents = new HashSet<>();

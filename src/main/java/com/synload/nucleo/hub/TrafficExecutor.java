@@ -41,7 +41,7 @@ public class TrafficExecutor {
     public void handle() {
         try {
             //data.markTime("Start Execution on " + hub.getUniqueName());
-            if (topic == null) {
+            if (topic.equals("nucleo.client."+getHub().getMesh().getUniqueName())) {
                 // Finish request and execute the final responder
                 NucleoResponder responder = hub.getResponders().get(data.getRoot().toString());
                 if (responder != null) {
@@ -57,7 +57,7 @@ public class TrafficExecutor {
             }
             NucleoLinkMeta nucleoLinkMeta = hub.getMesh().getChainHandler().getChainToMethod(topic);
             if(nucleoLinkMeta!=null) {
-                logger.debug(data.getRoot().toString() + " - processing " + topic);
+                logger.info(data.getRoot().toString() + " - processing " + topic);
                 NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
 
                 // Verify requirements met, or kill entire request and send back to origin
@@ -142,7 +142,7 @@ public class TrafficExecutor {
                         responder.run(data);
                 }
             } else {
-                //System.out.println("Topic or responder not found: " + topic);
+                logger.info("Topic or responder not found: " + topic);
             }
         } catch (Exception e) {
             e.printStackTrace();

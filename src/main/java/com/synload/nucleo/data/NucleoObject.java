@@ -56,7 +56,7 @@ public class NucleoObject implements Serializable {
         if(old.objects!=null){
             objects = new HashMap<>(old.objects);
         }else{
-            objects = Maps.newTreeMap();
+            objects = Maps.newHashMap();
         }
         if(old.changes!=null){
             changes = new ArrayList<>(old.changes);
@@ -251,7 +251,7 @@ public class NucleoObject implements Serializable {
         if(entries.length>1) {
             for (x = 0; x < entries.length - 1; x++) {
                 if (!tmp.containsKey(entries[x].getPath())) {
-                    tmp.put(entries[x].getPath(), Maps.newTreeMap());
+                    tmp.put(entries[x].getPath(), Maps.newHashMap());
                 }
                 tmp = (Map<String, Object>) tmp.get(entries[x].getPath());
             }

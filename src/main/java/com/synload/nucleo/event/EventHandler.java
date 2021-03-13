@@ -16,36 +16,48 @@ import java.lang.reflect.Method;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class EventHandler {
     protected static final Logger logger = LoggerFactory.getLogger(EventHandler.class);
+
+    private ExecutorService executorService = Executors.newFixedThreadPool(12);
+
     private Map<EventType, Map<String, Set<Object[]>>> eventToMethod = new HashMap<>() {{
         put(EventType.INTERLINK, new HashMap<>());
         put(EventType.HUB, new HashMap<>());
     }};
 
 
-    public void registerInterlink(Object object, Method method, EventType eventType) {
+    public void registerInterlink(Object object, Method method) {
         InterlinkEvent eventData = method.getAnnotation(InterlinkEvent.class);
         String typeValue = eventData.value().getValue();
-        if (!eventToMethod.get(eventType).containsKey(typeValue)) {
-            eventToMethod.get(eventType).put(typeValue, Sets.newLinkedHashSet());
+        List<String> parameterTypes = Arrays.stream(method.getParameterTypes()).map(p->p.getSimpleName()).collect(Collectors.toList());
+        logger.info("Interlink[ "+typeValue+" ] <= "+object.getClass().getName()+"->"+method.getName()+"( "+String.join(", ", parameterTypes)+" )");
+        if (!eventToMethod.get(EventType.INTERLINK).containsKey(typeValue)) {
+            eventToMethod.get(EventType.INTERLINK).put(typeValue, Sets.newLinkedHashSet());
         }
-        eventToMethod.get(eventType).get(typeValue).add(new Object[]{object, method, eventData});
+        eventToMethod.get(EventType.INTERLINK).get(typeValue).add(new Object[]{object, method, eventData});
     }
 
-    public void registerHub(Object object, Method method, EventType eventType) {
+    public void registerHub(Object object, Method method) {
         HubEvent eventData = method.getAnnotation(HubEvent.class);
         String typeValue = eventData.value().getValue();
-        if (!eventToMethod.get(eventType).containsKey(typeValue)) {
-            eventToMethod.get(eventType).put(typeValue, Sets.newLinkedHashSet());
+        List<String> parameterTypes = Arrays.stream(method.getParameterTypes()).map(p->p.getSimpleName()).collect(Collectors.toList());
+        logger.info("Hub[ "+typeValue+" ] <= "+object.getClass().getName()+"->"+method.getName()+"( "+String.join(", ", parameterTypes)+" )");
+        if (!eventToMethod.get(EventType.HUB).containsKey(typeValue)) {
+            eventToMethod.get(EventType.HUB).put(typeValue, Sets.newLinkedHashSet());
         }
-        eventToMethod.get(eventType).get(typeValue).add(new Object[]{object, method, eventData});
+        eventToMethod.get(EventType.HUB).get(typeValue).add(new Object[]{object, method, eventData});
     }
 
 
     private void executeMethod(Set<Object[]> methods, NucleoMesh mesh, Object... data){
-        new Thread(() -> {
+
+        executorService.submit( () ->
+
             methods.stream().forEach(methodObject -> {
                 try {
                     Method method = (Method) methodObject[1];
@@ -68,14 +80,15 @@ public class EventHandler {
                         }
                         objects[i] = null;
                     }
+                    logger.debug("Executed method "+method.getName()+"() "+methodObject[0].getClass().getSimpleName()+"["+objects.length+"]");
                     method.invoke(methodObject[0], objects);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 } catch (InvocationTargetException e) {
                     e.printStackTrace();
                 }
-            });
-        }).start();
+            })
+        );
     }
 
     public void callHubEvent(HubEventType hubEventType, NucleoMesh mesh, Object... data) {
