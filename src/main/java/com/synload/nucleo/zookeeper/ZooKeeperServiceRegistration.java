@@ -14,20 +14,20 @@ import java.util.ArrayList;
 public class ZooKeeperServiceRegistration {
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperServiceRegistration.class);
 
-    private ServiceDiscovery<String> serviceDiscovery = null;
+    private ServiceDiscovery<byte[]> serviceDiscovery = null;
 
     @JsonIgnore
     private NucleoMesh mesh;
     private String host;
 
-    public ZooKeeperServiceRegistration(NucleoMesh mesh, ServiceDiscovery<String> serviceDiscovery, String host){
+    public ZooKeeperServiceRegistration(NucleoMesh mesh, ServiceDiscovery<byte[]> serviceDiscovery, String host){
         this.serviceDiscovery = serviceDiscovery;
         this.mesh = mesh;
         this.host = host;
     }
     public void registerService(){
         try {
-            ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
+            ServiceInstance<byte[]> thisInstance = ServiceInstance.<byte[]>builder()
                 .name(mesh.getServiceName())
                 .id(mesh.getUniqueName())
                 .payload(new ObjectSerializer().serialize(new ServiceInformation(
@@ -46,7 +46,7 @@ public class ZooKeeperServiceRegistration {
     }
     public void unregister(){
         try {
-            ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
+            ServiceInstance<byte[]> thisInstance = ServiceInstance.<byte[]>builder()
                 .name(mesh.getServiceName())
                 .id(mesh.getUniqueName())
                 .payload(new ObjectSerializer().serialize(new ServiceInformation(

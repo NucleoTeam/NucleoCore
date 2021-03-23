@@ -14,10 +14,10 @@ import java.util.*;
 public class ZooKeeperServiceMonitor implements Runnable {
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperServiceMonitor.class);
 
-    ServiceDiscovery<String> serviceDiscovery;
+    ServiceDiscovery<byte[]> serviceDiscovery;
     List<ServiceInformation> clients = new LinkedList<>();
     NucleoMesh mesh;
-    public ZooKeeperServiceMonitor(NucleoMesh mesh, ServiceDiscovery<String> serviceDiscovery){
+    public ZooKeeperServiceMonitor(NucleoMesh mesh, ServiceDiscovery<byte[]> serviceDiscovery){
         this.serviceDiscovery = serviceDiscovery;
         this.mesh = mesh;
     }
@@ -28,8 +28,8 @@ public class ZooKeeperServiceMonitor implements Runnable {
                     Collection<String> serviceNames = serviceDiscovery.queryForNames();
                     List<ServiceInformation> clientsPreCheck = new LinkedList<>(clients);
                     for (String serviceName : serviceNames) {
-                        Collection<ServiceInstance<String>> instances = serviceDiscovery.queryForInstances(serviceName);
-                        for (ServiceInstance<String> instance : instances) {
+                        Collection<ServiceInstance<byte[]>> instances = serviceDiscovery.queryForInstances(serviceName);
+                        for (ServiceInstance<byte[]> instance : instances) {
                             ServiceInformation serviceInformation = new ObjectSerializer().deserialize(instance.getPayload());
                             if (clients.stream().filter(c -> c.getUniqueName().equals(serviceInformation.getUniqueName())).count() == 0) {
                                 clients.add(serviceInformation);

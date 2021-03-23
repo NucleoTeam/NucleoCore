@@ -23,14 +23,14 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
     protected static final Logger logger = LoggerFactory.getLogger(ZooKeeperLeadershipClient.class);
 
     private CountDownLatch countDownLatch = new CountDownLatch(1);
-    private ServiceDiscovery<String> serviceDiscovery = null;
+    private ServiceDiscovery<byte[]> serviceDiscovery = null;
 
     private String serviceName = "";
     private LeaderSelector leader = null;
     private NucleoMesh mesh;
     private String topicName;
 
-    public ZooKeeperLeadershipClient(NucleoMesh mesh, CuratorFramework client, ServiceDiscovery<String> serviceDiscovery, String leaderPath, String topicName) {
+    public ZooKeeperLeadershipClient(NucleoMesh mesh, CuratorFramework client, ServiceDiscovery<byte[]> serviceDiscovery, String leaderPath, String topicName) {
         this.mesh = mesh;
         this.serviceDiscovery = serviceDiscovery;
         serviceName = mesh.getHub().getMesh().getServiceName();
@@ -58,7 +58,7 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
             new ArrayList<>(mesh.getChainHandler().getLinks().values()),
             true
         );
-        ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
+        ServiceInstance<byte[]> thisInstance = ServiceInstance.<byte[]>builder()
             .id(mesh.getUniqueName())
             .name(mesh.getServiceName())
             .payload(new ObjectSerializer().serialize(serviceInformation))
@@ -85,7 +85,7 @@ public class ZooKeeperLeadershipClient implements Closeable, LeaderSelectorListe
                 break;
             case RECONNECTED:
                 try {
-                    ServiceInstance<String> thisInstance = ServiceInstance.<String>builder()
+                    ServiceInstance<byte[]> thisInstance = ServiceInstance.<byte[]>builder()
                         .id(mesh.getUniqueName())
                         .name(mesh.getServiceName())
                         .payload(new ObjectSerializer().serialize(new ServiceInformation(

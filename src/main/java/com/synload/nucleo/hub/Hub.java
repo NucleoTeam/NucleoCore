@@ -57,12 +57,12 @@ public class Hub {
     public void nextChain(NucleoData data) {
         List<NucleoData> dataList = trafficHandler.getNext(data);
         if (dataList != null) {
-            logger.info(data.getRoot().toString() + ": data parts " + dataList.size());
+            logger.debug(data.getRoot().toString() + ": data parts " + dataList.size());
             dataList.stream().forEach(nucleoData -> {
                 String topic = nucleoData.currentChainString();
                 long previousParallelCount = nucleoData.getChainExecution().getCurrent().getParents().stream().filter(f->f.isParallel()).count();
                 if (!nucleoData.getChainExecution().getCurrent().isParallel() && previousParallelCount > 0 && !topic.startsWith("nucleo.client")) {
-                    logger.info(nucleoData.currentChainString() + ": sending to leader to re-assemble");
+                    logger.debug(nucleoData.currentChainString() + ": sending to leader to re-assemble");
                     mesh.getInterlinkManager().leader(topic, nucleoData);
                 } else {
                     sendTopic(topic, nucleoData);

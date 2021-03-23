@@ -14,7 +14,6 @@ public class InformationHandler {
 
   @NucleoLink("information")
   public NucleoData information(NucleoData data){
-    logger.info(data.getRoot().toString()+" processing information");
     if(data.getObjects().exists("stop")){
       data.getChainBreak().setBreakChain(true);
 
@@ -27,14 +26,12 @@ public class InformationHandler {
 
   @NucleoLink("popcorn")
   public void popcorn(NucleoData data, NucleoResponder r){
-    logger.info(data.getRoot().toString()+" processing popcorn");
     data.getObjects().createOrUpdate("POPPY", "CORN");
     r.run(data);
   }
 
   @NucleoLink(chains={"information.popcorn"})
   public void infoPopcorn(NucleoData data, NucleoResponder r){
-    logger.info(data.getRoot().toString()+" processing infoPopcorn");
     data.getObjects().createOrUpdate("information-popcorn", "set");
     r.run(data);
   }
@@ -42,7 +39,6 @@ public class InformationHandler {
   @NucleoRequirement("information.popcorn")
   @NucleoLink("popcorn.poppyx")
   public NucleoData poppyx(NucleoData data){
-    logger.info(data.getRoot().toString()+" processing poppyx");
     data.getObjects().createOrUpdate("POP", "LOCK");
     return data;
   }
@@ -51,7 +47,6 @@ public class InformationHandler {
   @NucleoRequirement("information.test")
   @NucleoLink("popcorn.poppy")
   public NucleoData poppy(NucleoData data){
-    logger.info(data.getRoot().toString()+" processing poppy");
     data.getObjects().createOrUpdate("TOP", "TOP");
     return data;
   }

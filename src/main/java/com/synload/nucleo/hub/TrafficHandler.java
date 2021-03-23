@@ -57,34 +57,34 @@ public class TrafficHandler {
         long previousParallelCount = previousChain.stream().filter(f->f.isParallel()).count();
         if(previousParallelCount>0 && !data.getChainExecution().getCurrent().isParallel()){
             addPart(data);
-            logger.info(dataUUID + ": parallel part added");
+            logger.debug(dataUUID + ": parallel part added");
             if(this.parallelParts.containsKey(dataUUID)){
                 if(this.parallelParts.get(dataUUID).size() == previousChain.size()){
-                    logger.info(dataUUID + ": all parts received");
+                    logger.debug(dataUUID + ": all parts received");
                     List<NucleoData> parts = this.parallelParts.remove(dataUUID);
                     NucleoData finalPart = null;
                     for (NucleoData part : parts) {
-                        logger.info("Merged "+dataUUID);
+                        logger.debug("Merged "+dataUUID);
                         if (finalPart != null) {
                             finalPart.getObjects().getChanges().addAll(part.getObjects().getChanges());
-                            List<String> history = finalPart.getChainExecution().getHistory();
+                            /*List<String> history = finalPart.getChainExecution().getHistory();
                             List<String> historyPart = part.getChainExecution().getHistory();
                             int x=0;
                             while(history.get(x).equals(historyPart.get(x)) && x<history.size()){
                                 x++;
-                            }
-                            history.addAll(historyPart.subList(x,historyPart.size()));
+                            }*/
+                            //history.addAll(historyPart.subList(x,historyPart.size()));
                         } else {
                             finalPart = part;
                         }
                     }
-                    logger.info(dataUUID + ": executing");
+                    logger.debug(dataUUID + ": executing");
                     finalPart.getObjects().setLedgerMode(false);
                     finalPart.getObjects().buildFinalizedState();
                     responder.setData(finalPart);
                     responder.handle();
                 }else{
-                    logger.info(dataUUID + ": waiting for all parts ["+this.parallelParts.get(dataUUID).size()+"]["+previousParallelCount+"]["+previousChain.size()+"]");
+                    logger.debug(dataUUID + ": waiting for all parts ["+this.parallelParts.get(dataUUID).size()+"]["+previousParallelCount+"]["+previousChain.size()+"]");
                 }
             }
         }else if(previousParallelCount>0 && data.getChainExecution().getCurrent().isParallel()){

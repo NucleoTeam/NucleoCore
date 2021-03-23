@@ -106,7 +106,7 @@ public class Service {
         }
         new Thread(()->{
             while (!Thread.currentThread().isInterrupted()) {
-                PathBuilder pb = new PathBuilder()
+                /*PathBuilder pb = new PathBuilder()
                     .add(PathBuilder.generateRun("information"))
                     .addParallel(
                         PathBuilder.generateRun("popcorn"),
@@ -119,6 +119,11 @@ public class Service {
                         PathBuilder.generateRun("popcorn.poppyx"),
                         PathBuilder.generateRun("information.hits"),
                         PathBuilder.generateRun("information.test")
+                    );*/
+                PathBuilder pb = new PathBuilder()
+                    .addParallel(
+                        PathBuilder.generateRun("information"),
+                        PathBuilder.generateSerialRun("information.popcorn", "information.test")
                     );
                 mesh.call(
                     pb.getStart(),
@@ -127,7 +132,6 @@ public class Service {
                         createOrUpdate("time", System.currentTimeMillis());
                     }},
                     (data)->{
-                        logger.info("complete in ");
                         Object totalTimeObject =data.getObjects().get("time");
                         if(totalTimeObject!=null) {
                             long totalTime = (System.currentTimeMillis() - ((Long) totalTimeObject).longValue());
@@ -151,7 +155,7 @@ public class Service {
                     }
                 );
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(40);
                 } catch (Exception e) {
                 }
             }

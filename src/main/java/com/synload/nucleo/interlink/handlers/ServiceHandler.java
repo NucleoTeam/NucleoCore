@@ -14,11 +14,11 @@ public class ServiceHandler {
 
     @InterlinkEvent(InterlinkEventType.NEW_SERVICE)
     public void newService(ServiceInformation serviceInformation){
-        logger.info(serviceInformation.getService()+" ( "+serviceInformation.getUniqueName()+" ) joined cluster.");
+        logger.debug(serviceInformation.getService()+" ( "+serviceInformation.getUniqueName()+" ) joined cluster.");
     }
 
     @InterlinkEvent(InterlinkEventType.LEAVE_SERVICE)
     public void leaveService(ServiceInformation serviceInformation){
-        logger.info(serviceInformation.getService()+" ( "+serviceInformation.getUniqueName()+" ) left cluster.");
+        logger.debug(serviceInformation.getService()+" ( "+serviceInformation.getUniqueName()+" ) left cluster.");
     }
 }

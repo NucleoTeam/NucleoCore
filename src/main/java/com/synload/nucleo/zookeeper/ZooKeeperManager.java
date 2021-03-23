@@ -28,7 +28,7 @@ public class ZooKeeperManager {
     private String connString;
     private NucleoMesh mesh;
 
-    private static ServiceDiscovery<String> serviceDiscovery = null;
+    private static ServiceDiscovery<byte[]> serviceDiscovery = null;
     private CuratorFramework client = null;
 
     private List<ZooKeeperLeadershipClient> leadershipClient;
@@ -68,9 +68,9 @@ public class ZooKeeperManager {
             client.start();
             client.blockUntilConnected();
 
-            JsonInstanceSerializer<String> serializer = new JsonInstanceSerializer<>(String.class);
+            JsonInstanceSerializer<byte[]> serializer = new JsonInstanceSerializer<>(byte[].class);
 
-            serviceDiscovery = ServiceDiscoveryBuilder.builder(String.class)
+            serviceDiscovery = ServiceDiscoveryBuilder.builder(byte[].class)
                 .client(client)
                 .basePath(path)
                 .serializer(serializer)

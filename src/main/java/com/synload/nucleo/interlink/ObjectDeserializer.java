@@ -22,7 +22,7 @@ public class ObjectDeserializer implements Deserializer<NucleoData> {
     @Override
     public NucleoData deserialize(String topic, byte[] data) {
         try {
-            return (NucleoData) serializer.deserialize(decompress(data));
+            return (NucleoData) serializer.deserialize(data);
         } catch (Exception e) {
             e.printStackTrace();
             throw new SerializationException("Could not deserialize data", e);

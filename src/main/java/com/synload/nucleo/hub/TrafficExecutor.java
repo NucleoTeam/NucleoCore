@@ -57,7 +57,7 @@ public class TrafficExecutor {
             }
             NucleoLinkMeta nucleoLinkMeta = hub.getMesh().getChainHandler().getChainToMethod(topic);
             if(nucleoLinkMeta!=null) {
-                logger.info(data.getRoot().toString() + " - processing " + topic);
+                logger.debug(data.getRoot().toString() + " - processing " + topic);
                 NucleoStep timing = new NucleoStep(topic, System.currentTimeMillis());
 
                 // Verify requirements met, or kill entire request and send back to origin

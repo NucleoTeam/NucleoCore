@@ -26,7 +26,7 @@ public class ObjectSerializer implements Serializer<NucleoData> {
             return null;
         }
         try {
-            return compress(serializer.serialize(data));
+            return serializer.serialize(data);
         } catch (Exception e) {
             e.printStackTrace();
             throw new SerializationException("Failed to serialize data", e);
@@ -41,22 +41,5 @@ public class ObjectSerializer implements Serializer<NucleoData> {
     @Override
     public void close() {
 
-    }
-
-    byte[] compress(byte[] data) throws IOException {
-        ByteArrayOutputStream byteStream = new ByteArrayOutputStream(data.length);
-        try {
-            GZIPOutputStream zipStream = new GZIPOutputStream(byteStream);
-            try {
-                zipStream.write(data);
-            } finally {
-                zipStream.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            byteStream.close();
-        }
-        return byteStream.toByteArray();
     }
 }

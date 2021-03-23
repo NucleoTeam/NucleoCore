@@ -9,18 +9,12 @@ import java.util.zip.GZIPOutputStream;
 public class ObjectSerializer {
     private static ObjectSerialization serializer = new ObjectSerialization();
 
-    public String serialize(ServiceInformation instance) throws Exception {
-        return Base64.getEncoder().encodeToString(
-            compress(serializer.serialize(instance))
-        );
+    public byte[] serialize(ServiceInformation instance) throws Exception {
+        return serializer.serialize(instance);
     }
 
-    public ServiceInformation deserialize(String bytes) throws Exception {
-        return (ServiceInformation) serializer.deserialize(
-            decompress(Base64.getDecoder().decode(
-                bytes
-            ))
-        );
+    public ServiceInformation deserialize(byte[] bytes) throws Exception {
+        return (ServiceInformation) serializer.deserialize(bytes);
     }
 
     byte[] compress(byte[] data) throws IOException {
