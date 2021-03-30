@@ -1,6 +1,7 @@
 package com.synload.nucleo.event;
 
 import com.synload.nucleo.chain.ChainHandler;
+import com.synload.nucleo.chain.path.PathGenerationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,25 +24,27 @@ public class ClassScanner {
         for (T clazz : classes) {
             if (clazz instanceof Class) {
                 Object obj = ((Class) clazz).getDeclaredConstructor().newInstance();
-                for (Method method : ((Class) clazz).getDeclaredMethods()) {
-                    Arrays.stream(EventType.values()).forEach(a -> {
-                        if (method.isAnnotationPresent(a.clazz)) {
+                for (Method method : ((Class) clazz).getDeclaredMethods())
+                    Arrays.stream(EventType.values()).filter(a -> method.isAnnotationPresent(a.clazz)).forEach(a -> {
+                        try {
                             registerMethod(obj, method, a);
+                        } catch (PathGenerationException e) {
+                            e.printStackTrace();
                         }
                     });
-                }
             } else if (clazz instanceof Object) {
-                for (Method method : clazz.getClass().getDeclaredMethods()) {
-                    Arrays.stream(EventType.values()).forEach(a -> {
-                        if (method.isAnnotationPresent(a.clazz)) {
+                for (Method method : clazz.getClass().getDeclaredMethods())
+                    Arrays.stream(EventType.values()).filter(a -> method.isAnnotationPresent(a.clazz)).forEach(a -> {
+                        try {
                             registerMethod(clazz, method, a);
+                        } catch (PathGenerationException e) {
+                            e.printStackTrace();
                         }
                     });
-                }
             }
         }
     }
-    private void registerMethod(Object object, Method method, EventType eventType) {
+    private void registerMethod(Object object, Method method, EventType eventType) throws PathGenerationException {
         switch (eventType) {
             case HUB:
                 eventHandler.registerHub(object, method);

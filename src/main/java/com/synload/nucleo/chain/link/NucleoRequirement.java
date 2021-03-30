@@ -10,7 +10,7 @@ public @interface NucleoRequirement {
     String value() default "";
     String[] chains() default {};
     boolean linkOnly() default false;
-    boolean acceptPreviousLinks() default false;
+    boolean acceptPreviousLinks() default true;
     boolean immediateFollows() default false;
     @Inherited
     @Retention(RetentionPolicy.RUNTIME)

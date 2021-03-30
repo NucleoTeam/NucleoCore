@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.chain.ChainHandler;
+import com.synload.nucleo.chain.link.NucleoMetaHandler;
 import com.synload.nucleo.chain.path.PathBuilder;
 import com.synload.nucleo.chain.path.Run;
 import com.synload.nucleo.data.NucleoData;
@@ -37,6 +38,7 @@ public class NucleoMesh {
     private String meshName;
     private String serviceName;
     private InterlinkManager interlinkManager;
+    private NucleoMetaHandler nucleoMetaHandler;
     private EventHandler eventHandler = new EventHandler();
     private ChainHandler chainHandler = new ChainHandler();
     protected static final Logger logger = LoggerFactory.getLogger(NucleoMesh.class);
@@ -59,8 +61,10 @@ public class NucleoMesh {
         getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, this, "test");
 
         interlinkManager.subscribe(getChainHandler().getLinks().keySet());
-        interlinkManager.subscribe("nucleo.client."+this.uniqueName);
         interlinkManager.subscribeBroadcasts(getChainHandler().getLinks().keySet());
+        interlinkManager.subscribe("nucleo.client."+this.uniqueName);
+
+        nucleoMetaHandler = new NucleoMetaHandler(this);
 
         interlinkManager.start();
         try {
@@ -136,6 +140,10 @@ public class NucleoMesh {
 
     public ChainHandler getChainHandler() {
         return chainHandler;
+    }
+
+    public NucleoMetaHandler getNucleoMetaHandler() {
+        return nucleoMetaHandler;
     }
 
     public void setChainHandler(ChainHandler chainHandler) {

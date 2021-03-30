@@ -15,10 +15,14 @@ public class TopicHandler {
 
     @InterlinkEvent(InterlinkEventType.RECEIVE_TOPIC)
     public void receiveTopic(NucleoData data){
-        logger.debug("Received message on topic "+((SingularRun)data.getChainExecution().getCurrent()).getChain());
+        if(data !=null && data.getChainExecution()!=null && data.getChainExecution().getCurrent()!=null){
+            logger.debug("Received message on topic "+((SingularRun)data.getChainExecution().getCurrent()).getChain());
+        }
     }
     @InterlinkEvent(InterlinkEventType.SEND_TOPIC)
     public void sendTopic(NucleoData data){
-        logger.debug("Sending message to topic "+((SingularRun)data.getChainExecution().getCurrent()).getChain());
+        if(data !=null && data.getChainExecution()!=null && data.getChainExecution().getCurrent()!=null) {
+            logger.debug("Sending message to topic " + ((SingularRun) data.getChainExecution().getCurrent()).getChain());
+        }
     }
 }

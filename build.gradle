@@ -23,6 +23,8 @@ dependencies {
     compile('commons-beanutils:commons-beanutils:1.9.4')
     compile('org.apache.commons:commons-lang3:3.9')
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.6.0'
+    compile('org.jgrapht:jgrapht-core:1.5.1')
+    compile('org.jgrapht:jgrapht-ext:1.5.1')
 }
 
 uploadArchives {

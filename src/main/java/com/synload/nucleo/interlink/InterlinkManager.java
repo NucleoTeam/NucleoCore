@@ -35,18 +35,19 @@ public class InterlinkManager {
         consumerProps.setProperty(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "78643200");
         consumerProps.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, LongDeserializer.class.getName());
         consumerProps.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ObjectDeserializer.class.getName());
+        consumer = new InterlinkConsumer(consumerProps, (data)->{
+            mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);
+            mesh.getHub().handle(mesh.getHub(), data);
+        });
 
         producerProps.putAll(properties);
         producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServers);
         producerProps.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getName());
         producerProps.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ObjectSerializer.class.getName());
         producer = new InterlinkProducer(producerProps);
-        consumer = new InterlinkConsumer(consumerProps, (data)->{
-            mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);
-            mesh.getHub().handle(mesh.getHub(), data);
-        });
-        brodcastProps.putAll(consumerProps);
 
+
+        brodcastProps.putAll(consumerProps);
         brodcastProps.setProperty(ConsumerConfig.GROUP_ID_CONFIG, mesh.getUniqueName());
         broadcast = new InterlinkConsumer(brodcastProps, (data)->{
             mesh.getEventHandler().callInterlinkEvent(InterlinkEventType.RECEIVE_TOPIC, mesh, data);

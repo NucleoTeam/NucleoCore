@@ -13,6 +13,8 @@ public class Run implements Serializable{
     @JsonIgnore
     Set<Run> parents = new HashSet<>();
 
+    boolean always = false;
+
     boolean parallel = false;
     public Set<Run> allParents(){
         Set<Run> allParents = new HashSet<>();
@@ -37,7 +39,7 @@ public class Run implements Serializable{
         return new HashSet<>(allParents);
     }
     public Set<Run> last(){
-        List<Run> lastRuns = new LinkedList<>();
+        Set<Run> lastRuns = new HashSet<>();
         this.getNextRuns().forEach(r->{
             if(r.getNextRuns().isEmpty()){
                 lastRuns.add(r);
@@ -47,11 +49,49 @@ public class Run implements Serializable{
         });
         return new HashSet<>(lastRuns);
     }
-    interface Modification{
+    public Run root(){
+        if(!this.getParents().isEmpty()){
+            Set<Run> runs = this.getParents().stream().map(p->p.root()).collect(Collectors.toSet());
+            if(runs.size()==1){
+                Optional<Run> optionalRun =  runs.stream().findFirst();
+                if(optionalRun.isPresent()){
+                    return optionalRun.get();
+                }
+            }
+        }
+        return this;
+    }
+    public interface Modification{
         void action(Run run);
     }
-    interface Filter{
+    public interface Filter{
         boolean filter(Run run);
+    }
+    public List<Run> traverseFilter(Filter filterMethod){
+        List<Run> filteredRuns = new LinkedList<>();
+        Stack<Run> toGo = new Stack();
+        HashSet<Run> seen = new HashSet();
+        toGo.add(this);
+        while(!toGo.isEmpty()){
+            Run run = toGo.pop();
+            if(filterMethod.filter(run)){
+                filteredRuns.add(run);
+            }
+            run.getNextRuns().forEach(r->{
+                if(!seen.contains(r)){
+                    toGo.add(r);
+                    seen.add(r);
+                }
+            });
+        }
+        return filteredRuns;
+    }
+    public void traverseAndModify(Modification modification){
+        traverseModify(this, modification);
+    }
+    public void traverseAndModify(Run run, Modification modification){
+        modification.action(run);
+        run.getNextRuns().forEach(i->traverseModify(i, modification));
     }
     static List<Run> traverseFilter(Run start, Filter filterMethod){
         List<Run> filteredRuns = new LinkedList<>();
@@ -120,6 +160,15 @@ public class Run implements Serializable{
     public void setParents(Set<Run> parents) {
         this.parents = parents;
     }
+
+    public boolean isAlways() {
+        return always;
+    }
+
+    public void setAlways(boolean always) {
+        this.always = always;
+    }
+
 
     protected Run clone() {
         Run run = null;

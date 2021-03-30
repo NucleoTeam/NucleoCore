@@ -8,6 +8,7 @@ import java.lang.annotation.*;
 public @interface NucleoLink {
   String value() default "";
   String[] chains() default {};
-  boolean linkOnly() default true;
-  boolean acceptPreviousLinks() default false;
+  boolean linkOnly() default false;
+  boolean always() default false;
+  boolean binder() default false;
 }

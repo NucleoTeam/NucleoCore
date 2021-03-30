@@ -4,6 +4,7 @@ import com.google.common.collect.Sets;
 import com.synload.nucleo.chain.link.NucleoLink;
 import com.synload.nucleo.chain.link.NucleoLinkMeta;
 import com.synload.nucleo.chain.link.NucleoRequirement;
+import com.synload.nucleo.chain.path.PathGenerationException;
 import com.synload.nucleo.event.ClassScanner;
 import com.synload.nucleo.event.EventType;
 import org.slf4j.Logger;
@@ -32,10 +33,11 @@ public class ChainHandler {
         nucleoLinkMeta.setRequirements(requirements);
         nucleoLinkMeta.fromAnnotation(nucleoLink);
         nucleoLinkMeta.setObject(object);
+        nucleoLinkMeta.setChain(chain);
         nucleoLinkMeta.setMethod(method);
         links.put(chain, nucleoLinkMeta);
     }
-    public void registerLink(Object object, Method method) {
+    public void registerLink(Object object, Method method) throws PathGenerationException {
         NucleoLink nEvent = method.getAnnotation(NucleoLink.class);
         String chain = nEvent.value();
         NucleoRequirement[] requirements = method.getAnnotationsByType(NucleoRequirement.class);

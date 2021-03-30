@@ -2,6 +2,7 @@ package com.synload.nucleo.chain.link;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.synload.nucleo.chain.path.PathBuilder;
+import com.synload.nucleo.chain.path.PathGenerationException;
 import com.synload.nucleo.chain.path.Run;
 
 import java.io.Serializable;
@@ -17,7 +18,7 @@ public class NucleoLinkMeta implements Serializable {
 
         public RunRequirement() {
         }
-        public RunRequirement(NucleoRequirement nucleoRequirement){
+        public RunRequirement(NucleoRequirement nucleoRequirement) throws PathGenerationException {
 
             super.setAcceptPreviousLinks(nucleoRequirement.acceptPreviousLinks());
             super.setLinkOnly(nucleoRequirement.linkOnly());
@@ -26,7 +27,7 @@ public class NucleoLinkMeta implements Serializable {
             if(nucleoRequirement.value() != null && !nucleoRequirement.value().equals("")) {
                 this.setChain(nucleoRequirement.value());
                 if(isLinkOnly()) {
-                    this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.value()).getRoot());
+                    this.setFulfillment(PathBuilder.generateExactRun(nucleoRequirement.value()).getRoot());
                 }else{
                     this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.value()).getRoot());
                 }
@@ -39,6 +40,9 @@ public class NucleoLinkMeta implements Serializable {
                 }else{
                     this.setFulfillment(PathBuilder.generateSerialRun(nucleoRequirement.chains()).getRoot());
                 }
+            }
+            if(!this.isAcceptPreviousLinks()){
+                this.getFulfillment().traverseAndModify(i->i.setAlways(true));
             }
         }
         public Run getFulfillment() {
@@ -58,6 +62,8 @@ public class NucleoLinkMeta implements Serializable {
     private String chain;
     private boolean linkOnly;
     private boolean acceptPreviousLinks;
+    private boolean always;
+    private boolean binder;
 
     @JsonIgnore
     private transient Object object;
@@ -114,8 +120,25 @@ public class NucleoLinkMeta implements Serializable {
         this.requirements = requirements;
     }
 
+    public boolean isAlways() {
+        return always;
+    }
+
+    public boolean isBinder() {
+        return binder;
+    }
+
+    public void setBinder(boolean binder) {
+        this.binder = binder;
+    }
+
+    public void setAlways(boolean always) {
+        this.always = always;
+    }
+
     public void fromAnnotation(NucleoLink nucleoLink){
-        this.setAcceptPreviousLinks(nucleoLink.acceptPreviousLinks());
+        this.setAlways(nucleoLink.always());
+        this.setBinder(nucleoLink.binder());
         this.setLinkOnly(nucleoLink.linkOnly());
     }
 }

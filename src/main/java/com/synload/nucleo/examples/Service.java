@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synload.nucleo.NucleoMesh;
 import com.synload.nucleo.chain.path.PathBuilder;
+import com.synload.nucleo.chain.path.PathGenerationException;
 import com.synload.nucleo.data.NucleoData;
 import com.synload.nucleo.data.NucleoObject;
 import com.synload.nucleo.utils.NucleoDataStats;
@@ -120,11 +121,16 @@ public class Service {
                         PathBuilder.generateRun("information.hits"),
                         PathBuilder.generateRun("information.test")
                     );*/
-                PathBuilder pb = new PathBuilder()
-                    .addParallel(
-                        PathBuilder.generateRun("information"),
-                        PathBuilder.generateSerialRun("information.popcorn", "information.test")
-                    );
+                PathBuilder pb = null;
+                try {
+                    pb = new PathBuilder()
+                        .addParallel(
+                            PathBuilder.generateRun("information"),
+                            PathBuilder.generateSerialRun("information.popcorn", "information.test")
+                        );
+                } catch (PathGenerationException e) {
+                    e.printStackTrace();
+                }
                 mesh.call(
                     pb.getStart(),
                     new NucleoObject() {{

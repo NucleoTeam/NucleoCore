@@ -13,6 +13,7 @@ public class NucleoChainStatus implements Serializable {
     this.breakReasons = new HashSet<>(status.breakReasons);
   }
 
+
   public NucleoChainStatus() {
   }
 

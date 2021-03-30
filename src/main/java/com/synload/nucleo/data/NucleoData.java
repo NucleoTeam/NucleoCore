@@ -111,6 +111,11 @@ public class NucleoData implements Cloneable, Serializable {
         }
     }*/
 
+    public void breakChain(String... breakReasons){
+        this.getChainBreak().setBreakChain(true);
+        this.getChainBreak().getBreakReasons().addAll(Arrays.asList(breakReasons));
+    }
+
     public NucleoObject getObjects() {
         return objects;
     }
